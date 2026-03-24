@@ -1,0 +1,128 @@
+.search-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.search-inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-dot {
+  position: absolute;
+  left: 14px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  padding: 13px 44px 13px 32px;
+  border-radius: 14px;
+  border: 1.5px solid var(--border);
+  background: var(--input-bg);
+  color: var(--text);
+  font-size: 14px;
+  font-family: "Outfit", sans-serif;
+  outline: none;
+  box-sizing: border-box;
+  backdrop-filter: blur(8px);
+  transition: border 0.2s, box-shadow 0.2s;
+}
+
+.search-input:focus {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.search-spinner {
+  position: absolute;
+  right: 14px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border-top-color: transparent;
+  animation: ugspin 0.7s linear infinite;
+}
+
+/* Dropdown */
+.search-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: var(--drop-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+  z-index: 9999;
+  overflow: hidden;
+}
+
+.ug-root.dark .search-dropdown {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+}
+
+.search-dropdown-cl {
+  padding: 12px 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-family: "Outfit", sans-serif;
+  color: #2563eb;
+  font-weight: 600;
+  background: var(--cl-option);
+  transition: background 0.15s;
+}
+
+.search-dropdown-cl:hover {
+  background: var(--cl-hover);
+}
+
+.search-dropdown-cl-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #2563eb;
+  box-shadow: 0 0 6px #2563eb;
+  flex-shrink: 0;
+}
+
+.search-dropdown-item {
+  padding: 11px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: "Outfit", sans-serif;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+
+.search-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.search-dropdown-item:hover {
+  background: var(--hover-row);
+}
+
+.search-dropdown-dist {
+  margin-left: auto;
+  font-size: 11px;
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.search-dropdown-empty {
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--sub);
+  font-family: "Outfit", sans-serif;
+}

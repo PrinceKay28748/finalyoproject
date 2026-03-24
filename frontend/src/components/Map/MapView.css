@@ -1,0 +1,56 @@
+.map-wrap {
+  flex: 1;
+  position: relative;
+}
+
+.map-wrap .leaflet-container {
+  height: 100%;
+  width: 100%;
+}
+
+/* Recenter button */
+.map-recenter-btn {
+  position: absolute;
+  bottom: 100px;
+  right: 16px;
+  width: 46px;
+  height: 46px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  box-shadow: var(--shadow-zoom);
+  cursor: pointer;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  transition: transform 0.15s;
+  backdrop-filter: blur(8px);
+}
+
+.map-recenter-btn:hover {
+  transform: scale(1.1);
+}
+
+/* Tap hint banner */
+.map-tap-hint {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #fff;
+  border-radius: 50px;
+  padding: 8px 20px;
+  font-size: 12px;
+  font-family: "Outfit", sans-serif;
+  font-weight: 600;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  z-index: 999;
+  animation: ugslide 0.2s ease;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.map-tap-hint--start { background: #2563eb; }
+.map-tap-hint--dest  { background: #22c55e; }
