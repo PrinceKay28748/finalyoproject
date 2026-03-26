@@ -145,4 +145,4 @@ export default function NavPanel({
       <p className={`nav-status ${statusClass}`}>{statusMsg}</p>
     </div>
   );
-}
+} 
