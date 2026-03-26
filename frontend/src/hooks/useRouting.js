@@ -1,18 +1,22 @@
-// hooks/useRouting.js
-// Manages routing state — loads the graph once, then runs Dijkstra
-// only when the user explicitly triggers it via markersVisible
+// 
 
-import { useState, useEffect, useRef } from "react";
+
+// hooks/useRouting.js
+// Manages routing state — loads the graph once then runs Dijkstra
+// when triggered, passing the active profile to the cost function
+
+import { useState, useEffect } from "react";
 import { buildGraph, findClosestNode } from "../services/graphBuilder";
 import { findShortestPath }            from "../services/routing";
+import { buildRouteContext, getActiveWarnings } from "../services/costFunction";
 
-// Module-level cache — survives StrictMode double-invoke
-// so Overpass API is only called once per session
-let graphCache    = null;
-let graphPromise  = null;
+// Module-level cache — survives React StrictMode double-invoke
+// so the Overpass API is only called once per session
+let graphCache   = null;
+let graphPromise = null;
 
 function getGraph() {
-  if (graphCache) return Promise.resolve(graphCache);
+  if (graphCache)   return Promise.resolve(graphCache);
   if (graphPromise) return graphPromise;
   graphPromise = buildGraph().then((g) => {
     graphCache   = g;
@@ -22,13 +26,21 @@ function getGraph() {
   return graphPromise;
 }
 
-export function useRouting(startPoint, destPoint, triggered) {
+/**
+ * Handles graph loading and route calculation
+ * @param {Object}  startPoint  - { lat, lng }
+ * @param {Object}  destPoint   - { lat, lng }
+ * @param {boolean} triggered   - Only calculates when true (user pressed Show on Map)
+ * @param {string}  profileKey  - Active routing profile key
+ */
+export function useRouting(startPoint, destPoint, triggered, profileKey = "standard") {
   const [graph, setGraph]         = useState(null);   // road network graph
   const [route, setRoute]         = useState(null);   // computed route result
-  const [isLoading, setIsLoading] = useState(false);  // loading state
+  const [warnings, setWarnings]   = useState([]);     // active contextual warnings
+  const [isLoading, setIsLoading] = useState(false);  // loading indicator
   const [error, setError]         = useState(null);   // error message
 
-  // Load the road network graph once — module-level cache prevents duplicate requests
+  // Load graph once on mount using module-level cache
   useEffect(() => {
     async function loadGraph() {
       console.log("[useRouting] Loading road network...");
@@ -51,30 +63,22 @@ export function useRouting(startPoint, destPoint, triggered) {
     loadGraph();
   }, []);
 
-  // Calculate route only when the user presses Show on Map (triggered = true)
-  // This prevents Dijkstra firing on every GPS update or keystroke
+  // Calculate route only when triggered — prevents running on every GPS update
   useEffect(() => {
     if (!triggered) {
-      setRoute(null); // clear old route when user resets
+      setRoute(null);
+      setWarnings([]);
       return;
     }
 
-    if (!graph) {
-      console.log("[useRouting] Graph not ready yet");
-      return;
-    }
-
-    if (!startPoint || !destPoint) {
-      console.log("[useRouting] Both points needed to calculate route");
-      return;
-    }
+    if (!graph || !startPoint || !destPoint) return;
 
     async function calculateRoute() {
       setIsLoading(true);
       setError(null);
 
       try {
-        // Snap both points to the nearest node on the road network
+        // Snap both points onto the nearest road network node
         const startNodeId = findClosestNode(graph, startPoint.lat, startPoint.lng);
         const destNodeId  = findClosestNode(graph, destPoint.lat,  destPoint.lng);
 
@@ -83,24 +87,32 @@ export function useRouting(startPoint, destPoint, triggered) {
         if (!startNodeId) throw new Error("Could not snap start point to road network");
         if (!destNodeId)  throw new Error("Could not snap destination to road network");
 
-        const path = findShortestPath(graph, startNodeId, destNodeId);
+        // Run Dijkstra with the active profile
+        const path = findShortestPath(graph, startNodeId, destNodeId, profileKey);
 
         if (!path) throw new Error("No path found between the selected points");
 
         console.log("[useRouting] Route found —", path.totalDistanceKm.toFixed(2), "km");
+
+        // Build context and derive warnings for the Legend
+        const context       = buildRouteContext();
+        const activeWarnings = getActiveWarnings(context, profileKey);
+
         setRoute(path);
+        setWarnings(activeWarnings);
 
       } catch (err) {
         console.error("[useRouting] Route error:", err.message);
         setError(err.message);
         setRoute(null);
+        setWarnings([]);
       } finally {
         setIsLoading(false);
       }
     }
 
     calculateRoute();
-  }, [graph, startPoint, destPoint, triggered]);
+  }, [graph, startPoint, destPoint, triggered, profileKey]);
 
-  return { route, isLoading, error };
+  return { route, warnings, isLoading, error };
 }
