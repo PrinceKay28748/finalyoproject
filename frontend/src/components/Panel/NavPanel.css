@@ -109,6 +109,83 @@
   white-space: nowrap;
 }
 
+/* Profile selector */
+.nav-profiles {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.nav-profile-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 8px 4px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  font-family: "Outfit", sans-serif;
+}
+
+.nav-profile-btn:hover {
+  background: var(--hover-row);
+  border-color: var(--sub);
+}
+
+.nav-profile-btn--active {
+  background: rgba(37, 99, 235, 0.08);
+  border-color: #2563eb;
+}
+
+.ug-root.dark .nav-profile-btn--active {
+  background: rgba(37, 99, 235, 0.15);
+  border-color: #3b82f6;
+}
+
+/* Active profile accent colours */
+.nav-profile-btn--active[title="Accessible"] {
+  background: rgba(139, 92, 246, 0.08);
+  border-color: #8b5cf6;
+}
+
+.nav-profile-btn--active[title="Night"] {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: #f59e0b;
+}
+
+.nav-profile-btn--active[title="Fastest"] {
+  background: rgba(34, 197, 94, 0.08);
+  border-color: #22c55e;
+}
+
+.nav-profile-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.nav-profile-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--sub);
+  letter-spacing: 0.2px;
+}
+
+.nav-profile-btn--active .nav-profile-label {
+  color: #2563eb;
+}
+
+.ug-root.dark .nav-profile-btn--active .nav-profile-label {
+  color: #60a5fa;
+}
+
+.nav-profile-btn--active[title="Accessible"] .nav-profile-label { color: #8b5cf6; }
+.nav-profile-btn--active[title="Night"]      .nav-profile-label { color: #f59e0b; }
+.nav-profile-btn--active[title="Fastest"]    .nav-profile-label { color: #22c55e; }
+
 /* Action row */
 .nav-action-row {
   display: flex;
