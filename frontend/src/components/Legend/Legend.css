@@ -1,55 +1,377 @@
-.legend {
+/* components/Legend/Legend.css */
+
+/* ── Sheet container ─────────────────────────────────────────────────────── */
+.legend-sheet {
   position: absolute;
-  bottom: 20px;
-  left: 16px;
-  background: var(--card);
-  border-radius: 16px;
-  padding: 12px 16px;
-  box-shadow: var(--shadow-card);
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--panel);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 24px 24px 0 0;
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -4px 32px rgba(0, 0, 0, 0.12);
   z-index: 999;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 200px;
-  max-width: 260px;
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--border);
-  animation: ugslide 0.3s ease;
+  pointer-events: auto;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: sheet-rise 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.legend-row {
+@keyframes sheet-rise {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.legend-sheet--peek {
+  /* Peek state — only handle + peek row visible */
+}
+
+.legend-sheet--expanded {
+  /* Expanded state — full content visible */
+}
+
+/* ── Drag handle ─────────────────────────────────────────────────────────── */
+.legend-handle-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0 4px;
+  cursor: pointer;
+}
+
+.legend-handle {
+  width: 40px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  transition: background 0.2s;
+}
+
+.legend-handle-wrap:hover .legend-handle {
+  background: var(--sub);
+}
+
+/* ── Peek row ────────────────────────────────────────────────────────────── */
+.legend-peek {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  padding: 8px 20px 14px;
+  cursor: pointer;
 }
 
-.legend-dot {
-  width: 10px;
-  height: 10px;
+.legend-peek-dots {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.peek-dot {
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
-.legend-dot--start {
-  background: #2563eb;
-  box-shadow: 0 0 6px #2563eb;
+.peek-dot--start { background: #2563eb; }
+.peek-dot--dest  { background: #22c55e; }
+
+.peek-dot-line {
+  width: 2px;
+  height: 12px;
+  background: var(--border);
+  border-radius: 1px;
 }
 
-.legend-dot--dest {
-  background: #22c55e;
-  box-shadow: 0 0 6px #22c55e;
+.legend-peek-text {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
 }
 
-.legend-label {
+.peek-from,
+.peek-to {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 110px;
+}
+
+.peek-arrow {
+  font-size: 12px;
+  color: var(--sub);
+  flex-shrink: 0;
+}
+
+.legend-peek-time {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.peek-time-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+
+.peek-time-label {
+  font-size: 10px;
+  color: var(--sub);
+  margin-top: 1px;
+}
+
+/* ── Expanded body ───────────────────────────────────────────────────────── */
+.legend-body {
+  padding: 0 20px 28px;
+  animation: body-fade 0.2s ease;
+}
+
+@keyframes body-fade {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Profile badge row ───────────────────────────────────────────────────── */
+.legend-profile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.profile-icon {
+  font-size: 16px;
+}
+
+.profile-label {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.legend-badge {
+  margin-left: auto;
+  font-size: 10px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-weight: 600;
+}
+
+.legend-badge--warn {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+}
+
+/* ── Divider ─────────────────────────────────────────────────────────────── */
+.legend-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 14px 0;
+}
+
+/* ── Stats grid ──────────────────────────────────────────────────────────── */
+.legend-stats-grid {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--bg);
+  border-radius: 16px;
+  padding: 14px 8px;
+  border: 1px solid var(--border);
+}
+
+.legend-stat-card {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.stat-card-icon {
+  font-size: 18px;
+}
+
+.stat-card-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-card-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.stat-card-label {
+  font-size: 10px;
+  color: var(--sub);
+  margin-top: 1px;
+}
+
+.legend-stat-divider {
+  width: 1px;
+  height: 32px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+/* ── Warnings ────────────────────────────────────────────────────────────── */
+.legend-warnings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.legend-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.legend-warning--danger {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.legend-warning--warn {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+}
+
+.legend-warning--info {
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  color: #2563eb;
+}
+
+.warning-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.warning-text {
+  flex: 1;
+  font-weight: 500;
+}
+
+/* ── Alternative routes ──────────────────────────────────────────────────── */
+.legend-alts-label {
   font-size: 11px;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--sub);
+  margin-bottom: 10px;
+}
+
+.legend-alts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.legend-alt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: all 0.18s ease;
+  background: transparent;
+}
+
+.legend-alt:hover {
+  background: var(--hover-row);
+}
+
+.legend-alt--active {
+  background: rgba(37, 99, 235, 0.06);
+  border-color: rgba(37, 99, 235, 0.3);
+}
+
+.alt-line {
+  width: 28px;
+  height: 3px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.alt-line--primary {
+  background: #2563eb;
+}
+
+.alt-line--secondary {
+  background: repeating-linear-gradient(
+    90deg,
+    #94a3b8 0px,
+    #94a3b8 5px,
+    transparent 5px,
+    transparent 9px
+  );
+  height: 2px;
+}
+
+.alt-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.alt-name {
+  font-size: 13px;
+  font-weight: 600;
   color: var(--text);
 }
 
-.legend-value {
+.alt-time {
   font-size: 11px;
   color: var(--sub);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  margin-top: 1px;
+}
+
+.alt-dist {
+  font-size: 11px;
+  color: var(--sub);
+  flex-shrink: 0;
+}
+
+/* ── Fallback note ───────────────────────────────────────────────────────── */
+.legend-fallback-note {
+  margin-top: 12px;
+  font-size: 11px;
+  color: #f59e0b;
+  text-align: center;
+  padding: 8px 12px;
+  background: rgba(245, 158, 11, 0.06);
+  border-radius: 8px;
+}
+
+/* ── Dark mode ───────────────────────────────────────────────────────────── */
+.ug-root.dark .legend-sheet {
+  box-shadow: 0 -4px 32px rgba(0, 0, 0, 0.4);
+}
+
+.ug-root.dark .legend-stats-grid {
+  background: rgba(255, 255, 255, 0.03);
 }

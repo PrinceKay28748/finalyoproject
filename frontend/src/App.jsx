@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
-import { useGeolocation }  from "./hooks/useGeolocation";
+import { useGeolocation }          from "./hooks/useGeolocation";
+import { useRouting }              from "./hooks/useRouting";
 import { geocode, reverseGeocode } from "./services/geocoding";
 import NavPanel from "./components/Panel/NavPanel";
 import MapView  from "./components/Map/MapView";
@@ -20,6 +21,13 @@ export default function App() {
 
   // GPS location and accuracy from the custom hook
   const { location: currentLocation, accuracy, error: locationError } = useGeolocation();
+
+  // Route calculation — only triggers when markersVisible becomes true
+  const { route, isLoading: isRouting, error: routeError } = useRouting(
+    startPoint,
+    destPoint,
+    markersVisible
+  );
 
   // Auto-fill FROM with current location when GPS first resolves
   // This runs only when currentLocation changes from null to a value
@@ -162,15 +170,15 @@ export default function App() {
         onReset={handleReset}
         hasCurrentLocation={!!currentLocation}
         canShow={canShow}
-        isResolving={isResolving}
+        isResolving={isResolving || isRouting}
         markersVisible={markersVisible}
         accuracy={accuracy}
-        locationError={locationError}
+        locationError={locationError || routeError}
         darkMode={darkMode}
         onToggleDarkMode={() => setDarkMode((d) => !d)}
       />
 
-      {/* Map — tiles, markers, click handling, legend */}
+      {/* Map — tiles, markers, route line, click handling, legend */}
       <MapView
         currentLocation={currentLocation}
         accuracy={accuracy}
@@ -179,6 +187,7 @@ export default function App() {
         startText={startText}
         destText={destText}
         markersVisible={markersVisible}
+        route={route}
         flyTarget={flyTarget}
         darkMode={darkMode}
         waitingForStart={waitingForStart}
