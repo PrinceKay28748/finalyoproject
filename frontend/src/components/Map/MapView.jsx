@@ -149,13 +149,13 @@
 // }
 
 
-import { MapContainer } from "react-leaflet";
+import { MapContainer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import { useEffect } from "react";
 
 import TileLayerSwitcher from "./TileLayerSwitcher";
 import SmoothFly         from "./SmoothFly";
 import InitialFly        from "./InitialFly";
-import FitBounds         from "./FitBounds";
 import MapClickHandler   from "./MapClickHandler";
 import LocationMarker    from "./LocationMarker";
 import RouteMarkers      from "./RouteMarkers";
@@ -166,8 +166,50 @@ import "../Legend/Legend.css";
 import { UG_MAX_BOUNDS, UG_CENTER, DEFAULT_ZOOM, MIN_ZOOM, MAX_ZOOM } from "../../function/utils/bounds";
 import "./MapView.css";
 
+// Helper component to smartly fit bounds based on distance between points
+function SmartFitBounds({ startPoint, destPoint, visible }) {
+  const map = useMap();
+  
+  useEffect(() => {
+    if (!visible || !startPoint) return;
+    
+    // If both points exist, fit to show both
+    if (startPoint && destPoint) {
+      const bounds = [
+        [startPoint.lat, startPoint.lng],
+        [destPoint.lat, destPoint.lng]
+      ];
+      
+      // Calculate approximate distance in meters
+      const latDiff = Math.abs(startPoint.lat - destPoint.lat);
+      const lngDiff = Math.abs(startPoint.lng - destPoint.lng);
+      const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff) * 111000;
+      
+      // Adjust padding based on distance
+      let padding;
+      if (distance < 100) {
+        padding = [30, 30];      // Very close — tight zoom
+      } else if (distance < 500) {
+        padding = [50, 50];      // Close — moderate padding
+      } else if (distance < 2000) {
+        padding = [80, 80];      // Medium — standard padding
+      } else {
+        padding = [120, 120];    // Far apart — more padding for context
+      }
+      
+      map.fitBounds(bounds, { padding });
+    } 
+    // If only start point exists (after reset)
+    else if (startPoint && !destPoint) {
+      map.flyTo([startPoint.lat, startPoint.lng], 16, { duration: 0.8 });
+    }
+    
+  }, [map, startPoint, destPoint, visible]);
+  
+  return null;
+}
+
 // Assembles the full map — tiles, markers, click handler, legend, and recenter button
-// Each map concern lives in its own sub-component; this file just composes them
 export default function MapView({
   currentLocation,
   accuracy,
@@ -204,8 +246,8 @@ export default function MapView({
         <SmoothFly target={flyTarget} />
         <InitialFly location={currentLocation} />
 
-        {/* Auto-fit map to show both route points when markers are visible */}
-        <FitBounds
+        {/* Smart fit bounds — adjusts zoom based on distance between points */}
+        <SmartFitBounds
           startPoint={startPoint}
           destPoint={destPoint}
           visible={markersVisible}

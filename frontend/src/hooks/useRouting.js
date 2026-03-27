@@ -1,118 +1,275 @@
-// 
+// // hooks/useRouting.js
+// // Preloads graph silently in background after mount so the user never waits
+// // Dijkstra runs in a Web Worker to keep the main thread free
+
+// import { useState, useEffect, useRef } from "react";
+// import { buildGraph } from "../services/graphBuilder";
+
+// // ── Graph cache (module-level singleton) ──────────────────────────────────────
+// // Survives React StrictMode double-invoke so Overpass is only called once
+// let graphCache   = null;
+// let graphPromise = null;
+
+// function getGraph() {
+//   if (graphCache)   return Promise.resolve(graphCache);
+//   if (graphPromise) return graphPromise;
+
+//   graphPromise = buildGraph().then((g) => {
+//     graphCache   = g;
+//     graphPromise = null;
+//     return g;
+//   });
+
+//   return graphPromise;
+// }
+
+// /**
+//  * useRouting — graph preloads silently after mount
+//  * Route calculates instantly when Show on Map is pressed
+//  *
+//  * @param {Object}  startPoint - { lat, lng }
+//  * @param {Object}  destPoint  - { lat, lng }
+//  * @param {boolean} triggered  - Starts route calc when true
+//  * @param {string}  profileKey - Active routing profile
+//  */
+// export function useRouting(startPoint, destPoint, triggered, profileKey = "standard") {
+//   const [graph, setGraph]         = useState(null);
+//   const [route, setRoute]         = useState(null);
+//   const [warnings, setWarnings]   = useState([]);
+//   const [error, setError]         = useState(null);
+//   const [isGraphReady, setIsGraphReady] = useState(false);
+//   const [isRouting, setIsRouting] = useState(false); // true while worker is running
+
+//   const graphLoadStarted = useRef(false);
+//   const workerRef        = useRef(null); // holds active worker so we can terminate it
+
+//   // ── Terminate worker on unmount ─────────────────────────────────────────────
+//   useEffect(() => {
+//     return () => {
+//       if (workerRef.current) {
+//         workerRef.current.terminate();
+//         workerRef.current = null;
+//       }
+//     };
+//   }, []);
+
+//   // ── Preload graph silently after mount ──────────────────────────────────────
+//   // Runs once — graph is ready before user finishes setting their points
+//   useEffect(() => {
+//     if (graphLoadStarted.current) return;
+//     graphLoadStarted.current = true;
+
+//     console.log("[useRouting] Preloading graph in background...");
+
+//     getGraph()
+//       .then((graphData) => {
+//         if (graphData && Object.keys(graphData.nodes).length > 0) {
+//           setGraph(graphData);
+//           setIsGraphReady(true);
+//           console.log("[useRouting] Graph ready —", Object.keys(graphData.nodes).length, "nodes");
+//         } else {
+//           console.error("[useRouting] Graph data invalid");
+//           setError("Failed to load road network");
+//         }
+//       })
+//       .catch((err) => {
+//         console.error("[useRouting] Graph preload error:", err.message);
+//         setError("Failed to load road network");
+//       });
+//   }, []);
+
+//   // ── Route calculation ───────────────────────────────────────────────────────
+//   // Only runs when triggered — graph is already ready so this is near-instant
+//   useEffect(() => {
+//     if (!triggered) {
+//       setRoute(null);
+//       setWarnings([]);
+//       setError(null);
+//       return;
+//     }
+
+//     if (!graph || !isGraphReady) {
+//       console.log("[useRouting] Graph still loading...");
+//       return;
+//     }
+
+//     if (!startPoint || !destPoint) return;
+
+//     // Terminate any previous worker still running
+//     if (workerRef.current) {
+//       workerRef.current.terminate();
+//       workerRef.current = null;
+//     }
+
+//     async function calculateRoute() {
+//       setIsRouting(true);
+//       setError(null);
+
+//       try {
+//         // Spawn worker — node snapping AND Dijkstra both run off the main thread
+//         // Previously findClosestNode ran here (O(n) loop blocking main thread = INP killer)
+//         const worker = new Worker(
+//           new URL("../workers/routingWorker.js", import.meta.url),
+//           { type: "module" }
+//         );
+//         workerRef.current = worker;
+
+//         // Send raw coordinates — worker handles snapping and routing
+//         worker.postMessage({
+//           graph,
+//           startLat:  startPoint.lat,
+//           startLng:  startPoint.lng,
+//           destLat:   destPoint.lat,
+//           destLng:   destPoint.lng,
+//           profileKey,
+//         });
+
+//         worker.onmessage = (e) => {
+//           const { path, warnings: activeWarnings, error: workerError } = e.data;
+
+//           if (workerError) {
+//             console.error("[useRouting] Worker error:", workerError);
+//             setError(workerError);
+//             setRoute(null);
+//             setWarnings([]);
+//           } else {
+//             console.log("[useRouting] Route received —", path?.totalDistanceKm?.toFixed(2), "km");
+//             setRoute(path);
+//             setWarnings(activeWarnings || []);
+//           }
+
+//           setIsRouting(false);
+//           worker.terminate();
+//           workerRef.current = null;
+//         };
+
+//         worker.onerror = (err) => {
+//           console.error("[useRouting] Worker crashed:", err.message);
+//           setError("Route calculation failed");
+//           setIsRouting(false);
+//           workerRef.current = null;
+//         };
+
+//       } catch (err) {
+//         console.error("[useRouting] Route error:", err.message);
+//         setError(err.message);
+//         setRoute(null);
+//         setWarnings([]);
+//         setIsRouting(false);
+//       }
+//     }
+
+//     calculateRoute();
+
+//     // Terminate worker if deps change before it finishes
+//     return () => {
+//       if (workerRef.current) {
+//         workerRef.current.terminate();
+//         workerRef.current = null;
+//       }
+//     };
+
+//   }, [graph, isGraphReady, startPoint, destPoint, triggered, profileKey]);
+
+//   return { route, warnings, isGraphReady, isRouting, error };
+// }
 
 
 // hooks/useRouting.js
-// Manages routing state — loads the graph once then runs Dijkstra
-// when triggered, passing the active profile to the cost function
+// Graph builds inside a persistent worker — main thread never touches the graph
+// This eliminates structured cloning overhead and keeps UI responsive
 
-import { useState, useEffect } from "react";
-import { buildGraph, findClosestNode } from "../services/graphBuilder";
-import { findShortestPath }            from "../services/routing";
-import { buildRouteContext, getActiveWarnings } from "../services/costFunction";
+// hooks/useRouting.js
+// Graph builds inside a persistent worker — main thread never touches the graph
 
-// Module-level cache — survives React StrictMode double-invoke
-// so the Overpass API is only called once per session
-let graphCache   = null;
-let graphPromise = null;
+import { useState, useEffect, useRef } from "react";
 
-function getGraph() {
-  if (graphCache)   return Promise.resolve(graphCache);
-  if (graphPromise) return graphPromise;
-  graphPromise = buildGraph().then((g) => {
-    graphCache   = g;
-    graphPromise = null;
-    return g;
-  });
-  return graphPromise;
-}
-
-/**
- * Handles graph loading and route calculation
- * @param {Object}  startPoint  - { lat, lng }
- * @param {Object}  destPoint   - { lat, lng }
- * @param {boolean} triggered   - Only calculates when true (user pressed Show on Map)
- * @param {string}  profileKey  - Active routing profile key
- */
 export function useRouting(startPoint, destPoint, triggered, profileKey = "standard") {
-  const [graph, setGraph]         = useState(null);   // road network graph
-  const [route, setRoute]         = useState(null);   // computed route result
-  const [warnings, setWarnings]   = useState([]);     // active contextual warnings
-  const [isLoading, setIsLoading] = useState(false);  // loading indicator
-  const [error, setError]         = useState(null);   // error message
+  const [route, setRoute] = useState(null);
+  const [warnings, setWarnings] = useState([]);
+  const [error, setError] = useState(null);
+  const [isGraphReady, setIsGraphReady] = useState(false);
+  const [isRouting, setIsRouting] = useState(false);
 
-  // Load graph once on mount using module-level cache
+  const workerRef = useRef(null);
+
+  // ── Spawn persistent worker once on mount ─────────────────────────────────
   useEffect(() => {
-    async function loadGraph() {
-      console.log("[useRouting] Loading road network...");
-      setIsLoading(true);
-      setError(null);
+    const worker = new Worker(
+      new URL("../workers/routingWorker.js", import.meta.url),
+      { type: "module" }
+    );
+    workerRef.current = worker;
 
-      const graphData = await getGraph();
+    worker.onmessage = (e) => {
+      const { type, path, warnings: activeWarnings, error: workerError, nodeCount } = e.data;
 
-      if (graphData && Object.keys(graphData.nodes).length > 0) {
-        setGraph(graphData);
-        console.log("[useRouting] Graph ready —", Object.keys(graphData.nodes).length, "nodes");
-      } else {
-        setError("Failed to load road network data");
-        console.error("[useRouting] Graph load failed");
+      if (type === "GRAPH_READY") {
+        setIsGraphReady(true);
+        console.log("[useRouting] Graph ready in worker —", nodeCount, "nodes");
+
+      } else if (type === "GRAPH_ERROR") {
+        setError(workerError);
+        console.error("[useRouting] Worker graph error:", workerError);
+
+      } else if (type === "ROUTE_RESULT") {
+        setRoute(path);
+        setWarnings(activeWarnings || []);
+        setIsRouting(false);
+        console.log("[useRouting] Route received —", path?.totalDistanceKm?.toFixed(2), "km");
+
+      } else if (type === "ROUTE_ERROR") {
+        setError(workerError);
+        setRoute(null);
+        setWarnings([]);
+        setIsRouting(false);
+        console.error("[useRouting] Route error:", workerError);
       }
+    };
 
-      setIsLoading(false);
-    }
+    worker.onerror = (err) => {
+      console.error("[useRouting] Worker crashed:", err.message);
+      setError("Routing failed — please refresh");
+      setIsRouting(false);
+    };
 
-    loadGraph();
+    return () => {
+      if (workerRef.current) {
+        workerRef.current.terminate();
+        workerRef.current = null;
+      }
+    };
   }, []);
 
-  // Calculate route only when triggered — prevents running on every GPS update
+  // ── Send route request to worker ──────────────────────────────────────────
   useEffect(() => {
     if (!triggered) {
       setRoute(null);
       setWarnings([]);
+      setError(null);
       return;
     }
 
-    if (!graph || !startPoint || !destPoint) return;
+    if (!startPoint || !destPoint) return;
 
-    async function calculateRoute() {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        // Snap both points onto the nearest road network node
-        const startNodeId = findClosestNode(graph, startPoint.lat, startPoint.lng);
-        const destNodeId  = findClosestNode(graph, destPoint.lat,  destPoint.lng);
-
-        console.log("[useRouting] Snapped nodes —", { startNodeId, destNodeId });
-
-        if (!startNodeId) throw new Error("Could not snap start point to road network");
-        if (!destNodeId)  throw new Error("Could not snap destination to road network");
-
-        // Run Dijkstra with the active profile
-        const path = findShortestPath(graph, startNodeId, destNodeId, profileKey);
-
-        if (!path) throw new Error("No path found between the selected points");
-
-        console.log("[useRouting] Route found —", path.totalDistanceKm.toFixed(2), "km");
-
-        // Build context and derive warnings for the Legend
-        const context       = buildRouteContext();
-        const activeWarnings = getActiveWarnings(context, profileKey);
-
-        setRoute(path);
-        setWarnings(activeWarnings);
-
-      } catch (err) {
-        console.error("[useRouting] Route error:", err.message);
-        setError(err.message);
-        setRoute(null);
-        setWarnings([]);
-      } finally {
-        setIsLoading(false);
-      }
+    if (!isGraphReady) {
+      setError("Road network loading — please wait a moment");
+      return;
     }
 
-    calculateRoute();
-  }, [graph, startPoint, destPoint, triggered, profileKey]);
+    setIsRouting(true);
+    setError(null);
 
-  return { route, warnings, isLoading, error };
+    workerRef.current?.postMessage({
+      type: "CALCULATE_ROUTE",
+      startLat: startPoint.lat,
+      startLng: startPoint.lng,
+      destLat: destPoint.lat,
+      destLng: destPoint.lng,
+      profileKey,
+    });
+
+  }, [startPoint, destPoint, triggered, profileKey, isGraphReady]);
+
+  return { route, warnings, isGraphReady, isRouting, error };
 }

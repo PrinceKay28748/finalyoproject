@@ -1,14 +1,16 @@
-@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap");
-
 /* ─── Reset ──────────────────────────────────────────────────────────────────*/
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 input::placeholder { opacity: 0.5; }
 
 /* ─── Animations ─────────────────────────────────────────────────────────────*/
+
+/* Uses transform + opacity instead of box-shadow — runs entirely on the GPU
+   (composited layer) so it never triggers layout or paint, eliminating the
+   forced reflow warning Lighthouse flagged on .ug-location-dot             */
 @keyframes ugpulse {
-  0%   { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.6); }
-  70%  { box-shadow: 0 0 0 16px rgba(37, 99, 235, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+  0%   { transform: scale(1);    opacity: 1; }
+  50%  { transform: scale(2.2);  opacity: 0; }
+  100% { transform: scale(1);    opacity: 0; }
 }
 @keyframes ugspin {
   to { transform: rotate(360deg); }
@@ -91,16 +93,55 @@ input::placeholder { opacity: 0.5; }
 }
 
 /* ─── Current location dot ───────────────────────────────────────────────────*/
+/* The dot itself is a static circle — no animation on it directly           */
 .ug-location-dot {
+  position: relative;
   width: 18px;
   height: 18px;
   border-radius: 50%;
   background: #2563eb;
   border: 3px solid #fff;
-  animation: ugpulse 2s infinite;
   cursor: grab;
+  /* will-change tells the browser to promote this to its own GPU layer       */
+  will-change: transform;
 }
 
 .ug-location-dot:active {
   cursor: grabbing;
+}
+
+/* The pulse ring is a pseudo-element — transform+opacity are composited
+   so the browser never has to repaint or reflow for this animation          */
+.ug-location-dot::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: rgba(37, 99, 235, 0.4);
+  animation: ugpulse 2s ease-out infinite;
+  will-change: transform, opacity;
+}
+
+/* ─── Map lazy load fallback ─────────────────────────────────────────────────*/
+.map-loader {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: var(--bg);
+  color: var(--sub);
+  font-family: "Outfit", sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.map-loader-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: ugspin 0.8s linear infinite;
 }
