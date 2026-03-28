@@ -1,5 +1,5 @@
 // components/Legend/Legend.jsx
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import "./Legend.css";
 
 // Formats metres into a readable distance string
@@ -28,6 +28,39 @@ function formatDrivingTime(meters) {
   return m === 0 ? `${h} hr` : `${h} hr ${m} min`;
 }
 
+// Get current traffic level based on hour and day of week
+function getTrafficInfo() {
+  const now = new Date();
+  const hour = now.getHours();
+  const day = now.getDay(); // 0 = Sunday, 6 = Saturday
+  
+  // Sunday — very quiet
+  if (day === 0) {
+    return { level: "Very Low", icon: "⚪", multiplier: 1.0, message: "Sunday — very light activity" };
+  }
+  
+  // Saturday — low activity
+  if (day === 6) {
+    return { level: "Low", icon: "🟢", multiplier: 1.1, message: "Saturday — light traffic" };
+  }
+  
+  // Weekday peak hours (Monday - Friday)
+  const peakHours = [8, 9, 12, 13, 16, 17];
+  const isPeak = peakHours.includes(hour);
+  
+  if (isPeak) {
+    return { level: "Heavy", icon: "🔴", multiplier: 1.5, message: "Peak hours — busy paths" };
+  }
+  
+  // Weekday non-peak (daytime)
+  if (hour >= 6 && hour < 18) {
+    return { level: "Moderate", icon: "🟡", multiplier: 1.3, message: "Moderate traffic" };
+  }
+  
+  // Night time
+  return { level: "Low", icon: "⚫", multiplier: 1.0, message: "Low traffic" };
+}
+
 // Route profile config — colour and label for each mode
 const PROFILE_CONFIG = {
   standard:   { label: "Standard",     color: "#2563eb", icon: "🗺️" },
@@ -48,6 +81,52 @@ export default function Legend({
   activeAlternativeIndex = 0,
 }) {
   const [expanded, setExpanded] = useState(true);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartY = useRef(0);
+  const dragStartExpanded = useRef(true);
+  const sheetRef = useRef(null);
+
+  // Get current traffic info
+  const traffic = getTrafficInfo();
+
+  // Touch/mouse drag handlers
+  const handleDragStart = (e) => {
+    setIsDragging(true);
+    dragStartY.current = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+    dragStartExpanded.current = expanded;
+  };
+
+  const handleDragMove = (e) => {
+    if (!isDragging) return;
+
+    const currentY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+    const deltaY = currentY - dragStartY.current;
+
+    if (deltaY > 50 && dragStartExpanded.current) {
+      setExpanded(false);
+    } else if (deltaY < -50 && !dragStartExpanded.current) {
+      setExpanded(true);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setIsDragging(false);
+  };
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e) => handleDragMove(e);
+    const handleMouseUp = () => handleDragEnd();
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
 
   if (!visible) return null;
 
@@ -58,16 +137,34 @@ export default function Legend({
   const hasWarnings = warnings.length > 0;
   const hasAlts     = alternatives.length > 0;
 
-  return (
-    <div className={`legend-sheet ${expanded ? "legend-sheet--expanded" : "legend-sheet--peek"}`}>
+  // Determine bar width based on traffic level
+  const getBarWidth = () => {
+    const level = traffic.level;
+    if (level === "Heavy") return "100%";
+    if (level === "Moderate") return "70%";
+    if (level === "Low") return "40%";
+    if (level === "Very Low") return "20%";
+    return "50%";
+  };
 
-      {/* Drag handle — tap to toggle expand/collapse */}
-      <div className="legend-handle-wrap" onClick={() => setExpanded(!expanded)}>
+  return (
+    <div 
+      ref={sheetRef}
+      className={`legend-sheet ${expanded ? "legend-sheet--expanded" : "legend-sheet--peek"}`}
+    >
+      {/* Drag handle */}
+      <div 
+        className="legend-handle-wrap"
+        onMouseDown={handleDragStart}
+        onTouchStart={handleDragStart}
+        onTouchMove={handleDragMove}
+        onTouchEnd={handleDragEnd}
+      >
         <div className="legend-handle" />
       </div>
 
-      {/* Peek row — always visible even when collapsed */}
-      <div className="legend-peek" onClick={() => setExpanded(!expanded)}>
+      {/* Peek row — always visible */}
+      <div className="legend-peek">
         <div className="legend-peek-dots">
           <span className="peek-dot peek-dot--start" />
           <div className="peek-dot-line" />
@@ -103,56 +200,61 @@ export default function Legend({
 
           <div className="legend-divider" />
 
-          {/* Route stats — walking, driving, distance */}
+          {/* Route stats — walking, driving, distance, traffic */}
           {hasRoute && (
-            <div className="legend-stats-grid">
-              <div className="legend-stat-card">
-                <span className="stat-card-icon">🚶</span>
-                <div className="stat-card-info">
-                  <span className="stat-card-value">{formatWalkingTime(distMeters)}</span>
-                  <span className="stat-card-label">Walking</span>
-                </div>
-              </div>
-              <div className="legend-stat-divider" />
-              <div className="legend-stat-card">
-                <span className="stat-card-icon">🚗</span>
-                <div className="stat-card-info">
-                  <span className="stat-card-value">{formatDrivingTime(distMeters)}</span>
-                  <span className="stat-card-label">Driving</span>
-                </div>
-              </div>
-              <div className="legend-stat-divider" />
-              <div className="legend-stat-card">
-                <span className="stat-card-icon">📏</span>
-                <div className="stat-card-info">
-                  <span className="stat-card-value">{formatDistance(distMeters)}</span>
-                  <span className="stat-card-label">Distance</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Warnings — gate closures, poor lighting etc */}
-          {hasWarnings && (
             <>
-              <div className="legend-divider" />
-              <div className="legend-warnings">
-                {warnings.map((w, i) => (
-                  <div key={i} className={`legend-warning legend-warning--${w.type || "info"}`}>
-                    <span className="warning-icon">{w.icon || "⚠️"}</span>
-                    <span className="warning-text">{w.message}</span>
+              <div className="legend-stats-grid">
+                <div className="legend-stat-card">
+                  <span className="stat-card-icon">🚶</span>
+                  <div className="stat-card-info">
+                    <span className="stat-card-value">{formatWalkingTime(distMeters)}</span>
+                    <span className="stat-card-label">Walking</span>
                   </div>
-                ))}
+                </div>
+                <div className="legend-stat-divider" />
+                <div className="legend-stat-card">
+                  <span className="stat-card-icon">🚗</span>
+                  <div className="stat-card-info">
+                    <span className="stat-card-value">{formatDrivingTime(distMeters)}</span>
+                    <span className="stat-card-label">Driving</span>
+                  </div>
+                </div>
+                <div className="legend-stat-divider" />
+                <div className="legend-stat-card">
+                  <span className="stat-card-icon">📏</span>
+                  <div className="stat-card-info">
+                    <span className="stat-card-value">{formatDistance(distMeters)}</span>
+                    <span className="stat-card-label">Distance</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Traffic indicator */}
+              <div className="legend-traffic">
+                <div className="legend-traffic-icon">
+                  <span>{traffic.icon}</span>
+                </div>
+                <div className="legend-traffic-info">
+                  <span className="legend-traffic-label">Traffic</span>
+                  <span className="legend-traffic-value">{traffic.level}</span>
+                </div>
+                <div className="legend-traffic-bar">
+                  <div 
+                    className={`legend-traffic-bar-fill ${traffic.level.toLowerCase().replace(' ', '-')}`}
+                    style={{ width: getBarWidth() }}
+                  />
+                </div>
               </div>
             </>
           )}
 
-          {/* Alternative routes — wired up when Yen's algorithm is ready */}
+          {/* Alternative routes */}
           {hasAlts && (
             <>
               <div className="legend-divider" />
               <p className="legend-alts-label">Alternative routes</p>
               <div className="legend-alts">
+                {/* Recommended route */}
                 <div
                   className={`legend-alt ${activeAlternativeIndex === 0 ? "legend-alt--active" : ""}`}
                   onClick={() => onSelectAlternative?.(0)}
@@ -162,7 +264,10 @@ export default function Legend({
                     <span className="alt-name">Recommended</span>
                     <span className="alt-time">{formatWalkingTime(distMeters)}</span>
                   </div>
+                  <span className="alt-dist">{formatDistance(distMeters)}</span>
                 </div>
+
+                {/* Alternative routes */}
                 {alternatives.map((alt, i) => (
                   <div
                     key={i}
@@ -175,6 +280,21 @@ export default function Legend({
                       <span className="alt-time">{formatWalkingTime(alt.totalDistance)}</span>
                     </div>
                     <span className="alt-dist">{formatDistance(alt.totalDistance)}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Warnings */}
+          {hasWarnings && (
+            <>
+              <div className="legend-divider" />
+              <div className="legend-warnings">
+                {warnings.map((w, i) => (
+                  <div key={i} className={`legend-warning legend-warning--${w.type || "info"}`}>
+                    <span className="warning-icon">{w.icon || "⚠️"}</span>
+                    <span className="warning-text">{w.message}</span>
                   </div>
                 ))}
               </div>

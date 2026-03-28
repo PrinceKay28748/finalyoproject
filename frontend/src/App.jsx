@@ -19,8 +19,6 @@ function MapLoader() {
   );
 }
 
-// App owns all state and passes only what each child needs
-// No child manages state that belongs at the app level
 export default function App() {
   const [startPoint, setStartPoint]           = useState(null);   // resolved start location
   const [destPoint, setDestPoint]             = useState(null);   // resolved destination
@@ -32,21 +30,31 @@ export default function App() {
   const [waitingForStart, setWaitingForStart] = useState(false);  // pin-start tap mode
   const [isResolving, setIsResolving]         = useState(false);  // geocoding in progress
   const [activeProfile, setActiveProfile]     = useState("standard"); // routing profile
+  
+  // Custom location state (green pin)
+  const [customStartPoint, setCustomStartPoint] = useState(null);
+  const [useCustomLocation, setUseCustomLocation] = useState(false);
 
   // GPS location from the custom hook
   const { location: currentLocation, accuracy, error: locationError } = useGeolocation();
 
-  // Route calculation — graph preloads silently, worker runs Dijkstra off main thread
+  // Determine which start point to use for routing
+  const effectiveStartPoint = useCustomLocation && customStartPoint ? customStartPoint : startPoint;
+  const effectiveStartText = useCustomLocation && customStartPoint 
+    ? customStartPoint.name || "Custom location" 
+    : startText;
+
+  // Route calculation
   const { route, warnings, isRouting, error: routeError } = useRouting(
-    startPoint,
+    effectiveStartPoint,
     destPoint,
     markersVisible,
     activeProfile
   );
 
-  // Auto-fill FROM with GPS location on first fix — runs inline to avoid extra effect
+  // Auto-fill FROM with GPS location on first fix
   const [hasAutoFilled, setHasAutoFilled] = useState(false);
-  if (currentLocation && !hasAutoFilled) {
+  if (currentLocation && !hasAutoFilled && !useCustomLocation) {
     setStartPoint(currentLocation);
     setStartText("My current location");
     setHasAutoFilled(true);
@@ -58,6 +66,15 @@ export default function App() {
     setStartPoint(currentLocation);
     setStartText("My current location");
     setWaitingForStart(false);
+    setUseCustomLocation(false);  // Switch back to GPS
+    setCustomStartPoint(null);
+  };
+
+  // Called when user picks "Use custom location" from the FROM dropdown
+  const handleUseCustomLocation = () => {
+    if (!customStartPoint) return;
+    setUseCustomLocation(true);
+    setWaitingForStart(false);
   };
 
   // Called when a start suggestion is selected from search
@@ -66,6 +83,8 @@ export default function App() {
     setStartText(loc.name);
     setWaitingForStart(false);
     setFlyTarget(loc);
+    setUseCustomLocation(false);  // Switching to searched location
+    setCustomStartPoint(null);
   };
 
   // Called when a destination suggestion is selected from search
@@ -83,36 +102,46 @@ export default function App() {
       setStartPoint(loc);
       setStartText(name);
       setWaitingForStart(false);
+      setUseCustomLocation(false);
+      setCustomStartPoint(null);
     } else {
-      // Default tap always sets destination
       setDestPoint(loc);
       setDestText(name);
     }
   }, [waitingForStart]);
 
-  // Called when user drags the GPS dot to correct their location
-  const handleLocationDragEnd = useCallback(async (e) => {
+  // Called when user drags the custom green pin
+  const handleCustomLocationDragEnd = useCallback(async (e) => {
     const { lat, lng } = e.target.getLatLng();
     const name = await reverseGeocode(lat, lng);
-    // Only update FROM if it was still showing "My current location"
-    if (startText === "My current location") {
-      setStartPoint({ lat, lng, name });
+    const draggedLocation = { lat, lng, name };
+    
+    setCustomStartPoint(draggedLocation);
+    setUseCustomLocation(true);
+    
+    // If no start point set yet, use this as start
+    if (!startPoint && startText === "") {
+      setStartPoint(draggedLocation);
       setStartText(name);
     }
-  }, [startText]);
+  }, [startPoint, startText]);
 
   // Geocodes typed text if user didn't pick from a suggestion, then shows markers
   const handleShowOnMap = async () => {
     setIsResolving(true);
-    let resolvedStart = startPoint;
+    let resolvedStart = effectiveStartPoint;
     let resolvedDest  = destPoint;
 
-    if (!resolvedStart && startText.trim().length > 0) {
-      const results = await geocode(startText);
+    if (!resolvedStart && effectiveStartText.trim().length > 0) {
+      const results = await geocode(effectiveStartText);
       if (results.length > 0) {
         resolvedStart = results[0];
-        setStartPoint(results[0]);
-        setStartText(results[0].name);
+        if (!useCustomLocation) {
+          setStartPoint(results[0]);
+          setStartText(results[0].name);
+        } else {
+          setCustomStartPoint(results[0]);
+        }
       }
     }
 
@@ -133,25 +162,39 @@ export default function App() {
     }
   };
 
-  // Swaps start and destination — both text and resolved points
+  // Swaps start and destination
   const handleSwap = () => {
-    setStartPoint(destPoint);
-    setDestPoint(startPoint);
-    setStartText(destText);
-    setDestText(startText);
+    if (useCustomLocation && customStartPoint) {
+      // Swap custom location with destination
+      setDestPoint(customStartPoint);
+      setDestText(customStartPoint.name || "Custom location");
+      setCustomStartPoint(destPoint);
+      setStartPoint(destPoint);
+      setStartText(destPoint?.name || "");
+      setUseCustomLocation(!!destPoint);
+    } else {
+      setStartPoint(destPoint);
+      setDestPoint(startPoint);
+      setStartText(destText);
+      setDestText(startText);
+      setUseCustomLocation(false);
+      setCustomStartPoint(null);
+    }
   };
 
-  // Resets destination and route — restores current location to FROM if available
+  // Resets destination and route
   const handleReset = () => {
     setDestPoint(null);
     setDestText("");
     setMarkersVisible(false);
     setWaitingForStart(false);
+    setUseCustomLocation(false);
+    setCustomStartPoint(null);
 
     if (currentLocation) {
       setStartPoint(currentLocation);
       setStartText("My current location");
-      setFlyTarget({ ...currentLocation, _t: Date.now() }); // fly back to user
+      setFlyTarget({ ...currentLocation, _t: Date.now() });
     } else {
       setStartPoint(null);
       setStartText("");
@@ -160,26 +203,28 @@ export default function App() {
 
   // Flies the map back to the user's current GPS location
   const handleRecenter = () => {
-    if (currentLocation) setFlyTarget({ ...currentLocation, _t: Date.now() });
+    if (currentLocation) {
+      setFlyTarget({ ...currentLocation, _t: Date.now() });
+    }
   };
 
-  // Show on Map button enabled when both fields have text or resolved points
   const canShow =
-    (startPoint || startText.trim().length > 0) &&
+    (effectiveStartPoint || effectiveStartText.trim().length > 0) &&
     (destPoint  || destText.trim().length  > 0);
 
   return (
     <div className={`ug-root${darkMode ? " dark" : ""}`}>
-
-      {/* Top panel — search, profile selector, actions, status */}
       <NavPanel
-        startText={startText}
+        startText={effectiveStartText}
         destText={destText}
         onStartTextChange={setStartText}
         onDestTextChange={setDestText}
         onStartSelect={handleStartSelect}
         onDestSelect={handleDestSelect}
         onUseCurrentLocation={handleUseCurrentLocation}
+        onUseCustomLocation={handleUseCustomLocation}
+        hasCustomLocation={!!customStartPoint}
+        isUsingCustomLocation={useCustomLocation}
         onSwap={handleSwap}
         onShowOnMap={handleShowOnMap}
         onReset={handleReset}
@@ -195,14 +240,14 @@ export default function App() {
         onProfileChange={setActiveProfile}
       />
 
-      {/* Map — lazy loaded, shows spinner while chunk downloads */}
       <Suspense fallback={<MapLoader />}>
         <MapView
           currentLocation={currentLocation}
           accuracy={accuracy}
-          startPoint={startPoint}
+          customStartPoint={customStartPoint}
+          startPoint={effectiveStartPoint}
           destPoint={destPoint}
-          startText={startText}
+          startText={effectiveStartText}
           destText={destText}
           markersVisible={markersVisible}
           flyTarget={flyTarget}
@@ -212,8 +257,9 @@ export default function App() {
           isRouteLoading={isRouting}
           warnings={warnings}
           activeProfile={activeProfile}
+          useCustomLocation={useCustomLocation}
           onMapClick={handleMapClick}
-          onLocationDragEnd={handleLocationDragEnd}
+          onCustomLocationDragEnd={handleCustomLocationDragEnd}
           onRecenter={handleRecenter}
         />
       </Suspense>

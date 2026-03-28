@@ -144,6 +144,38 @@ const HIGHWAY_BASE_COST = {
   motorway:      9999,  // impassable for pedestrians
 };
 
+// ─── Busy campus areas based on highway type ──────────────────────────────────
+// These path types are typically where most pedestrian traffic occurs
+const BUSY_AREA_TYPES = ["footway", "pedestrian", "residential"];
+
+// True peak hours on campus (class change times)
+const PEAK_HOURS = [8, 9, 12, 13, 16, 17];
+
+/**
+ * Determines if current day is weekend
+ * @returns {boolean} True if Saturday or Sunday
+ */
+function isWeekend() {
+  const day = new Date().getDay();
+  return day === 0 || day === 6; // 0 = Sunday, 6 = Saturday
+}
+
+/**
+ * Determines if current day is Sunday
+ * @returns {boolean} True if Sunday
+ */
+function isSunday() {
+  return new Date().getDay() === 0;
+}
+
+/**
+ * Determines if current day is Saturday
+ * @returns {boolean} True if Saturday
+ */
+function isSaturday() {
+  return new Date().getDay() === 6;
+}
+
 /**
  * Determines the incline category from an OSM incline tag value
  * OSM incline can be a percentage string like "8%" or a descriptor like "steep"
@@ -169,15 +201,74 @@ function getInclineCategory(inclineTag) {
 }
 
 /**
+ * Enhanced traffic multiplier based on:
+ * - Day of week (weekend vs weekday)
+ * - True peak hours (class change times)
+ * - Highway type (busy areas vs regular roads)
+ * - Time of day
+ * - Profile preferences
+ * 
+ * @param {string} highwayType - OSM highway type
+ * @param {string} timePeriod - "day" | "dusk" | "night"
+ * @param {number} currentHour - Current hour (0-23)
+ * @param {number} trafficWeight - Profile traffic weight
+ * @returns {number} Traffic multiplier (≥ 1.0)
+ */
+function getTrafficMultiplier(highwayType, timePeriod, currentHour, trafficWeight) {
+  const isPeakHour = PEAK_HOURS.includes(currentHour);
+  const isBusyArea = BUSY_AREA_TYPES.includes(highwayType);
+  const isHighTrafficRoad = ["primary", "secondary", "trunk"].includes(highwayType);
+  const weekend = isWeekend();
+  const saturday = isSaturday();
+  const sunday = isSunday();
+  
+  let baseMultiplier = 1.0;
+  
+  // Weekend traffic — much lighter
+  if (weekend) {
+    if (sunday) {
+      // Sunday — very quiet, no traffic penalty
+      baseMultiplier = 1.0;
+    } else if (saturday) {
+      // Saturday — light traffic, minimal penalty
+      baseMultiplier = 1.1;
+    }
+  }
+  // Weekday traffic logic
+  else {
+    // True peak hours (class change times) — heaviest traffic
+    if (isPeakHour && (isBusyArea || isHighTrafficRoad)) {
+      baseMultiplier = 1.6;  // Heavy traffic
+    } 
+    // Regular day time on busy areas
+    else if (timePeriod === "day" && (isBusyArea || isHighTrafficRoad)) {
+      baseMultiplier = 1.3;  // Moderate traffic
+    }
+    // Dusk period — lighter traffic
+    else if (timePeriod === "dusk" && (isBusyArea || isHighTrafficRoad)) {
+      baseMultiplier = 1.1;  // Light traffic
+    }
+    // Night — minimal traffic
+    else if (timePeriod === "night") {
+      baseMultiplier = 1.0;  // No traffic penalty at night
+    }
+  }
+  
+  // Apply profile weight: multiplier = 1 + (baseMultiplier - 1) × weight
+  return 1 + (baseMultiplier - 1) * trafficWeight;
+}
+
+/**
  * Calculates the contextual cost of traversing an edge
  *
  * @param {Object} edge    - Graph edge with distance, tags, type
  * @param {Object} profile - Active routing profile from PROFILES
  * @param {string} timePeriod - "day" | "dusk" | "night"
  * @param {boolean} vehicleRestricted - Whether vehicle gate restriction is active
+ * @param {number} currentHour - Current hour (0-23) for traffic calculation
  * @returns {number} Edge cost in metres (higher = less preferred)
  */
-export function calculateEdgeCost(edge, profile, timePeriod, vehicleRestricted) {
+export function calculateEdgeCost(edge, profile, timePeriod, vehicleRestricted, currentHour) {
   const tags     = edge.tags || {};
   const distance = edge.distance; // in metres
   const w        = profile.weights;
@@ -218,18 +309,8 @@ export function calculateEdgeCost(edge, profile, timePeriod, vehicleRestricted) 
     }
   }
 
-  // ── 6. Traffic multiplier ─────────────────────────────────────────────────
-  // Simulated based on road type and time of day
-  // Higher traffic roads get a penalty to route pedestrians onto quieter paths
-  let trafficCost = 1.0;
-  const isHighTraffic = ["primary", "secondary", "trunk"].includes(highwayType);
-  const isPeakHour    = timePeriod === "day"; // busier during day
-
-  if (isHighTraffic && isPeakHour) {
-    trafficCost = 1 + (0.5 * w.traffic);
-  } else if (isHighTraffic) {
-    trafficCost = 1 + (0.2 * w.traffic);
-  }
+  // ── 6. Enhanced Traffic multiplier (with weekend support) ─────────────────
+  const trafficCost = getTrafficMultiplier(highwayType, timePeriod, currentHour, w.traffic);
 
   // ── 7. Gate multiplier ────────────────────────────────────────────────────
   // Restricted gates become impassable during lock hours for vehicles
@@ -270,10 +351,12 @@ function isEdgeNearGate(edge) {
  * Called once per route computation so time is consistent across all edges
  */
 export function buildRouteContext() {
+  const now = new Date();
   return {
     timePeriod:         getTimePeriod(),
     vehicleRestricted:  isVehicleRestrictedNow(),
-    timestamp:          new Date().toISOString(),
+    currentHour:        now.getHours(),
+    timestamp:          now.toISOString(),
   };
 }
 
@@ -287,6 +370,8 @@ export function buildRouteContext() {
  */
 export function getActiveWarnings(context, profileKey) {
   const warnings = [];
+  const day = new Date().getDay();
+  const isWeekday = day >= 1 && day <= 5; // Monday to Friday
 
   if (context.timePeriod === "night") {
     warnings.push({
@@ -306,7 +391,7 @@ export function getActiveWarnings(context, profileKey) {
     warnings.push({
       type:    "warn",
       icon:    "🚪",
-      message: "Gates closed 00:00–05:00 — Stadium Gate only",
+      message: "Gates closed 00:00–05:00 — Open to pedestrians",
     });
   }
 
@@ -315,6 +400,16 @@ export function getActiveWarnings(context, profileKey) {
       type:    "info",
       icon:    "♿",
       message: "Accessibility mode — steep and unpaved paths avoided",
+    });
+  }
+
+  // Add traffic warning during peak hours (only on weekdays)
+  const isPeakHour = [8, 9, 12, 13, 16, 17].includes(context.currentHour);
+  if (isWeekday && isPeakHour && context.timePeriod === "day") {
+    warnings.push({
+      type:    "info",
+      icon:    "🚶‍♂️",
+      message: "Peak hours — busy paths may be slower",
     });
   }
 
