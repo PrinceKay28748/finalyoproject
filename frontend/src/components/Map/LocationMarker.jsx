@@ -1,10 +1,9 @@
+// components/Map/LocationMarker.jsx
 import { Marker, Circle } from "react-leaflet";
-import { currentLocationIcon } from "../../function/utils/icons";
+import { currentLocationIcon, customLocationIcon } from "../../function/utils/icons";
 
-// Renders the user's current GPS location as a pulsing blue dot
-// The dot is draggable so users can manually correct an inaccurate GPS fix
-// The accuracy circle shows the GPS uncertainty radius
-export default function LocationMarker({ location, accuracy, onDragEnd }) {
+// GPS blue dot — not draggable, shows accuracy circle
+export function GpsLocationMarker({ location, accuracy }) {
   if (!location) return null;
 
   return (
@@ -12,20 +11,36 @@ export default function LocationMarker({ location, accuracy, onDragEnd }) {
       <Marker
         position={[location.lat, location.lng]}
         icon={currentLocationIcon}
-        draggable={true}
+        draggable={false}
         zIndexOffset={1000}
-        eventHandlers={{ dragend: onDragEnd }}
       />
-      <Circle
-        center={[location.lat, location.lng]}
-        radius={accuracy || 30}
-        pathOptions={{
-          color: "#2563eb",
-          fillColor: "#2563eb",
-          fillOpacity: 0.1,
-          weight: 1.5,
-        }}
-      />
+      {accuracy && (
+        <Circle
+          center={[location.lat, location.lng]}
+          radius={accuracy}
+          pathOptions={{
+            color: "#3b82f6",
+            fillColor: "#3b82f6",
+            fillOpacity: 0.08,
+            weight: 1.5,
+          }}
+        />
+      )}
     </>
+  );
+}
+
+// Custom green pin — draggable, used as custom start point
+export function CustomLocationMarker({ location, onDragEnd, visible = true }) {
+  if (!location || !visible) return null;
+
+  return (
+    <Marker
+      position={[location.lat, location.lng]}
+      icon={customLocationIcon}
+      draggable={true}
+      zIndexOffset={1000}
+      eventHandlers={{ dragend: onDragEnd }}
+    />
   );
 }

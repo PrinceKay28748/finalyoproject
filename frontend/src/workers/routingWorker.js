@@ -86,7 +86,7 @@ function calculateRoute(startLat, startLng, destLat, destLng, profileKey) {
     }
     
     console.log("[Worker] Finding path from", startNodeId, "to", destNodeId);
-    
+  
     const path = findShortestPath(graph, startNodeId, destNodeId, profileKey);
     
     if (!path) {
