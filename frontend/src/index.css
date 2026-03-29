@@ -25,13 +25,49 @@ input::placeholder { opacity: 0.5; }
 }
 
 /* ─── Leaflet overrides ──────────────────────────────────────────────────────*/
+/* Hide default Leaflet zoom controls (we use custom ones) */
 .leaflet-control-zoom {
-  border-radius: 12px !important;
-  overflow: hidden;
-  border: none !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
+  display: none !important;
 }
 .leaflet-control-attribution { display: none; }
+
+/* Performance optimizations for Leaflet tiles */
+.leaflet-container {
+  will-change: auto;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.leaflet-tile {
+  will-change: transform;
+  transition: none !important;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Prevent layout shifts */
+.leaflet-tile-container {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* ─── CSS containment for performance ────────────────────────────────────────*/
+.nav-panel {
+  contain: layout style paint;
+}
+
+.legend-sheet {
+  contain: layout style paint;
+}
+
+.search-wrap {
+  contain: layout style paint;
+}
+
+.map-wrap {
+  contain: layout style;
+}
 
 /* ─── Root layout ────────────────────────────────────────────────────────────*/
 .ug-root {

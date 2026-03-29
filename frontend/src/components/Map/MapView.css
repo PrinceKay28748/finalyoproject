@@ -1,20 +1,66 @@
+/* MapView.css */
+
 .map-wrap {
   flex: 1;
   position: relative;
+  height: 100%;
+  overflow: hidden;
 }
 
-.map-wrap .leaflet-container {
+.leaflet-container {
   height: 100%;
   width: 100%;
+  background: var(--bg);
 }
 
-/* Recenter button */
+/* Custom zoom controls - RIGHT side, centered vertically */
+.map-zoom-controls {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 999;
+}
+
+.map-zoom-btn {
+  width: 44px;
+  height: 44px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  box-shadow: var(--shadow-zoom);
+  cursor: pointer;
+  font-size: 24px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s, background 0.2s;
+  backdrop-filter: blur(8px);
+  color: var(--text-primary);
+  font-family: monospace;
+}
+
+.map-zoom-btn:hover {
+  transform: scale(1.05);
+  background: var(--hover-bg);
+}
+
+.map-zoom-btn:active {
+  transform: scale(0.98);
+}
+
+/* Recenter button - LEFT side, centered vertically */
 .map-recenter-btn {
   position: absolute;
-  bottom: 100px;
-  right: 16px;
-  width: 46px;
-  height: 46px;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 50%;
@@ -31,6 +77,89 @@
 
 .map-recenter-btn:hover {
   transform: scale(1.1);
+}
+
+/* Dark mode adjustments */
+.ug-root.dark .map-zoom-btn,
+.ug-root.dark .map-recenter-btn {
+  background: rgba(24, 24, 32, 0.95);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #f3f4f6;
+}
+
+.ug-root.dark .map-zoom-btn:hover,
+.ug-root.dark .map-recenter-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Mobile responsive */
+@media (max-width: 600px) {
+  .map-zoom-controls {
+    right: 12px;
+    gap: 6px;
+  }
+  
+  .map-zoom-btn {
+    width: 38px;
+    height: 38px;
+    font-size: 20px;
+  }
+  
+  .map-recenter-btn {
+    left: 12px;
+    width: 38px;
+    height: 38px;
+    font-size: 18px;
+  }
+}
+
+/* Progress indicator */
+.progress-indicator {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--panel);
+  backdrop-filter: blur(12px);
+  border-radius: 40px;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--border);
+  z-index: 1000;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  pointer-events: none;
+}
+
+.progress-bar {
+  width: 100px;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #3b82f6;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.offroute-warning {
+  color: #f59e0b;
+  font-size: 11px;
+  margin-left: 8px;
 }
 
 /* Tap hint banner */
@@ -55,7 +184,20 @@
 .map-tap-hint--start { background: #2563eb; }
 .map-tap-hint--dest  { background: #22c55e; }
 
-/* Route loading indicator */
+/* Dark mode adjustments */
+.ug-root.dark .progress-indicator {
+  background: rgba(24, 24, 32, 0.95);
+}
+
+.ug-root.dark .progress-text {
+  color: #f3f4f6;
+}
+
+.ug-root.dark .offroute-warning {
+  color: #fbbf24;
+}
+
+/* Route loading */
 .route-loading {
   position: absolute;
   bottom: 100px;
@@ -85,13 +227,6 @@
   animation: spin 0.8s linear infinite;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* Route error message */
 .route-error {
   position: absolute;
   bottom: 100px;
@@ -110,11 +245,8 @@
   white-space: nowrap;
 }
 
-/* Dark mode adjustments */
-.dark .route-loading {
-  background: rgba(30, 30, 40, 0.95);
-}
-
-.dark .route-error {
-  background: rgba(200, 50, 60, 0.95);
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

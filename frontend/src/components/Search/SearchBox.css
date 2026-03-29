@@ -47,82 +47,215 @@
   animation: ugspin 0.7s linear infinite;
 }
 
-/* Dropdown */
-.search-dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  right: 0;
-  background: var(--drop-bg);
-  border: 1px solid var(--border);
+/* Portal Search Dropdown Styles - solid backgrounds */
+.portal-search-dropdown {
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
   border-radius: 14px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
-  z-index: 9999;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
   overflow: hidden;
-}
-
-.ug-root.dark .search-dropdown {
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
-}
-
-.search-dropdown-cl {
-  padding: 12px 16px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 13px;
   font-family: "Outfit", sans-serif;
-  color: #2563eb;
+}
+
+/* Dark mode portal dropdown */
+.ug-root.dark .portal-search-dropdown {
+  background: #1f2937 !important;
+  border-color: #374151 !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  font-family: "Outfit", sans-serif;
+}
+
+/* Custom scrollbar for dropdown */
+.portal-search-dropdown::-webkit-scrollbar {
+  width: 4px;
+}
+
+.portal-search-dropdown::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.portal-search-dropdown::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+
+.ug-root.dark .portal-search-dropdown::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
+/* Dropdown sections */
+.portal-search-dropdown .search-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  font-size: 11px;
   font-weight: 600;
-  background: var(--cl-option);
-  transition: background 0.15s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6b7280;
+  border-bottom: 1px solid #e5e7eb;
+  background: #ffffff;
+  font-family: "Outfit", sans-serif;
 }
 
-.search-dropdown-cl:hover {
-  background: var(--cl-hover);
+.ug-root.dark .portal-search-dropdown .search-section-header {
+  color: #9ca3af;
+  border-bottom-color: #374151;
+  background: #1f2937;
+  font-family: "Outfit", sans-serif;
 }
 
-.search-dropdown-cl-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #2563eb;
-  box-shadow: 0 0 6px #2563eb;
-  flex-shrink: 0;
+.portal-search-dropdown .search-clear-btn {
+  background: none;
+  border: none;
+  font-size: 11px;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 12px;
+  transition: background 0.2s;
+  font-family: "Outfit", sans-serif;
 }
 
-.search-dropdown-item {
+.portal-search-dropdown .search-clear-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.portal-search-dropdown .search-dropdown-item {
   padding: 11px 16px;
   cursor: pointer;
   font-size: 13px;
   font-family: "Outfit", sans-serif;
-  color: var(--text);
+  color: #111827;
   display: flex;
   align-items: center;
   gap: 10px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid #e5e7eb;
   transition: background 0.15s;
+  background: #ffffff;
 }
 
-.search-dropdown-item:last-child {
+.ug-root.dark .portal-search-dropdown .search-dropdown-item {
+  color: #f3f4f6;
+  border-bottom-color: #374151;
+  background: #1f2937;
+  font-family: "Outfit", sans-serif;
+}
+
+.portal-search-dropdown .search-dropdown-item:last-child {
   border-bottom: none;
 }
 
-.search-dropdown-item:hover {
-  background: var(--hover-row);
+.portal-search-dropdown .search-dropdown-item:hover {
+  background: #f3f4f6;
 }
 
-.search-dropdown-dist {
+.ug-root.dark .portal-search-dropdown .search-dropdown-item:hover {
+  background: #374151;
+}
+
+.portal-search-dropdown .search-dropdown-dist {
   margin-left: auto;
   font-size: 11px;
   opacity: 0.5;
   flex-shrink: 0;
+  color: #6b7280;
+  font-family: "Outfit", sans-serif;
 }
 
-.search-dropdown-empty {
+.ug-root.dark .portal-search-dropdown .search-dropdown-dist {
+  color: #9ca3af;
+  font-family: "Outfit", sans-serif;
+}
+
+.portal-search-dropdown .search-dropdown-showmore {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #3b82f6;
+  cursor: pointer;
+  text-align: center;
+  border-top: 1px solid #e5e7eb;
+  transition: background 0.2s;
+  background: #ffffff;
+  font-family: "Outfit", sans-serif;
+}
+
+.ug-root.dark .portal-search-dropdown .search-dropdown-showmore {
+  color: #60a5fa;
+  border-top-color: #374151;
+  background: #1f2937;
+  font-family: "Outfit", sans-serif;
+}
+
+.portal-search-dropdown .search-dropdown-showmore:hover {
+  background: #f3f4f6;
+}
+
+.ug-root.dark .portal-search-dropdown .search-dropdown-showmore:hover {
+  background: #374151;
+}
+
+.portal-search-dropdown .search-dropdown-divider {
+  height: 1px;
+  background: #e5e7eb;
+  margin: 6px 0;
+}
+
+.ug-root.dark .portal-search-dropdown .search-dropdown-divider {
+  background: #374151;
+}
+
+.portal-search-dropdown .search-dropdown-cl {
+  padding: 12px 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-family: "Outfit", sans-serif;
+  color: #3b82f6;
+  font-weight: 600;
+  background: #eff6ff;
+  transition: background 0.15s;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.ug-root.dark .portal-search-dropdown .search-dropdown-cl {
+  color: #60a5fa;
+  background: #1e3a5f;
+  border-bottom-color: #374151;
+  font-family: "Outfit", sans-serif;
+}
+
+.portal-search-dropdown .search-dropdown-cl:hover {
+  background: #dbeafe;
+}
+
+.ug-root.dark .portal-search-dropdown .search-dropdown-cl:hover {
+  background: #1e4b6e;
+}
+
+.portal-search-dropdown .search-dropdown-cl-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #3b82f6;
+  box-shadow: 0 0 6px #3b82f6;
+  flex-shrink: 0;
+}
+
+.portal-search-dropdown .search-dropdown-empty {
   padding: 12px 16px;
   font-size: 13px;
-  color: var(--sub);
+  color: #6b7280;
+  font-family: "Outfit", sans-serif;
+  text-align: center;
+  background: #ffffff;
+}
+
+.ug-root.dark .portal-search-dropdown .search-dropdown-empty {
+  color: #9ca3af;
+  background: #1f2937;
   font-family: "Outfit", sans-serif;
 }

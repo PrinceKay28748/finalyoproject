@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { geocode } from "../../services/geocoding";
 import { saveRecentSearch, getRecentSearches, clearRecentSearches } from "../../services/recentSearches";
 import "./SearchBox.css";
 
-export default function SearchBox({
+export default function PortalSearchBox({
   placeholder,
   value,
   onChange,
@@ -18,6 +19,7 @@ export default function SearchBox({
   const [showDropdown, setShowDropdown] = useState(false);
   const [recentSearches, setRecentSearches] = useState([]);
   const [showAllRecent, setShowAllRecent] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
   const debounceRef = useRef(null);
   const inputRef = useRef(null);
   const dropdownRef = useRef(null);
@@ -32,6 +34,30 @@ export default function SearchBox({
     window.addEventListener("recentSearchesUpdated", handleUpdate);
     return () => window.removeEventListener("recentSearchesUpdated", handleUpdate);
   }, []);
+
+  // Update dropdown position
+  const updatePosition = () => {
+    if (inputRef.current) {
+      const rect = inputRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + window.scrollY + 8,
+        left: rect.left + window.scrollX,
+        width: rect.width
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (showDropdown) {
+      updatePosition();
+      window.addEventListener("scroll", updatePosition);
+      window.addEventListener("resize", updatePosition);
+    }
+    return () => {
+      window.removeEventListener("scroll", updatePosition);
+      window.removeEventListener("resize", updatePosition);
+    };
+  }, [showDropdown]);
 
   const handleInputClick = () => {
     setShowDropdown(true);
@@ -92,11 +118,15 @@ export default function SearchBox({
   const visibleRecent = showAllRecent ? recentSearches : recentSearches.slice(0, 5);
   const hasMoreRecent = recentSearches.length > 5;
 
+  // CSS classes for theming instead of inline styles
+  const dropdownClasses = `search-dropdown ${showDropdown ? "search-dropdown--visible" : ""}`;
+
   return (
-    <div style={{ position: "relative", width: "100%" }}>
+    <div className="portal-search-wrapper" style={{ position: "relative", width: "100%" }}>
       {/* Input wrapper */}
-      <div style={{ position: "relative", width: "100%" }}>
+      <div className="portal-search-input-wrapper" style={{ position: "relative", width: "100%" }}>
         <div
+          className="portal-search-dot"
           style={{
             position: "absolute",
             left: "14px",
@@ -117,6 +147,7 @@ export default function SearchBox({
           value={value}
           onChange={handleChange}
           onClick={handleInputClick}
+          className="portal-search-input"
           style={{
             width: "100%",
             padding: "13px 44px 13px 32px",
@@ -136,6 +167,7 @@ export default function SearchBox({
         />
         {loading && (
           <div
+            className="portal-search-spinner"
             style={{
               position: "absolute",
               right: "14px",
@@ -152,82 +184,87 @@ export default function SearchBox({
         )}
       </div>
 
-      {/* Dropdown */}
-      {showDropdown && (
+      {/* Dropdown rendered at body level via Portal */}
+      {showDropdown && createPortal(
         <div
           ref={dropdownRef}
+          className="portal-search-dropdown"
           style={{
-            position: "absolute",
-            top: "100%",
-            left: 0,
-            right: 0,
-            marginTop: "8px",
+            position: "fixed",
+            top: dropdownPosition.top,
+            left: dropdownPosition.left,
+            width: dropdownPosition.width,
             background: "var(--drop-bg)",
             border: "1px solid var(--border)",
             borderRadius: "14px",
             boxShadow: "0 12px 40px rgba(0, 0, 0, 0.12)",
             zIndex: 999999,
             maxHeight: "320px",
-            overflowY: "auto"
+            overflowY: "auto",
+            overflowX: "hidden"
           }}
         >
           {/* Recent searches */}
           {value.length < 1 && recentSearches.length > 0 && (
             <>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", borderBottom: "1px solid var(--border)" }}>
+              <div className="search-section-header">
                 <span>Recent</span>
-                <button onClick={handleClearAll} style={{ background: "none", border: "none", fontSize: "11px", color: "#ef4444", cursor: "pointer" }}>Clear all</button>
+                <button className="search-clear-btn" onClick={handleClearAll}>
+                  Clear all
+                </button>
               </div>
               {visibleRecent.map((item, i) => (
                 <div
                   key={i}
+                  className="search-dropdown-item"
                   onClick={() => handleSelect({ name: item.name, lat: item.lat, lng: item.lng })}
-                  style={{ padding: "11px 16px", cursor: "pointer", fontSize: "13px", color: "var(--text)", display: "flex", alignItems: "center", gap: "10px", borderBottom: "1px solid var(--border)" }}
-                  onMouseEnter={(e) => (e.target.style.background = "var(--hover-row)")}
-                  onMouseLeave={(e) => (e.target.style.background = "transparent")}
                 >
-                  <svg width="10" height="14" viewBox="0 0 12 16" fill="none"><path d="M6 0C2.686 0 0 2.686 0 6c0 4.5 6 10 6 10s6-5.5 6-10c0-3.314-2.686-6-6-6z" fill="#6b7280"/><circle cx="6" cy="6" r="2" fill="white"/></svg>
+                  <svg width="10" height="14" viewBox="0 0 12 16" fill="none">
+                    <path d="M6 0C2.686 0 0 2.686 0 6c0 4.5 6 10 6 10s6-5.5 6-10c0-3.314-2.686-6-6-6z" fill="#6b7280"/>
+                    <circle cx="6" cy="6" r="2" fill="white"/>
+                  </svg>
                   <span>{item.name}</span>
                 </div>
               ))}
               {hasMoreRecent && (
-                <div onClick={() => setShowAllRecent(!showAllRecent)} style={{ padding: "8px 12px", fontSize: "12px", color: "#2563eb", textAlign: "center", cursor: "pointer", borderTop: "1px solid var(--border)" }}>
+                <div className="search-dropdown-showmore" onClick={() => setShowAllRecent(!showAllRecent)}>
                   {showAllRecent ? "Show less" : `Show ${recentSearches.length - 5} more`}
                 </div>
               )}
-              <div style={{ height: "1px", background: "var(--border)", margin: "6px 0" }} />
+              <div className="search-dropdown-divider" />
             </>
           )}
 
           {/* Current location option */}
           {showCurrentLocationOption && (
             <div
+              className="search-dropdown-cl"
               onClick={() => { onUseCurrentLocation(); setShowDropdown(false); }}
-              style={{ padding: "12px 16px", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", fontWeight: 600, color: "#2563eb", background: "var(--cl-option)" }}
             >
-              <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#2563eb", boxShadow: "0 0 6px #2563eb" }} />
+              <div className="search-dropdown-cl-dot" />
               Use my current location
             </div>
           )}
 
           {/* Loading */}
-          {loading && <div style={{ padding: "12px 16px", fontSize: "13px", color: "var(--sub)" }}>Searching...</div>}
+          {loading && <div className="search-dropdown-empty">Searching...</div>}
 
           {/* Suggestions */}
           {!loading && suggestions.length > 0 && (
             <>
-              {value.length >= 1 && <div style={{ padding: "8px 12px", fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", borderBottom: "1px solid var(--border)" }}>Suggestions</div>}
+              {value.length >= 1 && <div className="search-section-header">Suggestions</div>}
               {suggestions.map((loc, i) => (
                 <div
                   key={i}
+                  className="search-dropdown-item"
                   onClick={() => handleSelect(loc)}
-                  style={{ padding: "11px 16px", cursor: "pointer", fontSize: "13px", color: "var(--text)", display: "flex", alignItems: "center", gap: "10px", borderBottom: "1px solid var(--border)" }}
-                  onMouseEnter={(e) => (e.target.style.background = "var(--hover-row)")}
-                  onMouseLeave={(e) => (e.target.style.background = "transparent")}
                 >
-                  <svg width="10" height="14" viewBox="0 0 12 16" fill="none"><path d="M6 0C2.686 0 0 2.686 0 6c0 4.5 6 10 6 10s6-5.5 6-10c0-3.314-2.686-6-6-6z" fill={accentColor}/><circle cx="6" cy="6" r="2" fill="white"/></svg>
+                  <svg width="10" height="14" viewBox="0 0 12 16" fill="none">
+                    <path d="M6 0C2.686 0 0 2.686 0 6c0 4.5 6 10 6 10s6-5.5 6-10c0-3.314-2.686-6-6-6z" fill={accentColor}/>
+                    <circle cx="6" cy="6" r="2" fill="white"/>
+                  </svg>
                   <span>{loc.name}</span>
-                  {loc.dist > 0.5 && <span style={{ marginLeft: "auto", fontSize: "11px", opacity: 0.5 }}>{loc.dist.toFixed(1)}km</span>}
+                  {loc.dist > 0.5 && <span className="search-dropdown-dist">{loc.dist.toFixed(1)}km</span>}
                 </div>
               ))}
             </>
@@ -235,9 +272,10 @@ export default function SearchBox({
 
           {/* No results */}
           {!loading && suggestions.length === 0 && value.length >= 1 && !showCurrentLocationOption && (
-            <div style={{ padding: "12px 16px", fontSize: "13px", color: "var(--sub)" }}>No results — try a different name</div>
+            <div className="search-dropdown-empty">No results — try a different name</div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

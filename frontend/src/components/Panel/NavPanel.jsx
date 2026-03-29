@@ -1,165 +1,7 @@
-// import SearchBox from "../Search/SearchBox";
-// import "./NavPanel.css";
-
-// // The top navigation panel — contains the header, search inputs,
-// // swap button, Show on Map action, and status message
-// export default function NavPanel({
-//   startText,
-//   destText,
-//   onStartTextChange,
-//   onDestTextChange,
-//   onStartSelect,
-//   onDestSelect,
-//   onUseCurrentLocation,
-//   onSwap,
-//   onShowOnMap,
-//   onReset,
-//   hasCurrentLocation,
-//   canShow,
-//   isResolving,
-//   markersVisible,
-//   accuracy,
-//   locationError,
-//   darkMode,
-//   onToggleDarkMode,
-// }) {
-//   // Derive status message and style from current state
-//   const statusClass = locationError ? "error" : markersVisible ? "ready" : "idle";
-//   const statusMsg = locationError
-//     ? `⚠️ ${locationError}`
-//     : markersVisible
-//     ? "✓ Route points shown on map"
-//     : canShow
-//     ? "✓ Ready — tap \"Show on Map\""
-//     : startText && !destText
-//     ? "Now set your destination"
-//     : !startText && destText
-//     ? "Now set your start point"
-//     : "Tap the map or search to set locations";
-
-//   return (
-//     <div className="nav-panel">
-
-//       {/* Header */}
-//       <div className="nav-header">
-//         <div className="nav-header-left">
-//           <div className="nav-logo">
-//             <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-//               <path
-//                 d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"
-//                 fill="white"
-//               />
-//             </svg>
-//           </div>
-//           <div>
-//             <p className="nav-title">UG Navigator</p>
-//             <p className="nav-subtitle">
-//               University of Ghana · Legon
-//               {accuracy && (
-//                 <span
-//                   className={
-//                     accuracy < 20
-//                       ? "nav-accuracy-good"
-//                       : accuracy < 50
-//                       ? "nav-accuracy-ok"
-//                       : "nav-accuracy-poor"
-//                   }
-//                 >
-//                   · GPS ±{accuracy}m
-//                 </span>
-//               )}
-//             </p>
-//           </div>
-//         </div>
-
-//         {/* Dark / light mode toggle */}
-//         <button className="nav-mode-btn" onClick={onToggleDarkMode}>
-//           {darkMode ? "☀️ Light" : "🌙 Dark"}
-//         </button>
-//       </div>
-
-//       {/* FROM search input */}
-//       <SearchBox
-//         placeholder="From — your start location"
-//         value={startText}
-//         onChange={onStartTextChange}
-//         onSelect={onStartSelect}
-//         onUseCurrentLocation={onUseCurrentLocation}
-//         showCurrentLocationOption={hasCurrentLocation}
-//         accentColor="#2563eb"
-//       />
-
-//       {/* Connector + swap button */}
-//       <div className="nav-connector">
-//         <div className="nav-connector-dots">
-//           {[0, 1, 2].map((i) => (
-//             <div key={i} className="nav-connector-dot" />
-//           ))}
-//         </div>
-//         <div className="nav-connector-line" />
-//         <button className="nav-swap-btn" onClick={onSwap}>
-//           ⇅ Swap
-//         </button>
-//         <div className="nav-connector-line" />
-//       </div>
-
-//       {/* TO search input */}
-//       <SearchBox
-//         placeholder="To — search or tap map"
-//         value={destText}
-//         onChange={onDestTextChange}
-//         onSelect={onDestSelect}
-//         onUseCurrentLocation={() => {}}
-//         showCurrentLocationOption={false}
-//         accentColor="#22c55e"
-//       />
-
-//       {/* Action buttons */}
-//       <div className="nav-action-row">
-//         <button
-//           className={`nav-show-btn ${canShow ? "ready" : "disabled"}`}
-//           onClick={onShowOnMap}
-//           disabled={!canShow || isResolving}
-//         >
-//           {isResolving ? (
-//             <>
-//               <div className="nav-spinner" />
-//               Resolving...
-//             </>
-//           ) : markersVisible ? (
-//             "Update Map"
-//           ) : (
-//             "Show on Map"
-//           )}
-//         </button>
-
-//         {/* Reset — only shown when at least one point is set */}
-//         {(startText || destText) && (
-//           <button className="nav-reset-btn" onClick={onReset}>
-//             ✕ Reset
-//           </button>
-//         )}
-//       </div>
-
-//       {/* Status message */}
-//       <p className={`nav-status ${statusClass}`}>{statusMsg}</p>
-//     </div>
-//   );
-// } 
-
-import SearchBox from "../Search/SearchBox";
+import { useState } from "react";
+import PortalSearchBox from "../Search/PortalSearchBox";
 import "./NavPanel.css";
 
-// Profile options — matches PROFILES in costFunction.js
-const PROFILES = [
-  { key: "standard",   icon: "🗺️", label: "Standard"  },
-  { key: "accessible", icon: "♿", label: "Accessible" },
-  { key: "night",      icon: "🌙", label: "Night"      },
-  { key: "fastest",    icon: "⚡", label: "Fastest"    },
-];
-
-// The top navigation panel — contains the header, search inputs,
-// profile selector, swap button, Show on Map action, and status message
 export default function NavPanel({
   startText,
   destText,
@@ -179,26 +21,106 @@ export default function NavPanel({
   locationError,
   darkMode,
   onToggleDarkMode,
-  activeProfile = "standard",
-  onProfileChange,
 }) {
-  // Derive status message and style from current state
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [hasRoute, setHasRoute] = useState(false);
+
+  // Detect when route is shown (Directions clicked)
+  const handleDirectionsClick = () => {
+    if (canShow && !isResolving) {
+      onShowOnMap();
+      setHasRoute(true);
+      setIsExpanded(false);
+    }
+  };
+
+  // Handle search focus - expand panel and reset route state
+  const handleSearchFocus = () => {
+    setHasRoute(false);
+    setIsExpanded(true);
+  };
+
+  // Handle reset - collapse and clear
+  const handleResetClick = () => {
+    onReset();
+    setHasRoute(false);
+    setIsExpanded(false);
+  };
+
+  // Derive status message
   const statusClass = locationError ? "error" : markersVisible ? "ready" : "idle";
   const statusMsg = locationError
     ? `⚠️ ${locationError}`
     : markersVisible
-    ? "✓ Route points shown on map"
+    ? "✓ Route ready"
     : canShow
-    ? "✓ Ready — tap \"Show on Map\""
+    ? "✓ Ready — tap Directions"
     : startText && !destText
     ? "Now set your destination"
     : !startText && destText
     ? "Now set your start point"
     : "Tap the map or search to set locations";
 
-  return (
-    <div className="nav-panel">
+  // Compact view after route is set
+  if (hasRoute && startText && destText) {
+    return (
+      <div className="nav-panel nav-panel--compact">
+        <div className="nav-header">
+          <div className="nav-header-left">
+            <div className="nav-logo">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"
+                  fill="white"
+                />
+              </svg>
+            </div>
+            <div>
+              <p className="nav-title">UG Navigator</p>
+              <p className="nav-subtitle">
+                University of Ghana · Legon
+                {accuracy && (
+                  <span
+                    className={
+                      accuracy < 20
+                        ? "nav-accuracy-good"
+                        : accuracy < 50
+                        ? "nav-accuracy-ok"
+                        : "nav-accuracy-poor"
+                    }
+                  >
+                    · GPS ±{accuracy}m
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+          <button className="nav-mode-btn" onClick={onToggleDarkMode}>
+            {darkMode ? "☀️" : "🌙"}
+          </button>
+        </div>
 
+        <div className="nav-compact-row">
+          <div 
+            className="nav-compact-location"
+            onClick={handleSearchFocus}
+          >
+            <span className="nav-compact-icon">📍</span>
+            <span className="nav-compact-start">{startText}</span>
+            <span className="nav-compact-arrow">→</span>
+            <span className="nav-compact-dest">{destText}</span>
+          </div>
+          <button className="nav-compact-swap" onClick={onSwap} title="Swap">
+            ⇅
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Expanded / collapsed view
+  return (
+    <div className={`nav-panel ${isExpanded ? "nav-panel--expanded" : "nav-panel--collapsed"}`}>
       {/* Header */}
       <div className="nav-header">
         <div className="nav-header-left">
@@ -230,93 +152,83 @@ export default function NavPanel({
             </p>
           </div>
         </div>
-
-        {/* Dark / light mode toggle */}
         <button className="nav-mode-btn" onClick={onToggleDarkMode}>
-          {darkMode ? "☀️ Light" : "🌙 Dark"}
+          {darkMode ? "☀️" : "🌙"}
         </button>
       </div>
 
-      {/* FROM search input */}
-      <SearchBox
-        placeholder="From — your start location"
-        value={startText}
-        onChange={onStartTextChange}
-        onSelect={onStartSelect}
-        onUseCurrentLocation={onUseCurrentLocation}
-        showCurrentLocationOption={hasCurrentLocation}
-        accentColor="#2563eb"
-      />
-
-      {/* Connector + swap button */}
-      <div className="nav-connector">
-        <div className="nav-connector-dots">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="nav-connector-dot" />
-          ))}
+      {/* Collapsed state - only "Where to?" */}
+      {!isExpanded && (
+        <div className="nav-where-to" onClick={() => setIsExpanded(true)}>
+          <div className="nav-where-to-icon">🔍</div>
+          <span className="nav-where-to-text">Where to?</span>
         </div>
-        <div className="nav-connector-line" />
-        <button className="nav-swap-btn" onClick={onSwap}>
-          ⇅ Swap
-        </button>
-        <div className="nav-connector-line" />
-      </div>
+      )}
 
-      {/* TO search input */}
-      <SearchBox
-        placeholder="To — search or tap map"
-        value={destText}
-        onChange={onDestTextChange}
-        onSelect={onDestSelect}
-        onUseCurrentLocation={() => {}}
-        showCurrentLocationOption={false}
-        accentColor="#22c55e"
-      />
+      {/* Expanded state - full search interface */}
+      {isExpanded && (
+        <div className="nav-expanded-content">
+          {/* FROM section */}
+          <div className="nav-input-section">
+            <div className="nav-input-label">
+              <span className="nav-input-icon">📍</span>
+              <span className="nav-input-label-text from-label">From</span>
+            </div>
+            <PortalSearchBox
+              placeholder="Your location"
+              value={startText}
+              onChange={onStartTextChange}
+              onSelect={onStartSelect}
+              onUseCurrentLocation={onUseCurrentLocation}
+              showCurrentLocationOption={hasCurrentLocation}
+              accentColor="#2563eb"
+              onFocus={handleSearchFocus}
+            />
+          </div>
 
-      {/* Profile selector — four pill buttons */}
-      <div className="nav-profiles">
-        {PROFILES.map((p) => (
-          <button
-            key={p.key}
-            className={`nav-profile-btn ${activeProfile === p.key ? "nav-profile-btn--active" : ""}`}
-            onClick={() => onProfileChange?.(p.key)}
-            title={p.label}
-          >
-            <span className="nav-profile-icon">{p.icon}</span>
-            <span className="nav-profile-label">{p.label}</span>
-          </button>
-        ))}
-      </div>
+          {/* TO section */}
+          <div className="nav-input-section">
+            <div className="nav-input-label">
+              <span className="nav-input-icon">📍</span>
+              <span className="nav-input-label-text to-label">To</span>
+            </div>
+            <PortalSearchBox
+              placeholder="Where to?"
+              value={destText}
+              onChange={onDestTextChange}
+              onSelect={onDestSelect}
+              onUseCurrentLocation={() => {}}
+              showCurrentLocationOption={false}
+              accentColor="#22c55e"
+              onFocus={handleSearchFocus}
+            />
+          </div>
 
-      {/* Action buttons */}
-      <div className="nav-action-row">
-        <button
-          className={`nav-show-btn ${canShow ? "ready" : "disabled"}`}
-          onClick={onShowOnMap}
-          disabled={!canShow || isResolving}
-        >
-          {isResolving ? (
-            <>
-              <div className="nav-spinner" />
-              Resolving...
-            </>
-          ) : markersVisible ? (
-            "Update Map"
-          ) : (
-            "Show on Map"
-          )}
-        </button>
+          {/* Action buttons */}
+          <div className="nav-action-row">
+            <button className="nav-reset-btn" onClick={handleResetClick}>
+              ✕ Reset
+            </button>
+            <button
+              className={`nav-directions-btn ${canShow ? "ready" : "disabled"}`}
+              onClick={handleDirectionsClick}
+              disabled={!canShow || isResolving}
+            >
+              {isResolving ? (
+                <>
+                  <div className="nav-spinner" />
+                  Finding...
+                </>
+              ) : (
+                "Directions"
+              )}
+            </button>
+          </div>
 
-        {/* Reset — only shown when at least one point is set */}
-        {(startText || destText) && (
-          <button className="nav-reset-btn" onClick={onReset}>
-            ✕ Reset
-          </button>
-        )}
-      </div>
-
-      {/* Status message */}
-      <p className={`nav-status ${statusClass}`}>{statusMsg}</p>
+          {/* Status message */}
+          <p className={`nav-status ${statusClass}`}>{statusMsg}</p>
+        </div>
+      )}
     </div>
   );
 }
