@@ -15,6 +15,7 @@ import "../Legend/Legend.css";
 import { UG_MAX_BOUNDS, UG_CENTER, DEFAULT_ZOOM, MIN_ZOOM, MAX_ZOOM } from "../../function/utils/bounds";
 import "./MapView.css";
 
+// Improved SmartFitBounds with distance-based padding
 function SmartFitBounds({ startPoint, destPoint, visible }) {
   const map = useMap();
   
@@ -27,17 +28,35 @@ function SmartFitBounds({ startPoint, destPoint, visible }) {
         [destPoint.lat, destPoint.lng]
       ];
       
-      const latDiff = Math.abs(startPoint.lat - destPoint.lat);
-      const lngDiff = Math.abs(startPoint.lng - destPoint.lng);
-      const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff) * 111000;
+      // Calculate accurate distance in meters using Haversine formula
+      const R = 6371000; // Earth's radius in meters
+      const dLat = (destPoint.lat - startPoint.lat) * Math.PI / 180;
+      const dLng = (destPoint.lng - startPoint.lng) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(startPoint.lat * Math.PI / 180) * Math.cos(destPoint.lat * Math.PI / 180) *
+                Math.sin(dLng/2) * Math.sin(dLng/2);
+      const distance = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
       
+      // Dynamic padding based on actual distance (meters)
       let padding;
-      if (distance < 100) padding = [30, 30];
-      else if (distance < 500) padding = [50, 50];
-      else if (distance < 2000) padding = [80, 80];
-      else padding = [120, 120];
+      if (distance < 50) {
+        padding = [30, 30];      // Very close (under 50m) - tight zoom
+      } else if (distance < 200) {
+        padding = [50, 50];      // Close (50-200m) - comfortable zoom
+      } else if (distance < 500) {
+        padding = [70, 70];      // Medium (200-500m) - standard zoom
+      } else if (distance < 1000) {
+        padding = [90, 90];      // Far (500-1000m) - zoomed out
+      } else if (distance < 2000) {
+        padding = [120, 120];    // Very far (1-2km) - more context
+      } else {
+        padding = [180, 180];    // Extremely far (2km+) - wide view
+      }
       
-      map.fitBounds(bounds, { padding });
+      // Add extra top padding to account for nav panel (approx 80px)
+      const topPadding = padding[0] + 80;
+      
+      map.fitBounds(bounds, { padding: [topPadding, padding[1], padding[1], padding[1]] });
     } 
     else if (startPoint && !destPoint) {
       map.flyTo([startPoint.lat, startPoint.lng], 16, { duration: 0.8 });
@@ -58,21 +77,30 @@ export default function MapView({
   destText,
   markersVisible,
   route,
+  remainingRoute = null,
+  navigationProgress = 0,
+  isOffRoute = false,
   warnings = [],
   activeProfile = "standard",
   flyTarget,
   darkMode,
   waitingForStart,
   useCustomLocation = false,
+  isSharedLocation = false,
+  onProfileChange,
   onMapClick,
   onCustomLocationDragEnd,
   onRecenter,
 }) {
-  // Show destination marker whenever destPoint exists
   const showDestinationMarker = !!destPoint;
-  
-  // Determine which start point to show on map
   const displayStartPoint = useCustomLocation && customStartPoint ? customStartPoint : startPoint;
+  const displayRoute = (remainingRoute && remainingRoute.length > 0) ? { coordinates: remainingRoute } : route;
+  const showFullRoute = !remainingRoute || remainingRoute.length === 0;
+
+  // Helper to get the map instance
+  const getMap = () => {
+    return document.querySelector('.leaflet-container')._leaflet_map;
+  };
 
   return (
     <div className="map-wrap">
@@ -83,6 +111,7 @@ export default function MapView({
         maxBoundsViscosity={0.7}
         minZoom={MIN_ZOOM}
         maxZoom={MAX_ZOOM}
+        zoomControl={false}
         style={{ height: "100%", width: "100%" }}
       >
         <TileLayerSwitcher darkMode={darkMode} />
@@ -95,37 +124,63 @@ export default function MapView({
         />
         <MapClickHandler onMapClick={onMapClick} />
         
-        {/* GPS Blue Dot */}
         <GpsLocationMarker
           location={currentLocation}
           accuracy={accuracy}
         />
         
-        {/* Custom Green Pin (draggable) */}
         <CustomLocationMarker
           location={customStartPoint}
           onDragEnd={onCustomLocationDragEnd}
           visible={useCustomLocation && !!customStartPoint}
         />
 
-        {/* Route line — only when route is calculated */}
-        <RouteLayer route={route} visible={markersVisible} />
+        <RouteLayer 
+          route={displayRoute} 
+          visible={markersVisible}
+          showFullRoute={showFullRoute}
+        />
 
-        {/* Destination marker — shows immediately when tapped */}
         <RouteMarkers
           startPoint={null}
           destPoint={destPoint}
           visible={showDestinationMarker}
+          isShared={isSharedLocation}
         />
 
-        {/* Full route markers — both start and dest, only after "Show on Map" */}
         <RouteMarkers
           startPoint={displayStartPoint}
           destPoint={destPoint}
           visible={markersVisible}
+          isShared={isSharedLocation}
         />
       </MapContainer>
 
+      {/* Custom zoom controls - right side */}
+      <div className="map-zoom-controls">
+        <button 
+          className="map-zoom-btn map-zoom-in" 
+          onClick={() => {
+            const map = getMap();
+            if (map) map.zoomIn({ animate: true });
+          }}
+          title="Zoom in (+)"
+        >
+          +
+        </button>
+        <button 
+          className="map-zoom-btn map-zoom-out" 
+          onClick={() => {
+            const map = getMap();
+            if (map) map.zoomOut({ animate: true });
+          }}
+          title="Zoom out (-)"
+        >
+          −
+        </button>
+      </div>
+
+      {/* Recenter button - left side */}
       <button
         className="map-recenter-btn"
         onClick={onRecenter}
@@ -134,6 +189,21 @@ export default function MapView({
         🎯
       </button>
 
+      {markersVisible && navigationProgress > 0 && navigationProgress < 100 && (
+        <div className="progress-indicator">
+          <div className="progress-bar">
+            <div 
+              className="progress-fill" 
+              style={{ width: `${navigationProgress}%` }}
+            />
+          </div>
+          <span className="progress-text">{Math.round(navigationProgress)}% completed</span>
+          {isOffRoute && (
+            <span className="offroute-warning"> ⚠️ Off route — recalculating...</span>
+          )}
+        </div>
+      )}
+
       <Legend
         startText={useCustomLocation && customStartPoint ? customStartPoint.name || "Custom location" : startText}
         destText={destText}
@@ -141,6 +211,8 @@ export default function MapView({
         route={route}
         warnings={warnings}
         activeProfile={activeProfile}
+        currentLocation={currentLocation}
+        onProfileChange={onProfileChange}
       />
 
       {waitingForStart && (

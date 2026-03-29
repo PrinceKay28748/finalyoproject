@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import L from "leaflet";
 import { MapContainer, TileLayer, Marker, Circle, useMapEvents, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import "./Map.css";
+
 
 // ─── Tile layers ──────────────────────────────────────────────────────────────
 const TILE_LIGHT = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";

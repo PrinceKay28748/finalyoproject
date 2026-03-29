@@ -1,5 +1,5 @@
 // App.jsx
-import { useState, useCallback, lazy, Suspense } from "react";
+import { useState, useCallback, lazy, Suspense, useEffect } from "react";
 import { useGeolocation }          from "./hooks/useGeolocation";
 import { useRouting }              from "./hooks/useRouting";
 import { geocode, reverseGeocode } from "./services/geocoding";
@@ -34,9 +34,38 @@ export default function App() {
   // Custom location state (green pin)
   const [customStartPoint, setCustomStartPoint] = useState(null);
   const [useCustomLocation, setUseCustomLocation] = useState(false);
+  
+  // Shared location flag (for purple pin)
+  const [isSharedLocation, setIsSharedLocation] = useState(false);
+  
+  // Legend expanded state for map zoom adjustment
+  const [isLegendExpanded, setIsLegendExpanded] = useState(true);
 
   // GPS location from the custom hook
   const { location: currentLocation, accuracy, error: locationError } = useGeolocation();
+
+  // Parse shared location from URL on initial load
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const lat = params.get('lat');
+    const lng = params.get('lng');
+    const name = params.get('name') || "Shared location";
+    
+    if (lat && lng) {
+      const sharedLocation = {
+        lat: parseFloat(lat),
+        lng: parseFloat(lng),
+        name: decodeURIComponent(name)
+      };
+      // Set as destination so friend can get directions to you
+      setDestPoint(sharedLocation);
+      setDestText(sharedLocation.name);
+      // Optionally show markers automatically
+      setMarkersVisible(true);
+      setIsSharedLocation(true);  // Mark as shared for purple pin
+      console.log("[App] Shared location loaded:", sharedLocation);
+    }
+  }, []);
 
   // Determine which start point to use for routing
   const effectiveStartPoint = useCustomLocation && customStartPoint ? customStartPoint : startPoint;
@@ -107,6 +136,11 @@ export default function App() {
     } else {
       setDestPoint(loc);
       setDestText(name);
+      // If user taps to set destination, it's not a shared location anymore
+      setIsSharedLocation(false);
+
+      const { saveRecentSearch } = await import("./services/recentSearches");
+      saveRecentSearch(loc);
     }
   }, [waitingForStart]);
 
@@ -151,6 +185,8 @@ export default function App() {
         resolvedDest = results[0];
         setDestPoint(results[0]);
         setDestText(results[0].name);
+        // If user searches for a destination, it's not a shared location
+        setIsSharedLocation(false);
       }
     }
 
@@ -180,6 +216,8 @@ export default function App() {
       setUseCustomLocation(false);
       setCustomStartPoint(null);
     }
+    // After swap, the destination is no longer a shared location
+    setIsSharedLocation(false);
   };
 
   // Resets destination and route
@@ -190,6 +228,7 @@ export default function App() {
     setWaitingForStart(false);
     setUseCustomLocation(false);
     setCustomStartPoint(null);
+    setIsSharedLocation(false);  // Reset shared flag
 
     if (currentLocation) {
       setStartPoint(currentLocation);
@@ -258,6 +297,10 @@ export default function App() {
           warnings={warnings}
           activeProfile={activeProfile}
           useCustomLocation={useCustomLocation}
+          isSharedLocation={isSharedLocation}
+          isLegendExpanded={isLegendExpanded}
+          onLegendExpandedChange={setIsLegendExpanded}
+          onProfileChange={setActiveProfile}  // ← ADD THIS
           onMapClick={handleMapClick}
           onCustomLocationDragEnd={handleCustomLocationDragEnd}
           onRecenter={handleRecenter}

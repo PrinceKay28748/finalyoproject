@@ -46,6 +46,9 @@ export const customLocationIcon = L.divIcon({
   popupAnchor: [0, -38],
 });
 
+// Shared location marker (purple pin) — for friend's shared location
+export const sharedLocationIcon = makePin("#a855f7", "SHARED");
+
 // Named instances used throughout the app
 export const startIcon = makePin("#2563eb", "START");
 export const destIcon  = makePin("#22c55e", "DEST");

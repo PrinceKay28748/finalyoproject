@@ -69,6 +69,14 @@ const PROFILE_CONFIG = {
   fastest:    { label: "Fastest",      color: "#22c55e", icon: "⚡" },
 };
 
+// Profile options for selector
+const PROFILES = [
+  { key: "standard",   icon: "🗺️", label: "Standard"  },
+  { key: "accessible", icon: "♿", label: "Accessible" },
+  { key: "night",      icon: "🌙", label: "Night"      },
+  { key: "fastest",    icon: "⚡", label: "Fastest"    },
+];
+
 export default function Legend({
   startText,
   destText,
@@ -79,21 +87,50 @@ export default function Legend({
   alternatives = [],
   onSelectAlternative,
   activeAlternativeIndex = 0,
+  currentLocation,
+  onExpandedChange,
+  onProfileChange,  // NEW: callback for profile selection
 }) {
   const [expanded, setExpanded] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
   const dragStartY = useRef(0);
+  const dragCurrentY = useRef(0);
   const dragStartExpanded = useRef(true);
+  const dragVelocity = useRef(0);
+  const lastDragTime = useRef(0);
   const sheetRef = useRef(null);
+  const peekHeight = 70;
 
-  // Get current traffic info
+  // Notify parent when expanded state changes
+  useEffect(() => {
+    onExpandedChange?.(expanded);
+  }, [expanded, onExpandedChange]);
+
   const traffic = getTrafficInfo();
 
-  // Touch/mouse drag handlers
+  const handleShareLocation = () => {
+    if (!currentLocation) {
+      alert("📍 Location not available yet. Please wait for GPS fix.");
+      return;
+    }
+    
+    const link = `${window.location.origin}?lat=${currentLocation.lat}&lng=${currentLocation.lng}`;
+    navigator.clipboard.writeText(link);
+    alert("📤 Location link copied! Share it with your friends.\n\nThey'll see your location when they open the link.");
+  };
+
+  // Improved drag handlers with live feedback
   const handleDragStart = (e) => {
     setIsDragging(true);
     dragStartY.current = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+    dragCurrentY.current = dragStartY.current;
     dragStartExpanded.current = expanded;
+    lastDragTime.current = Date.now();
+    dragVelocity.current = 0;
+    
+    if (sheetRef.current) {
+      sheetRef.current.classList.add('dragging');
+    }
   };
 
   const handleDragMove = (e) => {
@@ -101,30 +138,86 @@ export default function Legend({
 
     const currentY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
     const deltaY = currentY - dragStartY.current;
-
-    if (deltaY > 50 && dragStartExpanded.current) {
-      setExpanded(false);
-    } else if (deltaY < -50 && !dragStartExpanded.current) {
-      setExpanded(true);
+    
+    const now = Date.now();
+    const timeDelta = Math.max(1, now - lastDragTime.current);
+    dragVelocity.current = (deltaY - (dragCurrentY.current - dragStartY.current)) / timeDelta;
+    dragCurrentY.current = currentY;
+    lastDragTime.current = now;
+    
+    const sheetHeight = sheetRef.current?.offsetHeight || 400;
+    const maxDrag = sheetHeight - peekHeight;
+    
+    let newTranslateY = 0;
+    
+    if (dragStartExpanded.current) {
+      newTranslateY = Math.min(maxDrag, Math.max(0, deltaY));
+    } else {
+      newTranslateY = Math.min(maxDrag, Math.max(0, maxDrag + deltaY));
+    }
+    
+    if (sheetRef.current) {
+      sheetRef.current.style.transform = `translateY(${newTranslateY}px)`;
     }
   };
 
   const handleDragEnd = () => {
+    if (!isDragging) return;
+    
+    const sheetHeight = sheetRef.current?.offsetHeight || 400;
+    const maxDrag = sheetHeight - peekHeight;
+    const currentTranslate = parseFloat(sheetRef.current?.style.transform?.match(/translateY\(([-\d.]+)px\)/)?.[1] || 0);
+    
+    let shouldExpand;
+    
+    if (Math.abs(dragVelocity.current) > 0.3) {
+      shouldExpand = dragVelocity.current < 0;
+    } else {
+      shouldExpand = currentTranslate < maxDrag / 2;
+    }
+    
+    setExpanded(shouldExpand);
+    
+    if (sheetRef.current) {
+      sheetRef.current.style.transform = '';
+      sheetRef.current.classList.remove('dragging');
+    }
+    
     setIsDragging(false);
   };
 
   useEffect(() => {
-    if (!isDragging) return;
+    if (!isDragging && sheetRef.current) {
+      sheetRef.current.style.transform = '';
+    }
+  }, [expanded, isDragging]);
 
+  useEffect(() => {
+    if (!isDragging) {
+      document.body.classList.remove('dragging-legend');
+      return;
+    }
+    
+    document.body.classList.add('dragging-legend');
+    
     const handleMouseMove = (e) => handleDragMove(e);
     const handleMouseUp = () => handleDragEnd();
+    const handleTouchMove = (e) => {
+      handleDragMove(e);
+    };
+    const handleTouchEnd = () => handleDragEnd();
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd);
 
     return () => {
+      document.body.classList.remove('dragging-legend');
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
     };
   }, [isDragging]);
 
@@ -137,7 +230,6 @@ export default function Legend({
   const hasWarnings = warnings.length > 0;
   const hasAlts     = alternatives.length > 0;
 
-  // Determine bar width based on traffic level
   const getBarWidth = () => {
     const level = traffic.level;
     if (level === "Heavy") return "100%";
@@ -157,13 +249,12 @@ export default function Legend({
         className="legend-handle-wrap"
         onMouseDown={handleDragStart}
         onTouchStart={handleDragStart}
-        onTouchMove={handleDragMove}
-        onTouchEnd={handleDragEnd}
+        style={{ touchAction: 'none', cursor: 'grab' }}
       >
         <div className="legend-handle" />
       </div>
 
-      {/* Peek row — always visible */}
+      {/* Peek row */}
       <div className="legend-peek">
         <div className="legend-peek-dots">
           <span className="peek-dot peek-dot--start" />
@@ -198,9 +289,24 @@ export default function Legend({
             )}
           </div>
 
+          {/* Profile Selector - NEW */}
+          <div className="legend-profiles">
+            {PROFILES.map((p) => (
+              <button
+                key={p.key}
+                className={`legend-profile-btn ${activeProfile === p.key ? "legend-profile-btn--active" : ""}`}
+                onClick={() => onProfileChange?.(p.key)}
+                title={p.label}
+              >
+                <span className="legend-profile-icon">{p.icon}</span>
+                <span className="legend-profile-label">{p.label}</span>
+              </button>
+            ))}
+          </div>
+
           <div className="legend-divider" />
 
-          {/* Route stats — walking, driving, distance, traffic */}
+          {/* Route stats */}
           {hasRoute && (
             <>
               <div className="legend-stats-grid">
@@ -248,13 +354,21 @@ export default function Legend({
             </>
           )}
 
+          {/* Share Location Button */}
+          <button 
+            className="legend-share-btn"
+            onClick={handleShareLocation}
+          >
+            <span className="share-icon">📤</span>
+            <span>Share my location</span>
+          </button>
+
           {/* Alternative routes */}
           {hasAlts && (
             <>
               <div className="legend-divider" />
               <p className="legend-alts-label">Alternative routes</p>
               <div className="legend-alts">
-                {/* Recommended route */}
                 <div
                   className={`legend-alt ${activeAlternativeIndex === 0 ? "legend-alt--active" : ""}`}
                   onClick={() => onSelectAlternative?.(0)}
@@ -267,7 +381,6 @@ export default function Legend({
                   <span className="alt-dist">{formatDistance(distMeters)}</span>
                 </div>
 
-                {/* Alternative routes */}
                 {alternatives.map((alt, i) => (
                   <div
                     key={i}
