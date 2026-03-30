@@ -37,26 +37,51 @@ function SmartFitBounds({ startPoint, destPoint, visible }) {
                 Math.sin(dLng/2) * Math.sin(dLng/2);
       const distance = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
       
-      // Dynamic padding based on actual distance (meters)
+      // Detect mobile screen
+      const isMobile = window.innerWidth < 600;
+      
+      // Dynamic padding based on actual distance and screen size
       let padding;
-      if (distance < 50) {
-        padding = [30, 30];      // Very close (under 50m) - tight zoom
-      } else if (distance < 200) {
-        padding = [50, 50];      // Close (50-200m) - comfortable zoom
-      } else if (distance < 500) {
-        padding = [70, 70];      // Medium (200-500m) - standard zoom
-      } else if (distance < 1000) {
-        padding = [90, 90];      // Far (500-1000m) - zoomed out
-      } else if (distance < 2000) {
-        padding = [120, 120];    // Very far (1-2km) - more context
+      if (isMobile) {
+        // Mobile: much tighter padding to prevent over-zoom on large distances
+        if (distance < 50) {
+          padding = [20, 20];
+        } else if (distance < 200) {
+          padding = [30, 30];
+        } else if (distance < 500) {
+          padding = [40, 40];
+        } else if (distance < 1000) {
+          padding = [50, 50];
+        } else if (distance < 2000) {
+          padding = [60, 60];
+        } else {
+          padding = [80, 80];      // Cap mobile padding at 80px even for very far routes
+        }
       } else {
-        padding = [180, 180];    // Extremely far (2km+) - wide view
+        // Desktop: generous padding
+        if (distance < 50) {
+          padding = [30, 30];
+        } else if (distance < 200) {
+          padding = [50, 50];
+        } else if (distance < 500) {
+          padding = [70, 70];
+        } else if (distance < 1000) {
+          padding = [90, 90];
+        } else if (distance < 2000) {
+          padding = [120, 120];
+        } else {
+          padding = [180, 180];
+        }
       }
       
-      // Add extra top padding to account for nav panel (approx 80px)
-      const topPadding = padding[0] + 80;
+      // Add UI element offsets
+      const topPadding = isMobile ? padding[0] + 50 : padding[0] + 80;
+      const bottomPadding = isMobile ? padding[1] + 50 : padding[1] + 80;
+      const sidePadding = padding[1];
       
-      map.fitBounds(bounds, { padding: [topPadding, padding[1], padding[1], padding[1]] });
+      map.fitBounds(bounds, {
+        padding: [topPadding, sidePadding, bottomPadding, sidePadding]
+      });
     } 
     else if (startPoint && !destPoint) {
       map.flyTo([startPoint.lat, startPoint.lng], 16, { duration: 0.8 });

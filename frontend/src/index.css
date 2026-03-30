@@ -78,6 +78,14 @@ input::placeholder { opacity: 0.5; }
   font-family: "Outfit", sans-serif;
   overflow: hidden;
   background: var(--bg);
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Support for devices with notch/dynamic island */
+@supports (padding: max(0px)) {
+  .ug-root {
+    padding-top: max(0px, env(safe-area-inset-top, 47px));
+  }
 }
 
 /* ─── CSS variables — light mode ─────────────────────────────────────────────*/

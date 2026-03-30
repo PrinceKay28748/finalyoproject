@@ -2,8 +2,8 @@
 
 /* ── Sheet container ─────────────────────────────────────────────────────── */
 .legend-sheet {
-  position: absolute;
-  bottom: 0;
+  position: fixed;
+  bottom: env(safe-area-inset-bottom, 0px);
   left: 0;
   right: 0;
   background: var(--panel);

@@ -13,7 +13,7 @@
   transition: all 0.3s ease;
   animation: ugslide 0.35s ease;
   position: fixed;
-  top: 12px;
+  top: max(12px, calc(env(safe-area-inset-top, 0px) + 12px));
   left: 12px;
   right: 12px;
   max-width: 480px;
@@ -374,6 +374,7 @@
 .ug-root.dark .nav-compact-swap {
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.1);
+  color: #e5e7eb;
 }
 
 .ug-root.dark .nav-compact-swap:hover {
@@ -450,5 +451,46 @@
   .nav-reset-btn {
     padding: 10px;
     font-size: 13px;
+  }
+}
+
+/* Desktop responsive - wider nav bar for longer location names */
+@media (min-width: 901px) {
+  .nav-panel {
+    max-width: 650px;
+    left: 20px;
+    right: 20px;
+  }
+
+  .nav-compact-start {
+    max-width: 200px;
+  }
+
+  .nav-compact-dest {
+    max-width: 280px;
+  }
+
+  .nav-title {
+    font-size: 18px;
+  }
+
+  .nav-logo {
+    width: 40px;
+    height: 40px;
+  }
+
+  .nav-logo svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .nav-directions-btn {
+    padding: 14px 24px;
+    font-size: 15px;
+  }
+
+  .nav-reset-btn {
+    padding: 12px 24px;
+    font-size: 14px;
   }
 }
