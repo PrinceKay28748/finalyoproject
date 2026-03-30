@@ -1,0 +1,146 @@
+/* components/Legend/LegendProfile.css */
+
+/* Profile selector in legend */
+.legend-profiles {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0 8px;
+  flex-wrap: wrap;
+}
+
+.legend-profile-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 40px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: "Outfit", sans-serif;
+}
+
+.legend-profile-btn:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+/* Active state - base */
+.legend-profile-btn--active {
+  background: rgba(37, 99, 235, 0.08);
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+/* Standard */
+.legend-profile-btn--active[data-profile="standard"] {
+  background: rgba(37, 99, 235, 0.08);
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+/* Accessible */
+.legend-profile-btn--active[data-profile="accessible"] {
+  background: rgba(139, 92, 246, 0.08);
+  border-color: #8b5cf6;
+  color: #8b5cf6;
+}
+
+/* Night */
+.legend-profile-btn--active[data-profile="night"] {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: #f59e0b;
+  color: #f59e0b;
+}
+
+/* Fastest */
+.legend-profile-btn--active[data-profile="fastest"] {
+  background: rgba(34, 197, 94, 0.08);
+  border-color: #22c55e;
+  color: #22c55e;
+}
+
+.legend-profile-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.legend-profile-icon svg {
+  width: 100%;
+  height: 100%;
+  stroke-width: 1.5;
+  fill: none;
+}
+
+/* Icons inherit color from parent button */
+.legend-profile-icon svg {
+  stroke: currentColor;
+}
+
+/* Dark mode */
+.ug-root.dark .legend-profile-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #9ca3af;
+}
+
+.ug-root.dark .legend-profile-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #f3f4f6;
+}
+
+.ug-root.dark .legend-profile-btn--active[data-profile="standard"] {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: #3b82f6;
+  color: #60a5fa;
+}
+
+.ug-root.dark .legend-profile-btn--active[data-profile="accessible"] {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: #a78bfa;
+  color: #c084fc;
+}
+
+.ug-root.dark .legend-profile-btn--active[data-profile="night"] {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: #f59e0b;
+  color: #fbbf24;
+}
+
+.ug-root.dark .legend-profile-btn--active[data-profile="fastest"] {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: #4ade80;
+  color: #86efac;
+}
+
+/* Mobile responsive */
+@media (max-width: 600px) {
+  .legend-profiles {
+    gap: 6px;
+    margin: 10px 0 6px;
+  }
+  
+  .legend-profile-btn {
+    padding: 6px 8px;
+  }
+  
+  .legend-profile-icon {
+    width: 14px;
+    height: 14px;
+  }
+  
+  .legend-profile-label {
+    font-size: 10px;
+  }
+}
