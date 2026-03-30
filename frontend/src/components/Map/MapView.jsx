@@ -164,6 +164,7 @@ export default function MapView({
           route={displayRoute} 
           visible={markersVisible}
           showFullRoute={showFullRoute}
+          profile={activeProfile} 
         />
 
         <RouteMarkers

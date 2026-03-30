@@ -55,6 +55,16 @@
 
 .nav-compact-icon {
   font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+}
+
+.nav-compact-icon svg {
+  width: 16px;
+  height: 16px;
+  color: inherit;
 }
 
 .nav-compact-start {
@@ -96,6 +106,13 @@
   justify-content: center;
   transition: all 0.2s;
   flex-shrink: 0;
+  padding: 0;
+}
+
+.nav-compact-swap svg {
+  width: 16px;
+  height: 16px;
+  color: inherit;
 }
 
 .nav-compact-swap:hover {
@@ -320,6 +337,15 @@
   font-family: "Outfit", sans-serif;
   font-weight: 600;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-mode-btn svg {
+  width: 18px;
+  height: 18px;
+  color: inherit;
 }
 
 /* Spinner */

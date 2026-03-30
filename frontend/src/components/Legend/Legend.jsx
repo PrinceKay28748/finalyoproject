@@ -1,6 +1,19 @@
 // components/Legend/Legend.jsx
 import { useState, useRef, useEffect } from "react";
+import {
+  IconMap,
+  IconAccessibility,
+  IconMoon,
+  IconBolt,
+  IconWalk,
+  IconCar,
+  IconRuler,
+  IconShare,
+  IconWarning,
+  IconInfo,
+} from "../ui/icon";
 import "./Legend.css";
+import "./LegendProfile.css";
 
 // Formats metres into a readable distance string
 function formatDistance(meters) {
@@ -8,20 +21,20 @@ function formatDistance(meters) {
   return `${(meters / 1000).toFixed(1)} km`;
 }
 
-// Estimates walking time at 5 km/h (83.33 m/min) — realistic campus pace
+// Estimates walking time at 5 km/h (83.33 m/min)
 function formatWalkingTime(meters) {
   const minutes = Math.ceil(meters / 83.33);
-  if (minutes < 1)  return "< 1 min";
+  if (minutes < 1) return "< 1 min";
   if (minutes < 60) return `${minutes} min`;
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   return m === 0 ? `${h} hr` : `${h} hr ${m} min`;
 }
 
-// Estimates driving time at 20 km/h on campus (slow campus roads)
+// Estimates driving time at 20 km/h on campus
 function formatDrivingTime(meters) {
   const minutes = Math.ceil(meters / 333.33);
-  if (minutes < 1)  return "< 1 min";
+  if (minutes < 1) return "< 1 min";
   if (minutes < 60) return `${minutes} min`;
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
@@ -32,49 +45,41 @@ function formatDrivingTime(meters) {
 function getTrafficInfo() {
   const now = new Date();
   const hour = now.getHours();
-  const day = now.getDay(); // 0 = Sunday, 6 = Saturday
+  const day = now.getDay();
   
-  // Sunday — very quiet
   if (day === 0) {
     return { level: "Very Low", icon: "⚪", multiplier: 1.0, message: "Sunday — very light activity" };
   }
-  
-  // Saturday — low activity
   if (day === 6) {
     return { level: "Low", icon: "🟢", multiplier: 1.1, message: "Saturday — light traffic" };
   }
   
-  // Weekday peak hours (Monday - Friday)
   const peakHours = [8, 9, 12, 13, 16, 17];
   const isPeak = peakHours.includes(hour);
   
   if (isPeak) {
     return { level: "Heavy", icon: "🔴", multiplier: 1.5, message: "Peak hours — busy paths" };
   }
-  
-  // Weekday non-peak (daytime)
   if (hour >= 6 && hour < 18) {
     return { level: "Moderate", icon: "🟡", multiplier: 1.3, message: "Moderate traffic" };
   }
   
-  // Night time
   return { level: "Low", icon: "⚫", multiplier: 1.0, message: "Low traffic" };
 }
 
-// Route profile config — colour and label for each mode
+// Route profile config with colors
 const PROFILE_CONFIG = {
-  standard:   { label: "Standard",     color: "#2563eb", icon: "🗺️" },
-  accessible: { label: "Accessible",   color: "#8b5cf6", icon: "♿" },
-  night:      { label: "Night Safety", color: "#f59e0b", icon: "🌙" },
-  fastest:    { label: "Fastest",      color: "#22c55e", icon: "⚡" },
+  standard:   { label: "Standard",     color: "#2563eb", icon: IconMap },
+  accessible: { label: "Accessible",   color: "#8b5cf6", icon: IconAccessibility },
+  night:      { label: "Night Safety", color: "#f59e0b", icon: IconMoon },
+  fastest:    { label: "Fastest",      color: "#22c55e", icon: IconBolt },
 };
 
-// Profile options for selector
 const PROFILES = [
-  { key: "standard",   icon: "🗺️", label: "Standard"  },
-  { key: "accessible", icon: "♿", label: "Accessible" },
-  { key: "night",      icon: "🌙", label: "Night"      },
-  { key: "fastest",    icon: "⚡", label: "Fastest"    },
+  { key: "standard",   icon: IconMap, label: "Standard", color: "#2563eb" },
+  { key: "accessible", icon: IconAccessibility, label: "Accessible", color: "#8b5cf6" },
+  { key: "night",      icon: IconMoon, label: "Night", color: "#f59e0b" },
+  { key: "fastest",    icon: IconBolt, label: "Fastest", color: "#22c55e" },
 ];
 
 export default function Legend({
@@ -89,7 +94,7 @@ export default function Legend({
   activeAlternativeIndex = 0,
   currentLocation,
   onExpandedChange,
-  onProfileChange,  // NEW: callback for profile selection
+  onProfileChange,
 }) {
   const [expanded, setExpanded] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
@@ -101,7 +106,6 @@ export default function Legend({
   const sheetRef = useRef(null);
   const peekHeight = 70;
 
-  // Notify parent when expanded state changes
   useEffect(() => {
     onExpandedChange?.(expanded);
   }, [expanded, onExpandedChange]);
@@ -110,16 +114,15 @@ export default function Legend({
 
   const handleShareLocation = () => {
     if (!currentLocation) {
-      alert("📍 Location not available yet. Please wait for GPS fix.");
+      alert("Location not available yet. Please wait for GPS fix.");
       return;
     }
-    
     const link = `${window.location.origin}?lat=${currentLocation.lat}&lng=${currentLocation.lng}`;
     navigator.clipboard.writeText(link);
-    alert("📤 Location link copied! Share it with your friends.\n\nThey'll see your location when they open the link.");
+    alert("Location link copied! Share it with your friends.");
   };
 
-  // Improved drag handlers with live feedback
+  // Drag handlers
   const handleDragStart = (e) => {
     setIsDragging(true);
     dragStartY.current = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
@@ -127,69 +130,50 @@ export default function Legend({
     dragStartExpanded.current = expanded;
     lastDragTime.current = Date.now();
     dragVelocity.current = 0;
-    
-    if (sheetRef.current) {
-      sheetRef.current.classList.add('dragging');
-    }
+    if (sheetRef.current) sheetRef.current.classList.add('dragging');
   };
 
   const handleDragMove = (e) => {
     if (!isDragging) return;
-
     const currentY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
     const deltaY = currentY - dragStartY.current;
-    
     const now = Date.now();
     const timeDelta = Math.max(1, now - lastDragTime.current);
     dragVelocity.current = (deltaY - (dragCurrentY.current - dragStartY.current)) / timeDelta;
     dragCurrentY.current = currentY;
     lastDragTime.current = now;
-    
     const sheetHeight = sheetRef.current?.offsetHeight || 400;
     const maxDrag = sheetHeight - peekHeight;
-    
     let newTranslateY = 0;
-    
     if (dragStartExpanded.current) {
       newTranslateY = Math.min(maxDrag, Math.max(0, deltaY));
     } else {
       newTranslateY = Math.min(maxDrag, Math.max(0, maxDrag + deltaY));
     }
-    
-    if (sheetRef.current) {
-      sheetRef.current.style.transform = `translateY(${newTranslateY}px)`;
-    }
+    if (sheetRef.current) sheetRef.current.style.transform = `translateY(${newTranslateY}px)`;
   };
 
   const handleDragEnd = () => {
     if (!isDragging) return;
-    
     const sheetHeight = sheetRef.current?.offsetHeight || 400;
     const maxDrag = sheetHeight - peekHeight;
     const currentTranslate = parseFloat(sheetRef.current?.style.transform?.match(/translateY\(([-\d.]+)px\)/)?.[1] || 0);
-    
     let shouldExpand;
-    
     if (Math.abs(dragVelocity.current) > 0.3) {
       shouldExpand = dragVelocity.current < 0;
     } else {
       shouldExpand = currentTranslate < maxDrag / 2;
     }
-    
     setExpanded(shouldExpand);
-    
     if (sheetRef.current) {
       sheetRef.current.style.transform = '';
       sheetRef.current.classList.remove('dragging');
     }
-    
     setIsDragging(false);
   };
 
   useEffect(() => {
-    if (!isDragging && sheetRef.current) {
-      sheetRef.current.style.transform = '';
-    }
+    if (!isDragging && sheetRef.current) sheetRef.current.style.transform = '';
   }, [expanded, isDragging]);
 
   useEffect(() => {
@@ -197,21 +181,15 @@ export default function Legend({
       document.body.classList.remove('dragging-legend');
       return;
     }
-    
     document.body.classList.add('dragging-legend');
-    
     const handleMouseMove = (e) => handleDragMove(e);
     const handleMouseUp = () => handleDragEnd();
-    const handleTouchMove = (e) => {
-      handleDragMove(e);
-    };
+    const handleTouchMove = (e) => handleDragMove(e);
     const handleTouchEnd = () => handleDragEnd();
-
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
     document.addEventListener('touchmove', handleTouchMove, { passive: false });
     document.addEventListener('touchend', handleTouchEnd);
-
     return () => {
       document.body.classList.remove('dragging-legend');
       document.removeEventListener('mousemove', handleMouseMove);
@@ -223,12 +201,12 @@ export default function Legend({
 
   if (!visible) return null;
 
-  const hasRoute    = route && route.totalDistance;
-  const distMeters  = hasRoute ? route.totalDistance : null;
-  const isFallback  = route?.isFallback || false;
-  const profile     = PROFILE_CONFIG[activeProfile] || PROFILE_CONFIG.standard;
+  const hasRoute = route && route.totalDistance;
+  const distMeters = hasRoute ? route.totalDistance : null;
+  const isFallback = route?.isFallback || false;
+  const profile = PROFILE_CONFIG[activeProfile] || PROFILE_CONFIG.standard;
   const hasWarnings = warnings.length > 0;
-  const hasAlts     = alternatives.length > 0;
+  const hasAlts = alternatives.length > 0;
 
   const getBarWidth = () => {
     const level = traffic.level;
@@ -239,13 +217,18 @@ export default function Legend({
     return "50%";
   };
 
+  const ProfileIcon = profile.icon;
+  const WalkIcon = IconWalk;
+  const CarIcon = IconCar;
+  const RulerIcon = IconRuler;
+  const ShareIcon = IconShare;
+
   return (
-    <div 
+    <div
       ref={sheetRef}
       className={`legend-sheet ${expanded ? "legend-sheet--expanded" : "legend-sheet--peek"}`}
     >
-      {/* Drag handle */}
-      <div 
+      <div
         className="legend-handle-wrap"
         onMouseDown={handleDragStart}
         onTouchStart={handleDragStart}
@@ -254,7 +237,6 @@ export default function Legend({
         <div className="legend-handle" />
       </div>
 
-      {/* Peek row */}
       <div className="legend-peek">
         <div className="legend-peek-dots">
           <span className="peek-dot peek-dot--start" />
@@ -274,44 +256,44 @@ export default function Legend({
         )}
       </div>
 
-      {/* Expanded content */}
       {expanded && (
         <div className="legend-body">
-
-          {/* Active profile badge */}
           <div className="legend-profile">
-            <span className="profile-icon">{profile.icon}</span>
+            <span className="profile-icon"><ProfileIcon className="w-4 h-4" color={profile.color} /></span>
             <span className="profile-label" style={{ color: profile.color }}>
               {profile.label} Route
             </span>
-            {isFallback && (
-              <span className="legend-badge legend-badge--warn">Direct path</span>
-            )}
+            {isFallback && <span className="legend-badge legend-badge--warn">Direct path</span>}
           </div>
 
-          {/* Profile Selector - NEW */}
           <div className="legend-profiles">
-            {PROFILES.map((p) => (
-              <button
-                key={p.key}
-                className={`legend-profile-btn ${activeProfile === p.key ? "legend-profile-btn--active" : ""}`}
-                onClick={() => onProfileChange?.(p.key)}
-                title={p.label}
-              >
-                <span className="legend-profile-icon">{p.icon}</span>
-                <span className="legend-profile-label">{p.label}</span>
-              </button>
-            ))}
+            {PROFILES.map((p) => {
+              const IconComponent = p.icon;
+              const isActive = activeProfile === p.key;
+              return (
+                <button
+                  key={p.key}
+                  data-profile={p.key}
+                  className={`legend-profile-btn ${isActive ? "legend-profile-btn--active" : ""}`}
+                  onClick={() => onProfileChange?.(p.key)}
+                  title={p.label}
+                >
+                  <span className="legend-profile-icon">
+                    <IconComponent className="w-4 h-4" color={isActive ? p.color : "currentColor"} />
+                  </span>
+                  <span>{p.label}</span>
+                </button>
+              );
+            })}
           </div>
 
           <div className="legend-divider" />
 
-          {/* Route stats */}
           {hasRoute && (
             <>
               <div className="legend-stats-grid">
                 <div className="legend-stat-card">
-                  <span className="stat-card-icon">🚶</span>
+                  <span className="stat-card-icon"><WalkIcon className="w-5 h-5" color="#22c55e" /></span>
                   <div className="stat-card-info">
                     <span className="stat-card-value">{formatWalkingTime(distMeters)}</span>
                     <span className="stat-card-label">Walking</span>
@@ -319,7 +301,7 @@ export default function Legend({
                 </div>
                 <div className="legend-stat-divider" />
                 <div className="legend-stat-card">
-                  <span className="stat-card-icon">🚗</span>
+                  <span className="stat-card-icon"><CarIcon className="w-5 h-5" color="#f59e0b" /></span>
                   <div className="stat-card-info">
                     <span className="stat-card-value">{formatDrivingTime(distMeters)}</span>
                     <span className="stat-card-label">Driving</span>
@@ -327,7 +309,7 @@ export default function Legend({
                 </div>
                 <div className="legend-stat-divider" />
                 <div className="legend-stat-card">
-                  <span className="stat-card-icon">📏</span>
+                  <span className="stat-card-icon"><RulerIcon className="w-5 h-5" color="#3b82f6" /></span>
                   <div className="stat-card-info">
                     <span className="stat-card-value">{formatDistance(distMeters)}</span>
                     <span className="stat-card-label">Distance</span>
@@ -335,7 +317,6 @@ export default function Legend({
                 </div>
               </div>
 
-              {/* Traffic indicator */}
               <div className="legend-traffic">
                 <div className="legend-traffic-icon">
                   <span>{traffic.icon}</span>
@@ -345,7 +326,7 @@ export default function Legend({
                   <span className="legend-traffic-value">{traffic.level}</span>
                 </div>
                 <div className="legend-traffic-bar">
-                  <div 
+                  <div
                     className={`legend-traffic-bar-fill ${traffic.level.toLowerCase().replace(' ', '-')}`}
                     style={{ width: getBarWidth() }}
                   />
@@ -354,16 +335,11 @@ export default function Legend({
             </>
           )}
 
-          {/* Share Location Button */}
-          <button 
-            className="legend-share-btn"
-            onClick={handleShareLocation}
-          >
-            <span className="share-icon">📤</span>
+          <button className="legend-share-btn" onClick={handleShareLocation}>
+            <span className="share-icon"><ShareIcon className="w-4 h-4" color="#3b82f6" /></span>
             <span>Share my location</span>
           </button>
 
-          {/* Alternative routes */}
           {hasAlts && (
             <>
               <div className="legend-divider" />
@@ -380,7 +356,6 @@ export default function Legend({
                   </div>
                   <span className="alt-dist">{formatDistance(distMeters)}</span>
                 </div>
-
                 {alternatives.map((alt, i) => (
                   <div
                     key={i}
@@ -399,22 +374,24 @@ export default function Legend({
             </>
           )}
 
-          {/* Warnings */}
           {hasWarnings && (
             <>
               <div className="legend-divider" />
               <div className="legend-warnings">
-                {warnings.map((w, i) => (
-                  <div key={i} className={`legend-warning legend-warning--${w.type || "info"}`}>
-                    <span className="warning-icon">{w.icon || "⚠️"}</span>
-                    <span className="warning-text">{w.message}</span>
-                  </div>
-                ))}
+                {warnings.map((w, i) => {
+                  const WarningIcon = w.type === "danger" ? IconWarning : IconInfo;
+                  const warningColor = w.type === "danger" ? "#ef4444" : "#3b82f6";
+                  return (
+                    <div key={i} className={`legend-warning legend-warning--${w.type || "info"}`}>
+                      <span className="warning-icon"><WarningIcon className="w-4 h-4" color={warningColor} /></span>
+                      <span className="warning-text">{w.message}</span>
+                    </div>
+                  );
+                })}
               </div>
             </>
           )}
 
-          {/* Fallback note */}
           {isFallback && (
             <div className="legend-fallback-note">
               ⚡ Direct connection used — small gap in road data
