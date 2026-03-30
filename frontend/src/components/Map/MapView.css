@@ -245,6 +245,11 @@
   white-space: nowrap;
 }
 
+/* Force route line repaint on profile change */
+.route-line {
+  transition: stroke 0.1s ease;
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
