@@ -759,3 +759,24 @@ body.dragging-legend {
     flex: 0 0 calc(33% - 8px);
   }
 }
+
+/* Add these styles to the end of your Legend.css */
+
+/* Prevent map interaction while dragging legend */
+.legend-sheet.dragging {
+  pointer-events: auto;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Disable map interactions while dragging */
+body.dragging-legend .leaflet-container {
+  pointer-events: none !important;
+}
+
+/* Ensure drag handle doesn't cause map zoom */
+.legend-handle-wrap {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}

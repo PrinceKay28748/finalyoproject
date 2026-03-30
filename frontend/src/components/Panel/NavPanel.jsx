@@ -73,7 +73,7 @@ export default function NavPanel({
         <div className="nav-header">
           <div className="nav-header-left">
             <div className="nav-logo">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-label="UG Navigator logo">
                 <path
                   d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"
                   fill="white"
@@ -100,7 +100,11 @@ export default function NavPanel({
               </p>
             </div>
           </div>
-          <button className="nav-mode-btn" onClick={onToggleDarkMode}>
+          <button 
+            className="nav-mode-btn" 
+            onClick={onToggleDarkMode}
+            aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+          >
             {darkMode ? <IconSun className="w-4 h-4" /> : <IconMoonNav className="w-4 h-4" />}
           </button>
         </div>
@@ -109,14 +113,20 @@ export default function NavPanel({
           <div 
             className="nav-compact-location"
             onClick={handleSearchFocus}
+            aria-label="Edit route"
           >
-            <span className="nav-compact-icon">📍</span>
+            <span className="nav-compact-icon" aria-hidden="true">📍</span>
             <span className="nav-compact-start">{startText}</span>
-            <span className="nav-compact-arrow">→</span>
+            <span className="nav-compact-arrow" aria-hidden="true">→</span>
             <span className="nav-compact-dest">{destText}</span>
           </div>
-          <button className="nav-compact-swap" onClick={onSwap} title="Swap">
-            <IconSwap className="w-4 h-4" />
+          <button 
+            className="nav-compact-swap" 
+            onClick={onSwap} 
+            title="Swap"
+            aria-label="Swap start and destination"
+          >
+            <IconSwap className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -129,7 +139,7 @@ export default function NavPanel({
       <div className="nav-header">
         <div className="nav-header-left">
           <div className="nav-logo">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-label="UG Navigator logo">
               <path
                 d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"
                 fill="white"
@@ -156,14 +166,22 @@ export default function NavPanel({
             </p>
           </div>
         </div>
-        <button className="nav-mode-btn" onClick={onToggleDarkMode}>
+        <button 
+          className="nav-mode-btn" 
+          onClick={onToggleDarkMode}
+          aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+        >
           {darkMode ? <IconSun className="w-4 h-4" /> : <IconMoonNav className="w-4 h-4" />}
         </button>
       </div>
 
       {!isExpanded && (
-        <div className="nav-where-to" onClick={() => setIsExpanded(true)}>
-          <div className="nav-where-to-icon"><IconSearch className="w-4 h-4" /></div>
+        <div 
+          className="nav-where-to" 
+          onClick={() => setIsExpanded(true)}
+          aria-label="Search for destination"
+        >
+          <div className="nav-where-to-icon" aria-hidden="true"><IconSearch className="w-4 h-4" /></div>
           <span className="nav-where-to-text">Where to?</span>
         </div>
       )}
@@ -172,7 +190,7 @@ export default function NavPanel({
         <div className="nav-expanded-content">
           <div className="nav-input-section">
             <div className="nav-input-label">
-              <span className="nav-input-icon">📍</span>
+              <span className="nav-input-icon" aria-hidden="true">📍</span>
               <span className="nav-input-label-text from-label">From</span>
             </div>
             <PortalSearchBox
@@ -189,7 +207,7 @@ export default function NavPanel({
 
           <div className="nav-input-section">
             <div className="nav-input-label">
-              <span className="nav-input-icon">📍</span>
+              <span className="nav-input-icon" aria-hidden="true">📍</span>
               <span className="nav-input-label-text to-label">To</span>
             </div>
             <PortalSearchBox
@@ -205,22 +223,27 @@ export default function NavPanel({
           </div>
 
           <div className="nav-action-row">
-            <button className="nav-reset-btn" onClick={handleResetClick}>
+            <button 
+              className="nav-reset-btn" 
+              onClick={handleResetClick}
+              aria-label="Reset route"
+            >
               ✕ Reset
             </button>
             <button
               className={`nav-directions-btn ${canShow ? "ready" : "disabled"}`}
               onClick={handleDirectionsClick}
               disabled={!canShow || isResolving}
+              aria-label="Get directions"
             >
               {isResolving ? (
                 <>
-                  <div className="nav-spinner" />
+                  <div className="nav-spinner" aria-hidden="true" />
                   Finding...
                 </>
               ) : (
                 <>
-                  <IconDirections className="w-4 h-4" />
+                  <IconDirections className="w-4 h-4" aria-hidden="true" />
                   Directions
                 </>
               )}
