@@ -2,11 +2,12 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 input::placeholder { opacity: 0.5; }
 
-/* ─── Animations ─────────────────────────────────────────────────────────────*/
+/* Ensure full height layout */
+html, body, #root {
+  height: 100%;
+}
 
-/* Uses transform + opacity instead of box-shadow — runs entirely on the GPU
-   (composited layer) so it never triggers layout or paint, eliminating the
-   forced reflow warning Lighthouse flagged on .ug-location-dot             */
+/* ─── Animations ─────────────────────────────────────────────────────────────*/
 @keyframes ugpulse {
   0%   { transform: scale(1);    opacity: 1; }
   50%  { transform: scale(2.2);  opacity: 0; }
@@ -25,13 +26,11 @@ input::placeholder { opacity: 0.5; }
 }
 
 /* ─── Leaflet overrides ──────────────────────────────────────────────────────*/
-/* Hide default Leaflet zoom controls (we use custom ones) */
 .leaflet-control-zoom {
   display: none !important;
 }
 .leaflet-control-attribution { display: none; }
 
-/* Performance optimizations for Leaflet tiles */
 .leaflet-container {
   will-change: auto;
   transform: translateZ(0);
@@ -46,7 +45,6 @@ input::placeholder { opacity: 0.5; }
   backface-visibility: hidden;
 }
 
-/* Prevent layout shifts */
 .leaflet-tile-container {
   transform: translateZ(0);
   will-change: transform;
@@ -69,23 +67,17 @@ input::placeholder { opacity: 0.5; }
   contain: layout style;
 }
 
-/* ─── Root layout ────────────────────────────────────────────────────────────*/
+/* ─── Root layout (FIXED) ────────────────────────────────────────────────────*/
 .ug-root {
   width: 100%;
-  height: 100vh;
+  height: 100dvh; /* ✅ FIX: dynamic viewport height */
   display: flex;
   flex-direction: column;
   font-family: "Outfit", sans-serif;
   overflow: hidden;
   background: var(--bg);
-  padding-top: env(safe-area-inset-top, 0px);
-}
-
-/* Support for devices with notch/dynamic island */
-@supports (padding: max(0px)) {
-  .ug-root {
-    padding-top: max(0px, env(safe-area-inset-top, 47px));
-  }
+  padding-top: env(safe-area-inset-top); /* ✅ FIX: safe area */
+  box-sizing: border-box;
 }
 
 /* ─── CSS variables — light mode ─────────────────────────────────────────────*/
@@ -137,7 +129,6 @@ input::placeholder { opacity: 0.5; }
 }
 
 /* ─── Current location dot ───────────────────────────────────────────────────*/
-/* The dot itself is a static circle — no animation on it directly           */
 .ug-location-dot {
   position: relative;
   width: 18px;
@@ -146,7 +137,6 @@ input::placeholder { opacity: 0.5; }
   background: #2563eb;
   border: 3px solid #fff;
   cursor: grab;
-  /* will-change tells the browser to promote this to its own GPU layer       */
   will-change: transform;
 }
 
@@ -154,8 +144,6 @@ input::placeholder { opacity: 0.5; }
   cursor: grabbing;
 }
 
-/* The pulse ring is a pseudo-element — transform+opacity are composited
-   so the browser never has to repaint or reflow for this animation          */
 .ug-location-dot::after {
   content: "";
   position: absolute;
@@ -166,7 +154,7 @@ input::placeholder { opacity: 0.5; }
   will-change: transform, opacity;
 }
 
-/* ─── Map lazy load fallback ─────────────────────────────────────────────────*/
+/* ─── Map loader ─────────────────────────────────────────────────────────────*/
 .map-loader {
   flex: 1;
   display: flex;
