@@ -264,62 +264,88 @@ function connectNearbyNodes(graph, thresholdMeters = 25) {
   const edgeSet = new Set(graph.edges.map(e => e.id));
   
   let connectionsAdded = 0;
-  let nodesChecked = 0;
-  
-  // Get all nodes as array
   const nodeList = Object.values(nodes);
   
   console.log(`[GraphBuilder] Connecting nodes within ${thresholdMeters}m...`);
   
-  // Only check nodes that have few connections (potential gaps)
-  for (let i = 0; i < nodeList.length; i++) {
-    const nodeA = nodeList[i];
+  // Create spatial grid for faster neighbor finding (NOT nested loops!)
+  // Converts O(n²) to O(n*k) where k is nodes in nearby cells only
+  const GRID_SIZE_DEG = 0.005; // ~500m cell at equator - tuned for 25m connections
+  const grid = new Map();
+  
+  // Place nodes in grid cells
+  for (const node of nodeList) {
+    const cellX = Math.floor(node.lat / GRID_SIZE_DEG);
+    const cellY = Math.floor(node.lng / GRID_SIZE_DEG);
+    const cellKey = `${cellX},${cellY}`;
     
-    // Skip nodes that already have many connections
-    if (nodeA.neighbors.length > 5) continue;
+    if (!grid.has(cellKey)) {
+      grid.set(cellKey, []);
+    }
+    grid.get(cellKey).push(node);
+  }
+  
+  const startTime = performance.now();
+  
+  // Check only nodes in same + adjacent cells
+  for (const [cellKey, cellNodes] of grid.entries()) {
+    const [cellX, cellY] = cellKey.split(',').map(Number);
     
-    for (let j = i + 1; j < nodeList.length; j++) {
-      const nodeB = nodeList[j];
-      
-      // Skip if nodeB already has many connections
-      if (nodeB.neighbors.length > 5) continue;
-      
-      // Calculate distance between nodes
-      const distMeters = distanceKm(nodeA.lat, nodeA.lng, nodeB.lat, nodeB.lng) * 1000;
-      
-      if (distMeters <= thresholdMeters && distMeters > 0.5) {
-        // Check if these nodes are already connected
-        const edgeKey = `${nodeA.id}-${nodeB.id}`;
-        const reverseKey = `${nodeB.id}-${nodeA.id}`;
-        
-        if (!edgeSet.has(edgeKey) && !edgeSet.has(reverseKey)) {
-          edgeSet.add(edgeKey);
-          connectionsAdded++;
-          
-          const newEdge = {
-            id: edgeKey,
-            from: nodeA.id,
-            to: nodeB.id,
-            distance: distMeters,
-            tags: { highway: 'connection' },
-            type: 'connection'
-          };
-          
-          edges.push(newEdge);
-          
-          nodeA.neighbors.push({ nodeId: nodeB.id, edgeId: edgeKey, distance: distMeters });
-          nodeB.neighbors.push({ nodeId: nodeA.id, edgeId: edgeKey, distance: distMeters });
+    // Get adjacent cells too
+    const cellsToCheck = new Set();
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        const key = `${cellX + dx},${cellY + dy}`;
+        const adjacentNodes = grid.get(key);
+        if (adjacentNodes) {
+          for (const n of adjacentNodes) cellsToCheck.add(n.id);
         }
       }
     }
     
-    nodesChecked++;
-    if (nodesChecked % 1000 === 0) {
-      console.log(`[GraphBuilder] Processed ${nodesChecked}/${nodeList.length} nodes...`);
+    // Check within this cell and adjacent cells
+    for (let i = 0; i < cellNodes.length; i++) {
+      const nodeA = cellNodes[i];
+      
+      // Skip nodes that already have many connections
+      if (nodeA.neighbors.length > 5) continue;
+      
+      for (let j = i + 1; j < cellNodes.length; j++) {
+        const nodeB = cellNodes[j];
+        
+        // Skip if nodeB already has many connections
+        if (nodeB.neighbors.length > 5) continue;
+        
+        const distMeters = distanceKm(nodeA.lat, nodeA.lng, nodeB.lat, nodeB.lng) * 1000;
+        
+        if (distMeters <= thresholdMeters && distMeters > 0.5) {
+          const edgeKey = `${nodeA.id}-${nodeB.id}`;
+          const reverseKey = `${nodeB.id}-${nodeA.id}`;
+          
+          if (!edgeSet.has(edgeKey) && !edgeSet.has(reverseKey)) {
+            edgeSet.add(edgeKey);
+            connectionsAdded++;
+            
+            const newEdge = {
+              id: edgeKey,
+              from: nodeA.id,
+              to: nodeB.id,
+              distance: distMeters,
+              tags: { highway: 'connection' },
+              type: 'connection'
+            };
+            
+            edges.push(newEdge);
+            nodeA.neighbors.push({ nodeId: nodeB.id, edgeId: edgeKey, distance: distMeters });
+            nodeB.neighbors.push({ nodeId: nodeA.id, edgeId: edgeKey, distance: distMeters });
+          }
+        }
+      }
     }
   }
   
-  console.log(`[GraphBuilder] Added ${connectionsAdded} connections between nearby nodes`);
+  const elapsed = performance.now() - startTime;
+  console.log(`[GraphBuilder] Added ${connectionsAdded} connections in ${elapsed.toFixed(0)}ms (spatial grid optimization)`);
   
   return { nodes, edges };
 }
