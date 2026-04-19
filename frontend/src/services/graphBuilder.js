@@ -3,6 +3,7 @@
 
 import { UG_BOUNDS } from "../function/utils/bounds";
 import { distanceKm } from "../function/utils/distance";
+import { getCachedGraph, cacheGraph } from "./cacheStore";
 
 // OSM Overpass API endpoint (using a more reliable endpoint)
 const OVERPASS_API = "https://overpass-api.de/api/interpreter";
@@ -79,17 +80,10 @@ async function fetchWithRetry(url, query, retries = 2) {
  */
 export async function buildGraph() {
   try {
-    // Check localStorage cache first (huge speed boost in dev mode)
-    const cached = localStorage.getItem('ug-graph-cache');
-    const cacheTimestamp = localStorage.getItem('ug-graph-cache-time');
-    const CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
-    
-    if (cached && cacheTimestamp) {
-      const age = Date.now() - parseInt(cacheTimestamp);
-      if (age < CACHE_DURATION_MS) {
-        console.log(`[GraphBuilder] Loading from cache (${(age / 1000).toFixed(1)}s old)`);
-        return JSON.parse(cached);
-      }
+    // Check IndexedDB cache first (huge speed boost in dev mode)
+    const cached = await getCachedGraph();
+    if (cached) {
+      return cached;
     }
     
     console.log("[GraphBuilder] Fetching OSM data for Legon...");
@@ -136,14 +130,8 @@ export async function buildGraph() {
       `${enhancedGraph.edges.length} edges, ${components.length} connected component(s)`
     );
 
-    // Save to localStorage for next load
-    try {
-      localStorage.setItem('ug-graph-cache', JSON.stringify(enhancedGraph));
-      localStorage.setItem('ug-graph-cache-time', Date.now().toString());
-      console.log("[GraphBuilder] Graph cached to localStorage");
-    } catch (e) {
-      console.warn("[GraphBuilder] Could not cache to localStorage:", e.message);
-    }
+    // Save to IndexedDB cache for next load
+    await cacheGraph(enhancedGraph);
 
     return enhancedGraph;
 
