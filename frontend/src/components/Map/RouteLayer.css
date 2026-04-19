@@ -1,0 +1,91 @@
+/* Modern Route Animation Styles */
+
+/* Shadow effect - subtle depth */
+.route-shadow {
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.15));
+}
+
+/* Glow effect - ambient light */
+.route-glow {
+  filter: blur(1px) drop-shadow(0 0 4px rgba(0, 0, 0, 0.1));
+}
+
+/* Main route line - dynamic animations */
+.route-main {
+  transition: opacity 0.3s ease;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.2));
+}
+
+/* Drawing animation - dashed during animation */
+.route-animating {
+  stroke-dasharray: 8, 4;
+  animation: routeDraw 1.2s linear;
+}
+
+/* Completed animation - solid line with subtle pulse */
+.route-complete {
+  stroke-dasharray: none;
+  animation: routePulse 2s ease-in-out;
+}
+
+/* Route drawing effect - dashes flow along the line */
+@keyframes routeDraw {
+  0% {
+    stroke-dashoffset: 0;
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 0.85;
+  }
+  100% {
+    stroke-dashoffset: 12;
+    opacity: 0.95;
+  }
+}
+
+/* Subtle completion pulse - soft glow when route is drawn */
+@keyframes routePulse {
+  0%, 100% {
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.2));
+  }
+  50% {
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
+  }
+}
+
+/* Smooth fade-in for new routes */
+@keyframes fadeInRoute {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Stagger animation for alternative routes */
+@keyframes fadeInAlternative {
+  0% {
+    opacity: 0;
+    stroke-width: 2;
+  }
+  100% {
+    opacity: 0.3;
+    stroke-width: 3;
+  }
+}
+
+/* Highlight animation when route is active */
+@keyframes highlightRoute {
+  0%, 100% {
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.2));
+  }
+  50% {
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.35));
+  }
+}
+
+/* Apply highlight when profile changes */
+.route-main.highlight {
+  animation: highlightRoute 0.6s ease-in-out;
+}

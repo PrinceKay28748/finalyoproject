@@ -201,3 +201,69 @@ export function findShortestPath(graph, startNodeId, endNodeId, profileKey = "st
     context,
   };
 }
+
+
+// ============================================
+// MULTI-ROUTE FUNCTIONS (Four profiles)
+// ============================================
+
+/**
+ * Calculates all four route variants in parallel
+ * Profiles: standard, fastest, accessible, night
+ * 
+ * @param {Object} graph - Graph with nodes and edges
+ * @param {string} startNodeId - Starting node ID
+ * @param {string} endNodeId - Destination node ID
+ * @returns {Promise<Object>} Object with standard, fastest, accessible, night routes
+ */
+export async function getAllRoutes(graph, startNodeId, endNodeId) {
+  const startTime = performance.now();
+  
+  // Run all FOUR Dijkstra calculations in parallel
+  const [standard, fastest, accessible, night] = await Promise.all([
+    Promise.resolve(findShortestPath(graph, startNodeId, endNodeId, "standard")),
+    Promise.resolve(findShortestPath(graph, startNodeId, endNodeId, "fastest")),
+    Promise.resolve(findShortestPath(graph, startNodeId, endNodeId, "accessible")),
+    Promise.resolve(findShortestPath(graph, startNodeId, endNodeId, "night"))
+  ]);
+  
+  const elapsed = performance.now() - startTime;
+  console.log(`[Routing] All 4 routes calculated in ${elapsed.toFixed(0)}ms`);
+  
+  return {
+    standard,
+    fastest,
+    accessible,
+    night,
+    timestamp: Date.now()
+  };
+}
+
+/**
+ * Finds the nearest node ID to a given GPS coordinate
+ * Used for rerouting when user deviates from the path
+ * 
+ * @param {Object} graph - Graph with nodes
+ * @param {number} lat - Latitude
+ * @param {number} lng - Longitude
+ * @returns {string|null} Nearest node ID or null if graph empty
+ */
+export function findNearestNode(graph, lat, lng) {
+  if (!graph?.nodes) return null;
+  
+  let minDist = Infinity;
+  let nearestId = null;
+  
+  for (const [nodeId, node] of Object.entries(graph.nodes)) {
+    const dx = node.lat - lat;
+    const dy = node.lng - lng;
+    const dist = Math.hypot(dx, dy);
+    
+    if (dist < minDist) {
+      minDist = dist;
+      nearestId = nodeId;
+    }
+  }
+  
+  return nearestId;
+}
