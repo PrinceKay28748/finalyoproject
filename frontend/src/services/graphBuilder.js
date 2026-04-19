@@ -79,6 +79,19 @@ async function fetchWithRetry(url, query, retries = 2) {
  */
 export async function buildGraph() {
   try {
+    // Check localStorage cache first (huge speed boost in dev mode)
+    const cached = localStorage.getItem('ug-graph-cache');
+    const cacheTimestamp = localStorage.getItem('ug-graph-cache-time');
+    const CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
+    
+    if (cached && cacheTimestamp) {
+      const age = Date.now() - parseInt(cacheTimestamp);
+      if (age < CACHE_DURATION_MS) {
+        console.log(`[GraphBuilder] Loading from cache (${(age / 1000).toFixed(1)}s old)`);
+        return JSON.parse(cached);
+      }
+    }
+    
     console.log("[GraphBuilder] Fetching OSM data for Legon...");
 
     const query = getOSMQuery(UG_BOUNDS);
@@ -122,6 +135,15 @@ export async function buildGraph() {
       `[GraphBuilder] Graph ready — ${Object.keys(enhancedGraph.nodes).length} nodes, ` +
       `${enhancedGraph.edges.length} edges, ${components.length} connected component(s)`
     );
+
+    // Save to localStorage for next load
+    try {
+      localStorage.setItem('ug-graph-cache', JSON.stringify(enhancedGraph));
+      localStorage.setItem('ug-graph-cache-time', Date.now().toString());
+      console.log("[GraphBuilder] Graph cached to localStorage");
+    } catch (e) {
+      console.warn("[GraphBuilder] Could not cache to localStorage:", e.message);
+    }
 
     return enhancedGraph;
 

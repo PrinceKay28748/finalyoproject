@@ -45,6 +45,7 @@ export default function App() {
   
   // Graph object (you need to provide this from your graph building)
   const [graph, setGraph] = useState(null);
+  const [graphLoading, setGraphLoading] = useState(true);
 
   // GPS location from the custom hook
   const { location: currentLocation, accuracy, error: locationError } = useGeolocation();
@@ -75,6 +76,7 @@ export default function App() {
   // Load the graph on mount
   useEffect(() => {
     console.log("[App] Loading road network graph...");
+    setGraphLoading(true);
     buildGraph().then((graphData) => {
       if (graphData && Object.keys(graphData.nodes).length > 0) {
         setGraph(graphData);
@@ -82,8 +84,10 @@ export default function App() {
       } else {
         console.error("[App] Failed to load graph data");
       }
+      setGraphLoading(false);
     }).catch((err) => {
       console.error("[App] Graph loading error:", err);
+      setGraphLoading(false);
     });
   }, []);
 
@@ -292,6 +296,44 @@ export default function App() {
 
   return (
     <div className={`ug-root${darkMode ? " dark" : ""}`}>
+      {/* Graph loading splash screen */}
+      {graphLoading && (
+        <div style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(0, 0, 0, 0.5)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 9999,
+          backdropFilter: "blur(4px)"
+        }}>
+          <div style={{
+            background: "white",
+            padding: "40px",
+            borderRadius: "12px",
+            textAlign: "center",
+            boxShadow: "0 20px 40px rgba(0, 0, 0, 0.3)"
+          }}>
+            <div style={{
+              width: "40px",
+              height: "40px",
+              border: "4px solid #e5e7eb",
+              borderTopColor: "#2563eb",
+              borderRadius: "50%",
+              margin: "0 auto 16px",
+              animation: "spin 0.8s linear infinite"
+            }} />
+            <p style={{ margin: "0 0 8px", fontWeight: 600, color: "#1f2937" }}>
+              Loading road network...
+            </p>
+            <p style={{ margin: 0, fontSize: "12px", color: "#6b7280" }}>
+              This happens once, then it's cached
+            </p>
+          </div>
+        </div>
+      )}
+      
       <NavPanel
         startText={effectiveStartText}
         destText={destText}

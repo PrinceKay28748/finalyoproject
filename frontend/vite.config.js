@@ -21,11 +21,19 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
+        manualChunks: (id) => {
           // Split Leaflet into its own chunk
-          leaflet: ['leaflet', 'react-leaflet'],
+          if (id.includes('node_modules/leaflet')) {
+            return 'leaflet';
+          }
+          // Split react-leaflet
+          if (id.includes('node_modules/react-leaflet')) {
+            return 'leaflet';
+          }
           // Split React core
-          vendor: ['react', 'react-dom'],
+          if (id.includes('node_modules/react')) {
+            return 'vendor';
+          }
         }
       }
     }

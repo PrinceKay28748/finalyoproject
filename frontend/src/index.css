@@ -16,6 +16,9 @@ html, body, #root {
 @keyframes ugspin {
   to { transform: rotate(360deg); }
 }
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 @keyframes ugslide {
   from { opacity: 0; transform: translateY(-8px); }
   to   { opacity: 1; transform: translateY(0); }
