@@ -1,8 +1,10 @@
 // App.jsx
 import { useState, useCallback, lazy, Suspense, useEffect } from "react";
 import { useGeolocation }          from "./hooks/useGeolocation";
-import { useRouting }              from "./hooks/useRouting";
+import { useRealtimeRoutes, ROUTE_PROFILES } from "./hooks/useRealtimeRoutes";
 import { geocode, reverseGeocode } from "./services/geocoding";
+import { findNearestNode } from "./services/routing";
+import { buildGraph } from "./services/graphBuilder";
 import NavPanel                    from "./components/Panel/NavPanel";
 import "./index.css";
 
@@ -40,6 +42,9 @@ export default function App() {
   
   // Legend expanded state for map zoom adjustment
   const [isLegendExpanded, setIsLegendExpanded] = useState(true);
+  
+  // Graph object (you need to provide this from your graph building)
+  const [graph, setGraph] = useState(null);
 
   // GPS location from the custom hook
   const { location: currentLocation, accuracy, error: locationError } = useGeolocation();
@@ -67,19 +72,59 @@ export default function App() {
     }
   }, []);
 
+  // Load the graph on mount
+  useEffect(() => {
+    console.log("[App] Loading road network graph...");
+    buildGraph().then((graphData) => {
+      if (graphData && Object.keys(graphData.nodes).length > 0) {
+        setGraph(graphData);
+        console.log("[App] Graph loaded successfully with", Object.keys(graphData.nodes).length, "nodes");
+      } else {
+        console.error("[App] Failed to load graph data");
+      }
+    }).catch((err) => {
+      console.error("[App] Graph loading error:", err);
+    });
+  }, []);
+
   // Determine which start point to use for routing
   const effectiveStartPoint = useCustomLocation && customStartPoint ? customStartPoint : startPoint;
   const effectiveStartText = useCustomLocation && customStartPoint 
     ? customStartPoint.name || "Custom location" 
     : startText;
 
-  // Route calculation
-  const { route, warnings, isRouting, error: routeError } = useRouting(
-    effectiveStartPoint,
-    destPoint,
-    markersVisible,
-    activeProfile
-  );
+  // Helper to convert lat/lng to node ID (fallback for when nodeId isn't stored)
+  const getNodeId = useCallback((point) => {
+    if (!point || !graph) return null;
+    if (point.nodeId) return point.nodeId;
+    // Fallback: find nearest node
+    return findNearestNode(graph, point.lat, point.lng);
+  }, [graph]);
+
+  // Get node IDs for routing
+  const startNodeId = effectiveStartPoint ? getNodeId(effectiveStartPoint) : null;
+  const destNodeId = destPoint ? getNodeId(destPoint) : null;
+
+  // Real-time 4-route hook
+  const { 
+    primaryRoute,
+    alternativeRoutes,
+    isLoading: isRouting,
+    isRerouting,
+    deviationDetected,
+    routes,
+    areRoutesIdentical
+  } = useRealtimeRoutes({
+    graph,
+    startNodeId,
+    endNodeId: destNodeId,
+    currentLocation,
+    activeProfile,
+    isActive: markersVisible && effectiveStartPoint && destPoint
+  });
+
+  // Build warnings array from route context (if available)
+  const warnings = primaryRoute?.context?.warnings || [];
 
   // Auto-fill FROM with GPS location on first fix
   const [hasAutoFilled, setHasAutoFilled] = useState(false);
@@ -138,9 +183,6 @@ export default function App() {
       setDestText(name);
       // If user taps to set destination, it's not a shared location anymore
       setIsSharedLocation(false);
-
-      const { saveRecentSearch } = await import("./services/recentSearches");
-      saveRecentSearch(loc);
     }
   }, [waitingForStart]);
 
@@ -185,7 +227,6 @@ export default function App() {
         resolvedDest = results[0];
         setDestPoint(results[0]);
         setDestText(results[0].name);
-        // If user searches for a destination, it's not a shared location
         setIsSharedLocation(false);
       }
     }
@@ -201,7 +242,6 @@ export default function App() {
   // Swaps start and destination
   const handleSwap = () => {
     if (useCustomLocation && customStartPoint) {
-      // Swap custom location with destination
       setDestPoint(customStartPoint);
       setDestText(customStartPoint.name || "Custom location");
       setCustomStartPoint(destPoint);
@@ -216,7 +256,6 @@ export default function App() {
       setUseCustomLocation(false);
       setCustomStartPoint(null);
     }
-    // After swap, the destination is no longer a shared location
     setIsSharedLocation(false);
   };
 
@@ -228,7 +267,7 @@ export default function App() {
     setWaitingForStart(false);
     setUseCustomLocation(false);
     setCustomStartPoint(null);
-    setIsSharedLocation(false);  // Reset shared flag
+    setIsSharedLocation(false);
 
     if (currentLocation) {
       setStartPoint(currentLocation);
@@ -272,7 +311,7 @@ export default function App() {
         isResolving={isResolving || isRouting}
         markersVisible={markersVisible}
         accuracy={accuracy}
-        locationError={locationError || routeError}
+        locationError={locationError}
         darkMode={darkMode}
         onToggleDarkMode={() => setDarkMode((d) => !d)}
         activeProfile={activeProfile}
@@ -292,15 +331,20 @@ export default function App() {
           flyTarget={flyTarget}
           darkMode={darkMode}
           waitingForStart={waitingForStart}
-          route={route}
-          isRouteLoading={isRouting}
+          // New props for 4-route system
+          primaryRoute={primaryRoute}
+          alternativeRoutes={alternativeRoutes}
+          allRoutes={routes}
+          isRouting={isRouting}
+          isRerouting={isRerouting}
+          deviationDetected={deviationDetected}
           warnings={warnings}
           activeProfile={activeProfile}
           useCustomLocation={useCustomLocation}
           isSharedLocation={isSharedLocation}
           isLegendExpanded={isLegendExpanded}
           onLegendExpandedChange={setIsLegendExpanded}
-          onProfileChange={setActiveProfile}  // ← ADD THIS
+          onProfileChange={setActiveProfile}
           onMapClick={handleMapClick}
           onCustomLocationDragEnd={handleCustomLocationDragEnd}
           onRecenter={handleRecenter}
