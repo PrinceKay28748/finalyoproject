@@ -296,44 +296,6 @@ export default function App() {
 
   return (
     <div className={`ug-root${darkMode ? " dark" : ""}`}>
-      {/* Graph loading splash screen */}
-      {graphLoading && (
-        <div style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(0, 0, 0, 0.5)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 9999,
-          backdropFilter: "blur(4px)"
-        }}>
-          <div style={{
-            background: "white",
-            padding: "40px",
-            borderRadius: "12px",
-            textAlign: "center",
-            boxShadow: "0 20px 40px rgba(0, 0, 0, 0.3)"
-          }}>
-            <div style={{
-              width: "40px",
-              height: "40px",
-              border: "4px solid #e5e7eb",
-              borderTopColor: "#2563eb",
-              borderRadius: "50%",
-              margin: "0 auto 16px",
-              animation: "spin 0.8s linear infinite"
-            }} />
-            <p style={{ margin: "0 0 8px", fontWeight: 600, color: "#1f2937" }}>
-              Loading road network...
-            </p>
-            <p style={{ margin: 0, fontSize: "12px", color: "#6b7280" }}>
-              This happens once, then it's cached
-            </p>
-          </div>
-        </div>
-      )}
-      
       <NavPanel
         startText={effectiveStartText}
         destText={destText}
