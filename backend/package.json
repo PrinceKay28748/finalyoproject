@@ -1,16 +1,30 @@
 {
-  "name": "backend",
+  "name": "ug-campus-nav-backend",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "Campus navigation app - Authentication & User Management (Zero-Trust)",
+  "type": "module",
+  "main": "src/server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "migrate": "node src/db/migrate.js"
   },
-  "keywords": [],
+  "keywords": ["campus", "navigation", "auth", "postgresql"],
   "author": "",
-  "license": "ISC",
-  "description": "",
+  "license": "MIT",
   "dependencies": {
-    "cors": "^2.8.6",
-    "express": "^5.2.1"
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "express-validator": "^7.0.0",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.1.2",
+    "pg": "^8.11.3",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
   }
 }
