@@ -2,7 +2,7 @@
 // Dijkstra's algorithm using a min-heap priority queue for O(n log n) performance
 // Previously used a linear Set scan which was O(n²) — too slow for 9000+ nodes
 
-import { calculateEdgeCost, buildRouteContext, PROFILES } from "./costFunction";
+import { calculateEdgeCost, buildRouteContext, getActiveWarnings, PROFILES } from "./costFunction";
 import { distanceKm } from "../function/utils/distance";
 import { MinHeap }    from "../function/utils/MinHeap";
 
@@ -229,6 +229,12 @@ export async function getAllRoutes(graph, startNodeId, endNodeId) {
   
   const elapsed = performance.now() - startTime;
   console.log(`[Routing] All 4 routes calculated in ${elapsed.toFixed(0)}ms`);
+  
+  // Generate warnings for each route based on context and profile
+  if (standard?.context) standard.context.warnings = getActiveWarnings(standard.context, "standard");
+  if (fastest?.context) fastest.context.warnings = getActiveWarnings(fastest.context, "fastest");
+  if (accessible?.context) accessible.context.warnings = getActiveWarnings(accessible.context, "accessible");
+  if (night?.context) night.context.warnings = getActiveWarnings(night.context, "night");
   
   return {
     standard,
