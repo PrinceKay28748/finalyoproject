@@ -5,7 +5,10 @@ import { useRealtimeRoutes, ROUTE_PROFILES } from "./hooks/useRealtimeRoutes";
 import { geocode, reverseGeocode } from "./services/geocoding";
 import { findNearestNode } from "./services/routing";
 import { buildGraph } from "./services/graphBuilder";
+import { loadPreferences, savePreferences } from "./services/preferencesStore";
 import NavPanel                    from "./components/Panel/NavPanel";
+import ErrorBoundary              from "./components/ErrorBoundary";
+import OfflineIndicator           from "./components/OfflineIndicator";
 import "./index.css";
 
 // Lazy load the map — reduces initial bundle, map only loads when needed
@@ -90,6 +93,29 @@ export default function App() {
       setGraphLoading(false);
     });
   }, []);
+
+  // Load user preferences on mount
+  useEffect(() => {
+    loadPreferences().then((prefs) => {
+      if (prefs) {
+        if (prefs.activeProfile) setActiveProfile(prefs.activeProfile);
+        if (prefs.darkMode !== undefined) setDarkMode(prefs.darkMode);
+        console.log("[App] Preferences loaded:", prefs);
+      }
+    }).catch((err) => {
+      console.warn("[App] Failed to load preferences:", err);
+    });
+  }, []);
+
+  // Save preferences when profile or theme changes
+  useEffect(() => {
+    savePreferences({
+      activeProfile,
+      darkMode,
+    }).catch((err) => {
+      console.warn("[App] Failed to save preferences:", err);
+    });
+  }, [activeProfile, darkMode]);
 
   // Determine which start point to use for routing
   const effectiveStartPoint = useCustomLocation && customStartPoint ? customStartPoint : startPoint;
@@ -295,7 +321,9 @@ export default function App() {
     (destPoint  || destText.trim().length  > 0);
 
   return (
-    <div className={`ug-root${darkMode ? " dark" : ""}`}>
+    <ErrorBoundary>
+      <OfflineIndicator />
+      <div className={`ug-root${darkMode ? " dark" : ""}`}>
       <NavPanel
         startText={effectiveStartText}
         destText={destText}
@@ -355,5 +383,6 @@ export default function App() {
         />
       </Suspense>
     </div>
+    </ErrorBoundary>
   );
 }
