@@ -1,120 +1,114 @@
-// Public service worker - handles offline mode and caching
-// Registered in main.jsx
+// public/sw.js
+// UG Navigator Service Worker - Offline support with proper API handling
 
-const CACHE_NAME = 'ug-routing-v1';
-const ASSETS_TO_CACHE = [
+const CACHE_NAME = 'ug-navigator-v1';
+const urlsToCache = [
   '/',
   '/index.html',
-  '/manifest.json',
+  '/manifest.json'
 ];
 
-/**
- * Install event - cache essential assets
- */
+// Install event - cache static assets
 self.addEventListener('install', (event) => {
-  console.log('[ServiceWorker] Installing...');
+  console.log('[SW] Installing...');
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[ServiceWorker] Caching essential assets');
-      return cache.addAll(ASSETS_TO_CACHE).catch((err) => {
-        console.warn('[ServiceWorker] Failed to cache some assets:', err);
-      });
+      console.log('[SW] Caching static assets');
+      return cache.addAll(urlsToCache);
     })
   );
-  self.skipWaiting(); // Activate immediately
+  self.skipWaiting();
 });
 
-/**
- * Activate event - clean up old caches
- */
+// Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('[ServiceWorker] Activating...');
+  console.log('[SW] Activating...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
-            console.log('[ServiceWorker] Deleting old cache:', cacheName);
+            console.log('[SW] Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
     })
   );
-  self.clients.claim(); // Take control immediately
+  self.clients.claim();
 });
 
-/**
- * Fetch event - network first, fallback to cache
- */
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
+// Helper to check if request is an API call
+function isApiRequest(url) {
+  // Check for backend port
+  if (url.port === '3001') return true;
+  
+  // Check for API paths
+  const apiPaths = ['/auth', '/admin', '/analytics', '/api', '/health'];
+  for (const path of apiPaths) {
+    if (url.pathname.startsWith(path)) return true;
+  }
+  
+  return false;
+}
 
-  // Skip cross-origin requests
-  if (url.origin !== location.origin) {
+// FETCH EVENT - CRITICAL: API calls must NEVER go through service worker cache
+self.addEventListener('fetch', (event) => {
+  const request = event.request;
+  const url = new URL(request.url);
+  
+  // ============================================
+  // API REQUESTS - COMPLETE BYPASS
+  // No caching, no interception, just pure fetch
+  // ============================================
+  if (isApiRequest(url)) {
+    // For API calls, just pass through without any SW interference
+    event.respondWith(fetch(request));
     return;
   }
-
-  // API calls - network first with cache fallback
-  if (url.pathname.includes('/api/') || url.pathname.includes('overpass') || url.pathname.includes('nominatim')) {
-    return event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // Cache successful responses
-          if (response.ok) {
-            const cache = caches.open(CACHE_NAME).then((c) => {
-              c.put(request, response.clone());
-            });
-          }
-          return response;
-        })
-        .catch(() => {
-          // Return cached response if network fails
-          return caches.match(request).then((cached) => {
-            if (cached) {
-              console.log('[ServiceWorker] Serving from cache (offline):', url.pathname);
-              return cached;
-            }
-            // Return offline page or error
-            return new Response('Offline - please check your connection', {
-              status: 503,
-              statusText: 'Service Unavailable',
-            });
-          });
-        })
-    );
+  
+  // ============================================
+  // STATIC ASSETS - Cache with network fallback
+  // ============================================
+  // Only handle GET requests for static assets
+  if (request.method !== 'GET') {
+    event.respondWith(fetch(request));
+    return;
   }
-
-  // Static assets - cache first
+  
+  // Only handle same-origin requests
+  if (url.origin !== self.location.origin) {
+    event.respondWith(fetch(request));
+    return;
+  }
+  
   event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) {
-        return cached;
+    caches.match(request).then((cachedResponse) => {
+      // Return cached response if available
+      if (cachedResponse) {
+        return cachedResponse;
       }
-      return fetch(request).catch(() => {
-        console.warn('[ServiceWorker] Failed to fetch:', request.url);
-        return new Response('Offline - resource not available', {
-          status: 503,
-          statusText: 'Service Unavailable',
-        });
+      
+      // Otherwise fetch from network
+      return fetch(request).then((networkResponse) => {
+        // Only cache successful responses
+        if (networkResponse && networkResponse.status === 200) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseToCache);
+          });
+        }
+        return networkResponse;
+      }).catch(() => {
+        // Fallback for offline
+        if (request.headers.get('accept')?.includes('text/html')) {
+          return new Response('You are offline. Please check your connection.', {
+            status: 503,
+            headers: { 'Content-Type': 'text/plain' }
+          });
+        }
+        return new Response('Network error', { status: 408 });
       });
     })
   );
-});
-
-/**
- * Message handler - for communication from app
- */
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'CACHE_GRAPH') {
-    console.log('[ServiceWorker] Received graph cache request');
-    // Graph is already cached via IndexedDB, nothing to do here
-  }
-
-  if (event.data && event.data.type === 'CLEAR_CACHE') {
-    caches.delete(CACHE_NAME).then(() => {
-      console.log('[ServiceWorker] Cache cleared');
-    });
-  }
 });

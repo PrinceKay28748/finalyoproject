@@ -1,14 +1,19 @@
 // App.jsx
 import { useState, useCallback, lazy, Suspense, useEffect } from "react";
+import AuthPage from "./components/Auth/AuthPage";
 import { useGeolocation }          from "./hooks/useGeolocation";
 import { useRealtimeRoutes, ROUTE_PROFILES } from "./hooks/useRealtimeRoutes";
 import { geocode, reverseGeocode } from "./services/geocoding";
 import { findNearestNode } from "./services/routing";
 import { buildGraph } from "./services/graphBuilder";
 import { loadPreferences, savePreferences } from "./services/preferencesStore";
+import { logRouteCalculated, logSearch, logLogin } from "./services/analyticsLogger";
 import NavPanel                    from "./components/Panel/NavPanel";
 import ErrorBoundary              from "./components/ErrorBoundary";
 import OfflineIndicator           from "./components/OfflineIndicator";
+import ProtectedRoute             from "./components/ProtectedRoute";
+import { useAuthContext }         from "./context/AuthContext";
+import AdminDashboard             from './components/Admin/AdminDashboard';
 import "./index.css";
 
 // Lazy load the map — reduces initial bundle, map only loads when needed
@@ -25,6 +30,8 @@ function MapLoader() {
 }
 
 export default function App() {
+  const { user, isAuthenticated, isLoading: authLoading } = useAuthContext();
+  
   const [startPoint, setStartPoint]           = useState(null);   // resolved start location
   const [destPoint, setDestPoint]             = useState(null);   // resolved destination
   const [startText, setStartText]             = useState("");     // start input text
@@ -35,6 +42,7 @@ export default function App() {
   const [waitingForStart, setWaitingForStart] = useState(false);  // pin-start tap mode
   const [isResolving, setIsResolving]         = useState(false);  // geocoding in progress
   const [activeProfile, setActiveProfile]     = useState("standard"); // routing profile
+  const [lastLoggedRoute, setLastLoggedRoute] = useState(null); // prevent duplicate logging
   
   // Custom location state (green pin)
   const [customStartPoint, setCustomStartPoint] = useState(null);
@@ -46,12 +54,18 @@ export default function App() {
   // Legend expanded state for map zoom adjustment
   const [isLegendExpanded, setIsLegendExpanded] = useState(true);
   
-  // Graph object (you need to provide this from your graph building)
+  // Graph object
   const [graph, setGraph] = useState(null);
   const [graphLoading, setGraphLoading] = useState(true);
 
   // GPS location from the custom hook
   const { location: currentLocation, accuracy, error: locationError } = useGeolocation();
+
+  // Check if current user is admin
+  const isAdmin = user?.is_admin === 1 || user?.is_admin === true;
+  
+  // Check if we're on admin route
+  const isAdminRoute = window.location.pathname === '/admin';
 
   // Parse shared location from URL on initial load
   useEffect(() => {
@@ -66,12 +80,10 @@ export default function App() {
         lng: parseFloat(lng),
         name: decodeURIComponent(name)
       };
-      // Set as destination so friend can get directions to you
       setDestPoint(sharedLocation);
       setDestText(sharedLocation.name);
-      // Optionally show markers automatically
       setMarkersVisible(true);
-      setIsSharedLocation(true);  // Mark as shared for purple pin
+      setIsSharedLocation(true);
       console.log("[App] Shared location loaded:", sharedLocation);
     }
   }, []);
@@ -107,6 +119,13 @@ export default function App() {
     });
   }, []);
 
+  // Log login when user becomes authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      logLogin();
+    }
+  }, [isAuthenticated, user]);
+
   // Save preferences when profile or theme changes
   useEffect(() => {
     savePreferences({
@@ -123,11 +142,10 @@ export default function App() {
     ? customStartPoint.name || "Custom location" 
     : startText;
 
-  // Helper to convert lat/lng to node ID (fallback for when nodeId isn't stored)
+  // Helper to convert lat/lng to node ID
   const getNodeId = useCallback((point) => {
     if (!point || !graph) return null;
     if (point.nodeId) return point.nodeId;
-    // Fallback: find nearest node
     return findNearestNode(graph, point.lat, point.lng);
   }, [graph]);
 
@@ -143,7 +161,6 @@ export default function App() {
     isRerouting,
     deviationDetected,
     routes,
-    areRoutesIdentical
   } = useRealtimeRoutes({
     graph,
     startNodeId,
@@ -153,7 +170,23 @@ export default function App() {
     isActive: markersVisible && effectiveStartPoint && destPoint
   });
 
-  // Build warnings array from route context (if available)
+  // Log route when it's calculated (avoid duplicate logs)
+  useEffect(() => {
+    if (markersVisible && primaryRoute && effectiveStartPoint && destPoint) {
+      const routeKey = `${effectiveStartPoint.name}-${destPoint.name}-${activeProfile}-${primaryRoute.totalDistanceKm}`;
+      if (lastLoggedRoute !== routeKey) {
+        setLastLoggedRoute(routeKey);
+        logRouteCalculated(
+          effectiveStartPoint.name || 'Unknown start',
+          destPoint.name || 'Unknown destination',
+          activeProfile,
+          primaryRoute.totalDistanceKm
+        );
+      }
+    }
+  }, [markersVisible, primaryRoute, effectiveStartPoint, destPoint, activeProfile]);
+
+  // Build warnings array from route context
   const warnings = primaryRoute?.context?.warnings || [];
 
   // Auto-fill FROM with GPS location on first fix
@@ -164,44 +197,42 @@ export default function App() {
     setHasAutoFilled(true);
   }
 
-  // Called when user picks "Use my current location" from the FROM dropdown
+  // Handle various actions
   const handleUseCurrentLocation = () => {
     if (!currentLocation) return;
     setStartPoint(currentLocation);
     setStartText("My current location");
     setWaitingForStart(false);
-    setUseCustomLocation(false);  // Switch back to GPS
+    setUseCustomLocation(false);
     setCustomStartPoint(null);
   };
 
-  // Called when user picks "Use custom location" from the FROM dropdown
   const handleUseCustomLocation = () => {
     if (!customStartPoint) return;
     setUseCustomLocation(true);
     setWaitingForStart(false);
   };
 
-  // Called when a start suggestion is selected from search
   const handleStartSelect = (loc) => {
     setStartPoint(loc);
     setStartText(loc.name);
     setWaitingForStart(false);
     setFlyTarget(loc);
-    setUseCustomLocation(false);  // Switching to searched location
+    setUseCustomLocation(false);
     setCustomStartPoint(null);
   };
 
-  // Called when a destination suggestion is selected from search
   const handleDestSelect = (loc) => {
     setDestPoint(loc);
     setDestText(loc.name);
     setFlyTarget(loc);
+    // Log search
+    logSearch(destText, loc.name);
   };
 
-  // Called when user taps the map — sets start or destination based on active mode
   const handleMapClick = useCallback(async (latlng) => {
     const name = await reverseGeocode(latlng.lat, latlng.lng);
-    const loc  = { lat: latlng.lat, lng: latlng.lng, name };
+    const loc = { lat: latlng.lat, lng: latlng.lng, name };
     if (waitingForStart) {
       setStartPoint(loc);
       setStartText(name);
@@ -211,32 +242,28 @@ export default function App() {
     } else {
       setDestPoint(loc);
       setDestText(name);
-      // If user taps to set destination, it's not a shared location anymore
       setIsSharedLocation(false);
+      // Log map click as search
+      logSearch(`Map click at ${latlng.lat}, ${latlng.lng}`, name);
     }
   }, [waitingForStart]);
 
-  // Called when user drags the custom green pin
   const handleCustomLocationDragEnd = useCallback(async (e) => {
     const { lat, lng } = e.target.getLatLng();
     const name = await reverseGeocode(lat, lng);
     const draggedLocation = { lat, lng, name };
-    
     setCustomStartPoint(draggedLocation);
     setUseCustomLocation(true);
-    
-    // If no start point set yet, use this as start
     if (!startPoint && startText === "") {
       setStartPoint(draggedLocation);
       setStartText(name);
     }
   }, [startPoint, startText]);
 
-  // Geocodes typed text if user didn't pick from a suggestion, then shows markers
   const handleShowOnMap = async () => {
     setIsResolving(true);
     let resolvedStart = effectiveStartPoint;
-    let resolvedDest  = destPoint;
+    let resolvedDest = destPoint;
 
     if (!resolvedStart && effectiveStartText.trim().length > 0) {
       const results = await geocode(effectiveStartText);
@@ -269,7 +296,6 @@ export default function App() {
     }
   };
 
-  // Swaps start and destination
   const handleSwap = () => {
     if (useCustomLocation && customStartPoint) {
       setDestPoint(customStartPoint);
@@ -289,7 +315,6 @@ export default function App() {
     setIsSharedLocation(false);
   };
 
-  // Resets destination and route
   const handleReset = () => {
     setDestPoint(null);
     setDestText("");
@@ -298,7 +323,6 @@ export default function App() {
     setUseCustomLocation(false);
     setCustomStartPoint(null);
     setIsSharedLocation(false);
-
     if (currentLocation) {
       setStartPoint(currentLocation);
       setStartText("My current location");
@@ -309,7 +333,6 @@ export default function App() {
     }
   };
 
-  // Flies the map back to the user's current GPS location
   const handleRecenter = () => {
     if (currentLocation) {
       setFlyTarget({ ...currentLocation, _t: Date.now() });
@@ -318,71 +341,105 @@ export default function App() {
 
   const canShow =
     (effectiveStartPoint || effectiveStartText.trim().length > 0) &&
-    (destPoint  || destText.trim().length  > 0);
+    (destPoint || destText.trim().length > 0);
 
+  // ============================================
+  // ADMIN ROUTE HANDLING — Outside ProtectedRoute
+  // ============================================
+  
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="map-loader">
+        <div className="map-loader-spinner" />
+        <p>Loading...</p>
+      </div>
+    );
+  }
+  
+  // Handle admin route
+  if (isAdminRoute) {
+    // If not authenticated, show login page
+    if (!isAuthenticated) {
+      return <AuthPage />;
+    }
+    // If authenticated but not admin, redirect to home
+    if (!isAdmin) {
+      window.location.href = '/';
+      return null;
+    }
+    // If authenticated and admin, show admin dashboard
+    return <AdminDashboard />;
+  }
+
+  // ============================================
+  // REGULAR APP (wrapped in ProtectedRoute)
+  // ============================================
+  
   return (
-    <ErrorBoundary>
-      <OfflineIndicator />
-      <div className={`ug-root${darkMode ? " dark" : ""}`}>
-      <NavPanel
-        startText={effectiveStartText}
-        destText={destText}
-        onStartTextChange={setStartText}
-        onDestTextChange={setDestText}
-        onStartSelect={handleStartSelect}
-        onDestSelect={handleDestSelect}
-        onUseCurrentLocation={handleUseCurrentLocation}
-        onUseCustomLocation={handleUseCustomLocation}
-        hasCustomLocation={!!customStartPoint}
-        isUsingCustomLocation={useCustomLocation}
-        onSwap={handleSwap}
-        onShowOnMap={handleShowOnMap}
-        onReset={handleReset}
-        hasCurrentLocation={!!currentLocation}
-        canShow={canShow}
-        isResolving={isResolving || isRouting}
-        markersVisible={markersVisible}
-        accuracy={accuracy}
-        locationError={locationError}
-        darkMode={darkMode}
-        onToggleDarkMode={() => setDarkMode((d) => !d)}
-        activeProfile={activeProfile}
-        onProfileChange={setActiveProfile}
-      />
+    <ProtectedRoute>
+      <ErrorBoundary>
+        <OfflineIndicator />
+        <div className={`ug-root${darkMode ? " dark" : ""}`}>
+          <NavPanel
+            startText={effectiveStartText}
+            destText={destText}
+            onStartTextChange={setStartText}
+            onDestTextChange={setDestText}
+            onStartSelect={handleStartSelect}
+            onDestSelect={handleDestSelect}
+            onUseCurrentLocation={handleUseCurrentLocation}
+            onUseCustomLocation={handleUseCustomLocation}
+            hasCustomLocation={!!customStartPoint}
+            isUsingCustomLocation={useCustomLocation}
+            onSwap={handleSwap}
+            onShowOnMap={handleShowOnMap}
+            onReset={handleReset}
+            hasCurrentLocation={!!currentLocation}
+            canShow={canShow}
+            isResolving={isResolving || isRouting}
+            markersVisible={markersVisible}
+            accuracy={accuracy}
+            locationError={locationError}
+            darkMode={darkMode}
+            onToggleDarkMode={() => setDarkMode((d) => !d)}
+            activeProfile={activeProfile}
+            onProfileChange={setActiveProfile}
+          />
 
-      <Suspense fallback={<MapLoader />}>
-        <MapView
-          currentLocation={currentLocation}
-          accuracy={accuracy}
-          customStartPoint={customStartPoint}
-          startPoint={effectiveStartPoint}
-          destPoint={destPoint}
-          startText={effectiveStartText}
-          destText={destText}
-          markersVisible={markersVisible}
-          flyTarget={flyTarget}
-          darkMode={darkMode}
-          waitingForStart={waitingForStart}
-          // New props for 4-route system
-          primaryRoute={primaryRoute}
-          alternativeRoutes={alternativeRoutes}
-          allRoutes={routes}
-          isRouting={isRouting}
-          isRerouting={isRerouting}
-          deviationDetected={deviationDetected}
-          warnings={warnings}
-          activeProfile={activeProfile}
-          useCustomLocation={useCustomLocation}
-          isSharedLocation={isSharedLocation}
-          isLegendExpanded={isLegendExpanded}
-          onLegendExpandedChange={setIsLegendExpanded}
-          onProfileChange={setActiveProfile}
-          onMapClick={handleMapClick}
-          onCustomLocationDragEnd={handleCustomLocationDragEnd}
-          onRecenter={handleRecenter}
-        />
-      </Suspense>
-    </div>
-    </ErrorBoundary>
+          <Suspense fallback={<MapLoader />}>
+            <MapView
+              currentLocation={currentLocation}
+              accuracy={accuracy}
+              customStartPoint={customStartPoint}
+              startPoint={effectiveStartPoint}
+              destPoint={destPoint}
+              startText={effectiveStartText}
+              destText={destText}
+              markersVisible={markersVisible}
+              flyTarget={flyTarget}
+              darkMode={darkMode}
+              waitingForStart={waitingForStart}
+              primaryRoute={primaryRoute}
+              alternativeRoutes={alternativeRoutes}
+              allRoutes={routes}
+              isRouting={isRouting}
+              isRerouting={isRerouting}
+              deviationDetected={deviationDetected}
+              warnings={warnings}
+              activeProfile={activeProfile}
+              useCustomLocation={useCustomLocation}
+              isSharedLocation={isSharedLocation}
+              isLegendExpanded={isLegendExpanded}
+              onLegendExpandedChange={setIsLegendExpanded}
+              onProfileChange={setActiveProfile}
+              onMapClick={handleMapClick}
+              onCustomLocationDragEnd={handleCustomLocationDragEnd}
+              onRecenter={handleRecenter}
+            />
+          </Suspense>
+        </div>
+      </ErrorBoundary>
+    </ProtectedRoute>
   );
 }

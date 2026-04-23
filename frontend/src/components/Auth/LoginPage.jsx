@@ -1,112 +1,151 @@
 // frontend/src/components/Auth/LoginPage.jsx
-// Modern login screen with HCI best practices
+// Bold & Minimal — Swiss Design for UG Navigator
 
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAuthContext } from '../../context/AuthContext';
-import './AuthPage.css';
+import { useState } from "react";
+import { useAuthContext } from "../../context/AuthContext";
+import "./AuthPage.css";
 
-export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+export default function LoginPage({ onSwitchToRegister, onForgotPassword }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   const { login } = useAuthContext();
-  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+
+    setError("");
     setIsLoading(true);
 
-    const result = await login(email, password);
+    try {
+      const result = await login(email, password);
 
-    if (result.success) {
-      navigate('/');
-    } else {
-      setError(result.error || 'Login failed');
+      if (!result.success) {
+        setError(result.error || "Login failed");
+      }
+    } catch (err) {
+      setError(err.message || "Login failed");
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    setIsLoading(false);
+  // Get time of day for greeting
+  const getTimeOfDay = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "morning";
+    if (hour < 18) return "afternoon";
+    return "evening";
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <div className="auth-header">
-          <div className="auth-icon">🗺️</div>
-          <h1>Campus Navigation</h1>
-          <p>Get directions across campus</p>
+    <div className="auth-container-split">
+      {/* Left side — Hero / Brand */}
+      <div className="auth-hero">
+        <div className="auth-hero-bg">UG</div>
+        <img src="/icon-512.png" alt="UG Navigator" width={80} height={80} />
+        <h1>
+          Navigate
+          <br />
+          Legon.
+        </h1>
+        <p>
+          Context-aware routing for University of Ghana — accessible, safe, and
+          fast.
+        </p>
+      </div>
+
+      {/* Right side — Login Form */}
+      <div className="auth-form-panel">
+        <div className="auth-form-header">
+          <h2>Good {getTimeOfDay()},</h2>
+          <p>Sign in to continue your journey</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
+        <form onSubmit={handleSubmit}>
+          {/* ERROR DISPLAY */}
+          {error && (
+            <div className="auth-error-split" role="alert">
+              <span className="error-icon">⚠️</span>
+              <span className="error-message">{error}</span>
+            </div>
+          )}
+
+          <div className="form-group-split">
             <input
               id="email"
               type="email"
-              placeholder="your@university.edu"
+              placeholder=" "
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={isLoading}
               required
               autoComplete="email"
             />
+            <label htmlFor="email">Email address</label>
           </div>
 
-          <div className="form-group">
+          <div className="form-group-split">
+            <input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              placeholder=" "
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={isLoading}
+              required
+              autoComplete="current-password"
+            />
             <label htmlFor="password">Password</label>
-            <div className="password-wrapper">
-              <input
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isLoading}
-                required
-                autoComplete="current-password"
-              />
-              <button
-                type="button"
-                className="password-toggle"
-                onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-              >
-                {showPassword ? '🙈' : '👁️'}
-              </button>
-            </div>
+            <button
+              type="button"
+              className="password-toggle-split"
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
           </div>
 
-          {error && (
-            <div className="auth-error" role="alert">
-              ⚠️ {error}
-            </div>
-          )}
+          {/* Forgot Password Link */}
+          <div className="forgot-password-link">
+            <button
+              type="button"
+              onClick={onForgotPassword}
+              className="forgot-password-btn"
+            >
+              Forgot password?
+            </button>
+          </div>
 
           <button
             type="submit"
-            className="auth-button"
+            className="auth-button-split"
             disabled={isLoading}
-            aria-busy={isLoading}
           >
-            {isLoading ? 'Signing in...' : 'Sign In'}
+            {isLoading ? (
+              <>
+                <span className="button-spinner-split" />
+                Signing in...
+              </>
+            ) : (
+              "Sign in →"
+            )}
           </button>
         </form>
 
-        <div className="auth-divider">or</div>
-
-        <div className="auth-footer">
-          <p>Don't have an account?</p>
-          <Link to="/register" className="auth-link">
-            Create one
-          </Link>
-        </div>
+        <button
+          type="button"
+          className="auth-secondary-split"
+          onClick={onSwitchToRegister}
+          disabled={isLoading}
+        >
+          Create an account
+        </button>
       </div>
-
-      <div className="auth-background" />
     </div>
   );
 }
