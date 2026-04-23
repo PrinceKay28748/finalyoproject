@@ -2,8 +2,6 @@
 // Main Express server - UG Campus Navigation Backend
 // Zero-Trust Authentication & User Management
 
-
-// Load environment variables and log email config for debugging
 import 'dotenv/config';
 console.log('[DEBUG] EMAIL_USER:', process.env.EMAIL_USER);
 console.log('[DEBUG] EMAIL_PASS:', process.env.EMAIL_PASS ? '***LOADED***' : 'MISSING');
@@ -12,7 +10,6 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import dotenv from 'dotenv';
 import { query } from './config/db.js';
 import { sanitizeParams } from './middleware/validation.js';
 import { handleError } from './utils/errorHandler.js';
@@ -20,13 +17,11 @@ import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
 import analyticsRoutes from './routes/analytics.js';
 
-dotenv.config();
-
 const app = express();
+app.set('trust proxy', 1); // required on Render — fixes express-rate-limit X-Forwarded-For warning
 const PORT = process.env.PORT || 3001;
 
 // ─── Helper to check if email belongs to admin ─────────────────────────────
-// This allows admins to bypass rate limiting on login
 const isAdminEmail = async (email) => {
     if (!email) return false;
     try {
@@ -46,7 +41,11 @@ app.use(helmet());
 
 // CORS
 app.use(cors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+    origin: [
+        'http://localhost:5173',
+        'https://ugnavigator.onrender.com',
+        process.env.CORS_ORIGIN,
+    ].filter(Boolean),
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization']
@@ -59,13 +58,12 @@ const loginLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     skip: async (req) => {
-        // Check if the email in the request belongs to an admin
         const email = req.body?.email;
         if (email) {
             const isAdmin = await isAdminEmail(email);
             if (isAdmin) {
                 console.log('[RateLimit] Bypassing rate limit for admin email:', email);
-                return true; // Skip rate limiting
+                return true;
             }
         }
         return false;
@@ -98,7 +96,7 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 // Parameter sanitization
 app.use(sanitizeParams);
 
-// Request Logging
+// Request logging
 app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
     next();
@@ -118,18 +116,10 @@ app.get('/health', async (req, res) => {
 });
 
 // ─── Routes ─────────────────────────────────────────────────────────────────
-
-// Mount admin routes FIRST (before auth routes, before 404 handler)
 app.use('/admin', adminRoutes);
-
-// Apply rate limiting to auth endpoints
 app.use('/auth/login', loginLimiter);
 app.use('/auth/register', generalLimiter);
-
-// Mount auth routes
 app.use('/auth', authRoutes);
-
-// Mount analytics routes
 app.use('/analytics', analyticsRoutes);
 
 // ─── 404 Handler ────────────────────────────────────────────────────────────
