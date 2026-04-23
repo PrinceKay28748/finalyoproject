@@ -1,46 +1,45 @@
 // src/config/db.js
-// PostgreSQL connection pool with proper configuration
+// SQLite database configuration and query wrapper
 // Uses parameterized queries to prevent SQL injection
 
-import pkg from 'pg';
-const { Pool } = pkg;
-import dotenv from 'dotenv';
+import sqlite3 from 'sqlite3';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-dotenv.config();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const dbPath = path.join(__dirname, '../../ug_campus_nav.db');
 
-/**
- * PostgreSQL connection pool
- * - Reuses connections efficiently
- * - Prevents SQL injection via parameterized queries
- * - Handles connection errors gracefully
- */
-const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || 'ug_campus_nav',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD,
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-});
-
-pool.on('error', (err) => {
-  console.error('[DB] Unexpected error on idle client:', err);
+// Create/open database
+let dbReady = false;
+const db = new sqlite3.Database(dbPath, (err) => {
+  if (err) {
+    console.error('[DB] Connection error:', err.message);
+  } else {
+    console.log('[DB] Connected to SQLite database at:', dbPath);
+    // Enable foreign keys
+    db.run('PRAGMA foreign_keys = ON', (err) => {
+      if (err) {
+        console.error('[DB] PRAGMA error:', err.message);
+      } else {
+        dbReady = true;
+        console.log('[DB] Foreign keys enabled');
+      }
+    });
+  }
 });
 
 /**
  * Execute query with parameterized statements (prevents SQL injection)
  * ALWAYS use this for any user input
  * 
- * @param {string} query - SQL query with $1, $2 placeholders
+ * @param {string} sql - SQL query with ? placeholders
  * @param {Array} params - Values to substitute (safe from injection)
- * @returns {Promise} Query result
+ * @returns {Promise} Query result with {rows}
  * 
  * @example
  * // SAFE - uses parameterized query
  * const result = await query(
- *   'SELECT * FROM users WHERE email = $1',
+ *   'SELECT * FROM users WHERE email = ?',
  *   ['user@example.com']
  * );
  * 
@@ -49,31 +48,56 @@ pool.on('error', (err) => {
  *   `SELECT * FROM users WHERE email = '${userInput}'`
  * );
  */
-export async function query(text, params = []) {
-  const start = Date.now();
-  try {
-    const result = await pool.query(text, params);
-    const duration = Date.now() - start;
-    console.log(`[DB] Executed query in ${duration}ms`);
-    return result;
-  } catch (error) {
-    console.error('[DB] Query error:', error.message);
-    throw error;
-  }
+export async function query(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    const trimmedSql = sql.trim().toUpperCase();
+    
+    if (trimmedSql.startsWith('SELECT')) {
+      db.all(sql, params, (err, rows) => {
+        if (err) {
+          console.error('[DB] Query error:', err.message);
+          reject(err);
+        } else {
+          resolve({ rows: rows || [] });
+        }
+      });
+    } else if (trimmedSql.startsWith('INSERT') || trimmedSql.startsWith('UPDATE') || trimmedSql.startsWith('DELETE')) {
+      db.run(sql, params, function(err) {
+        if (err) {
+          console.error('[DB] Query error:', err.message);
+          reject(err);
+        } else {
+          resolve({
+            rows: [],
+            lastID: this.lastID,
+            changes: this.changes
+          });
+        }
+      });
+    } else {
+      // For DDL statements (CREATE TABLE, etc.)
+      db.run(sql, params, (err) => {
+        if (err) {
+          console.error('[DB] Query error:', err.message);
+          reject(err);
+        } else {
+          resolve({ rows: [] });
+        }
+      });
+    }
+  });
 }
 
 /**
- * Get client for transactions
- */
-export async function getClient() {
-  return pool.connect();
-}
-
-/**
- * Close the pool
+ * Close database connection
  */
 export async function closePool() {
-  await pool.end();
+  return new Promise((resolve, reject) => {
+    db.close((err) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
 }
 
-export default pool;
+export default db;

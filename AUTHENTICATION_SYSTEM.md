@@ -80,11 +80,12 @@ The Campus Navigation App now includes a **production-ready authentication syste
 │  │  • Error Handling                                    │    │
 │  └──────────────────────────────────────────────────────┘    │
 └────────────────────┬────────────────────────────────────────┘
-                     │ Parameterized Queries
-                     │ Connection Pool (20 connections)
+                     │ Parameterized Queries (?)
+                     │ Single-file database
                      ↓
 ┌─────────────────────────────────────────────────────────────┐
-│              PostgreSQL Database                             │
+│              SQLite3 Database                                │
+│              (backend/ug_campus_nav.db)                      │
 │  ┌──────────────────────────────────────────────────────┐   │
 │  │  users table                                         │   │
 │  │  user_preferences table                              │   │
@@ -106,7 +107,7 @@ Frontend:
 Backend:
   • Node.js 18+ (runtime)
   • Express 4.18+ (web framework)
-  • PostgreSQL 12+ (database)
+  • SQLite3 (database - single file, no server needed)
   • bcryptjs (password hashing)
   • jsonwebtoken (JWT signing)
   • express-validator (input validation)
@@ -120,6 +121,31 @@ Security Tools:
   • bcryptjs - Password hashing
   • JWT - Stateless authentication
 ```
+
+---
+
+## Database Implementation Notes
+
+### PostgreSQL → SQLite Migration
+
+**Why SQLite?**
+- No database server installation required
+- Single-file database (`backend/ug_campus_nav.db`)
+- Perfect for development and small to medium deployments
+- Zero configuration needed
+
+**SQL Syntax Changes:**
+- PostgreSQL: `$1, $2, $3` → SQLite: `?, ?, ?`
+- PostgreSQL: `SERIAL` → SQLite: `INTEGER AUTOINCREMENT`
+- PostgreSQL: `BOOLEAN` → SQLite: `INTEGER (0/1)`
+- PostgreSQL: `TIMESTAMP` → SQLite: `DATETIME`
+
+**Migration Status:** ✅ Completed
+- All database queries converted to SQLite syntax
+- Parameterized queries maintained (? placeholders)
+- All 4 tables created successfully
+- Indexes created for performance
+- Foreign key constraints enforced
 
 ---
 
@@ -270,63 +296,110 @@ SELECT * FROM audit_logs WHERE action LIKE '%FAILED%' ORDER BY created_at DESC;
 
 ## Database Schema
 
-### users table
+### users table (SQLite)
 ```sql
 CREATE TABLE users (
-  id SERIAL PRIMARY KEY,
-  email VARCHAR(255) UNIQUE NOT NULL,
-  username VARCHAR(100) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  deleted_at TIMESTAMP NULL  -- Soft delete
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email TEXT UNIQUE NOT NULL,
+  username TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL
 );
 ```
 
 **Indexes:** email, username  
 **Security:** password_hash only (never plaintext password)
 
-### user_preferences table
+### user_preferences table (SQLite)
 ```sql
 CREATE TABLE user_preferences (
-  id SERIAL PRIMARY KEY,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL UNIQUE,
-  active_profile VARCHAR(50) DEFAULT 'standard',
-  dark_mode BOOLEAN DEFAULT FALSE,
-  notifications_enabled BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  active_profile TEXT DEFAULT 'standard',
+  dark_mode INTEGER DEFAULT 0,
+  notifications_enabled INTEGER DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 ```
 
-### refresh_tokens table
+### refresh_tokens table (SQLite)
 ```sql
 CREATE TABLE refresh_tokens (
-  id SERIAL PRIMARY KEY,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
-  token_hash VARCHAR(255) UNIQUE NOT NULL,  -- Hashed token
-  expires_at TIMESTAMP NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  revoked_at TIMESTAMP NULL,  -- Soft revoke
+  token_hash TEXT UNIQUE NOT NULL,
+  expires_at DATETIME NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  revoked_at DATETIME NULL,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 ```
 
-### audit_logs table
+### audit_logs table (SQLite)
 ```sql
 CREATE TABLE audit_logs (
-  id SERIAL PRIMARY KEY,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER,
-  action VARCHAR(100) NOT NULL,
-  ip_address VARCHAR(45),
+  action TEXT NOT NULL,
+  ip_address TEXT,
   user_agent TEXT,
-  success BOOLEAN DEFAULT TRUE,
+  success INTEGER DEFAULT 1,
   error_message TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 );
 ```
+
+**Indexes:** user_id, created_at for efficient queries
+
+---
+
+## Current Running Status
+
+### ✅ Services Running
+
+**Backend Server:**
+- URL: `http://localhost:3001`
+- Status: Active
+- All 7 auth endpoints operational
+- Database: `backend/ug_campus_nav.db` (SQLite)
+
+**Frontend Application:**
+- URL: `http://localhost:5174` (Vite dev server)
+- Status: Active
+- Authentication UI integrated
+
+### ✅ Authentication Flow
+
+1. **User Unauthenticated:** Shows login/register toggle page
+2. **User Registers:** Email, username, password validation → Account created → Auto-login
+3. **User Logs In:** Email & password verified → Access + refresh tokens generated
+4. **User Navigates:** All API requests include JWT in Authorization header
+5. **User Logs Out:** Click logout button (door emoji 🚪) → Tokens cleared → Returns to login
+6. **Token Refresh:** When access token expires, refresh token creates new access token automatically
+
+### ✅ UI Integration
+
+**Authentication Components:**
+- `LoginPage.jsx` - Email/password login form
+- `RegisterPage.jsx` - Account creation with password strength indicator
+- `AuthPage.jsx` - Toggle between login/register without page reload
+- `ProtectedRoute.jsx` - Wrapper that enforces authentication
+
+**Logout Button:**
+- Location: NavPanel header (next to dark mode toggle)
+- Icon: 🚪 (door emoji)
+- Action: Clears tokens, returns to login page
+- Accessible to authenticated users
+
+**Navigation Panel Updates:**
+- Displays current user (username in tooltip)
+- Logout button visible in both compact and expanded views
+- Dark mode toggle preserved
 
 ---
 
@@ -588,10 +661,11 @@ npm install
 #### 2. Setup Database
 
 ```bash
-# Create PostgreSQL database
-createdb ug_campus_nav
+# Database is created automatically on first run!
+# Migration script creates all tables and indexes
+# No external database server needed
 
-# Run migrations
+# (Optional) Manual migration if needed
 cd backend
 npm run migrate
 ```
@@ -602,16 +676,20 @@ npm run migrate
 ```
 NODE_ENV=development
 PORT=3001
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=ug_campus_nav
-DB_USER=postgres
-DB_PASSWORD=your_password
+DB_FILE=./ug_campus_nav.db
 
-JWT_ACCESS_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
-JWT_REFRESH_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+JWT_ACCESS_SECRET=<32-char random string>
+JWT_REFRESH_SECRET=<different 32-char random string>
 
-CORS_ORIGIN=http://localhost:5173
+CORS_ORIGIN=http://localhost:5174
+BCRYPT_ROUNDS=10
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=5
+```
+
+Generate random secrets:
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
 **Frontend** (`.env` in frontend/):
@@ -631,7 +709,34 @@ cd frontend
 npm run dev
 ```
 
+**Services will start at:**
+- Backend: `http://localhost:3001`
+- Frontend: `http://localhost:5174`
+
+#### 5. Test Authentication
+
+1. Go to `http://localhost:5174`
+2. You'll see login/register toggle page
+3. Click "Register" to create account
+4. Enter email, username, password
+5. Redirected to map app on success
+6. Click logout button (🚪) to sign out
+
+---
+
 ### Production Deployment
+
+#### SQLite Considerations
+
+**For Small Deployments (< 10,000 users):**
+- SQLite works perfectly
+- Single file database easy to backup
+- No server overhead
+
+**For Large Deployments:**
+- Migrate to PostgreSQL or MySQL
+- SQL syntax is almost identical (just change `?` to `$1`, `$2`, etc.)
+- Update connection logic in `backend/src/config/db.js`
 
 #### Environment Variables (CRITICAL)
 
@@ -644,11 +749,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 NODE_ENV=production
 PORT=3001
-DB_HOST=your-db-host
-DB_PORT=5432
-DB_NAME=ug_campus_nav
-DB_USER=postgres
-DB_PASSWORD=SECURE_PASSWORD_HERE
+DB_FILE=/var/lib/ug_campus_nav.db  # Or cloud storage path
 
 JWT_ACCESS_SECRET=SECURE_32_CHAR_RANDOM_STRING
 JWT_REFRESH_SECRET=DIFFERENT_32_CHAR_RANDOM_STRING
@@ -658,6 +759,7 @@ CORS_ORIGIN=https://yourdomain.com
 # Security
 BCRYPT_ROUNDS=12  # Increase for production
 RATE_LIMIT_MAX_REQUESTS=5
+RATE_LIMIT_WINDOW_MS=900000
 ```
 
 #### SSL/TLS Certificate
@@ -670,7 +772,7 @@ server {
   ssl_certificate /path/to/cert.pem;
   ssl_certificate_key /path/to/key.pem;
   
-  location / {
+  location /api {
     proxy_pass http://localhost:3001;
   }
 }
@@ -698,8 +800,10 @@ CMD ["node", "src/server.js"]
 
 ```bash
 docker build -t ug-campus-nav-backend .
-docker run -e DB_HOST=db_container -p 3001:3001 ug-campus-nav-backend
+docker run -v /data:/app/data -p 3001:3001 ug-campus-nav-backend
 ```
+
+**Volume Mount:** Persist SQLite database across container restarts
 
 ---
 
@@ -844,19 +948,40 @@ async function loginUser(email, password) {
 
 ## Troubleshooting
 
-### "Connection refused" error on backend startup
+### Backend won't start
 
-**Problem:** Cannot connect to PostgreSQL
+**Problem:** "Cannot find module" or "Error loading database"
 
 **Solution:**
 ```bash
-# Check if PostgreSQL is running
-brew services list              # macOS
-systemctl status postgresql     # Linux
-docker ps                       # If using Docker
+# Reinstall dependencies
+cd backend
+rm -rf node_modules package-lock.json
+npm install
 
-# Verify connection
-psql -U postgres -h localhost
+# Check if .env file exists
+ls -la .env
+
+# Run migration manually
+npm run migrate
+
+# Start backend
+npm run dev
+```
+
+### Database file missing
+
+**Problem:** `backend/ug_campus_nav.db` doesn't exist
+
+**Solution:**
+```bash
+# Database created automatically on first run
+# Run migration if not created
+cd backend
+npm run migrate
+
+# Verify file was created
+ls -la ug_campus_nav.db
 ```
 
 ### "JWT expired" errors
@@ -865,8 +990,8 @@ psql -U postgres -h localhost
 
 **Solution:**
 - Check system clock synchronization
-- Verify JWT_ACCESS_EXPIRY in .env
-- Ensure server time matches DB time
+- Verify JWT secrets are set correctly in .env
+- Ensure backend server time is accurate
 
 ### Rate limiting too aggressive
 
@@ -884,24 +1009,20 @@ RATE_LIMIT_MAX_REQUESTS=5    # Attempts allowed (increase if needed)
 **Problem:** Plaintext passwords stored
 
 **Solution:**
-- Check BCRYPT_ROUNDS is set
+- Check BCRYPT_ROUNDS is set in .env (default: 10)
 - Verify bcryptjs is installed (`npm list bcryptjs`)
 - Ensure registration route uses bcrypt.hash()
+- Delete database and re-register users: `rm backend/ug_campus_nav.db && npm run migrate`
 
-### SQL errors on migration
+### Database locked error
 
-**Problem:** Schema creation fails
+**Problem:** "SQLITE_BUSY: database is locked"
 
 **Solution:**
-```bash
-# Check schema file syntax
-psql -U postgres -d ug_campus_nav -f src/db/schema.sql
-
-# Drop and recreate database
-dropdb ug_campus_nav
-createdb ug_campus_nav
-npm run migrate
-```
+- Close all other connections to database
+- Kill and restart backend: `npm run dev`
+- Ensure only one backend instance is running
+- Check for zombie processes: `ps aux | grep node`
 
 ### CORS errors on API calls
 
@@ -910,10 +1031,32 @@ npm run migrate
 **Solution:**
 ```javascript
 // .env backend
-CORS_ORIGIN=http://localhost:5173  # Match frontend URL exactly
+CORS_ORIGIN=http://localhost:5174  # Match frontend URL exactly
 
 // Restart backend
 npm run dev
+```
+
+### Login/Register not working
+
+**Problem:** Form submits but nothing happens
+
+**Solution:**
+1. Check backend is running: `curl http://localhost:3001/health`
+2. Open browser console (F12) for error messages
+3. Check network tab to see API response
+4. Verify CORS_ORIGIN in .env matches frontend URL
+5. Check rate limiting isn't active: Wait 15 minutes or restart backend
+
+### Cannot see logout button
+
+**Problem:** Door emoji (🚪) button not visible in NavPanel
+
+**Solution:**
+- Refresh page (Ctrl+Shift+R)
+- Check browser console for errors
+- Ensure authenticated user (check sessionStorage has tokens)
+- Logout button only visible when user is logged in
 ```
 
 ### Refresh token not working

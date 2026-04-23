@@ -382,6 +382,60 @@
   color: inherit;
 }
 
+/* Button container for theme and logout */
+.nav-header-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Logout button - Modern SVG icon styling */
+.nav-logout-btn {
+  background: var(--dark-btn);
+  border: none;
+  border-radius: 40px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--dark-btn-color);
+  font-family: "Outfit", sans-serif;
+  font-weight: 600;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  min-height: 32px;
+}
+
+.nav-logout-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2;
+  transition: all 0.2s;
+}
+
+/* Hover state - red theme for logout */
+.nav-logout-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  transform: scale(1.05);
+}
+
+.nav-logout-btn:hover svg {
+  stroke: #ef4444;
+}
+
+.nav-logout-btn:active {
+  transform: scale(0.95);
+}
+
+/* Dark mode logout button */
+.ug-root.dark .nav-logout-btn:hover {
+  background: rgba(239, 68, 68, 0.25);
+  color: #ef4444;
+}
+
 /* Spinner */
 .nav-spinner {
   width: 14px;
@@ -526,6 +580,17 @@
     width: 12px;
     height: 12px;
   }
+  
+  .nav-logout-btn {
+    padding: 6px 10px;
+    min-width: 36px;
+    min-height: 28px;
+  }
+  
+  .nav-logout-btn svg {
+    width: 14px;
+    height: 14px;
+  }
 }
 
 /* Desktop responsive */
@@ -566,5 +631,10 @@
   .nav-reset-btn {
     padding: 10px 20px;
     font-size: 13px;
+  }
+  
+  .nav-logout-btn svg {
+    width: 18px;
+    height: 18px;
   }
 }

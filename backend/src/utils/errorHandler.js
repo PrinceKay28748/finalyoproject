@@ -27,8 +27,8 @@ export async function logAudit(query, userId, action, ip, userAgent, success, er
   try {
     await query(
       `INSERT INTO audit_logs (user_id, action, ip_address, user_agent, success, error_message)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [userId || null, action, ip, userAgent, success, errorMessage]
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [userId || null, action, ip, userAgent, success ? 1 : 0, errorMessage]
     );
   } catch (err) {
     console.warn('[Audit] Failed to log event:', err.message);
