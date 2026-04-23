@@ -1,7 +1,4 @@
 // src/server.js
-// Main Express server - UG Campus Navigation Backend
-// Zero-Trust Authentication & User Management
-
 import 'dotenv/config';
 console.log('[DEBUG] EMAIL_USER:', process.env.EMAIL_USER);
 console.log('[DEBUG] EMAIL_PASS:', process.env.EMAIL_PASS ? '***LOADED***' : 'MISSING');
@@ -16,7 +13,6 @@ import { handleError } from './utils/errorHandler.js';
 import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
 import analyticsRoutes from './routes/analytics.js';
-import proxyRoutes from './routes/proxy.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -107,13 +103,35 @@ app.get('/health', async (req, res) => {
     }
 });
 
+// ─── Nominatim Proxy ─────────────────────────────────────────────────────────
+// Proxies /api/nominatim/search and /api/nominatim/reverse to Nominatim
+// This is what the frontend calls in production
+app.get('/api/nominatim/:path(*)', async (req, res) => {
+    try {
+        const params = new URLSearchParams(req.query).toString();
+        const url = `https://nominatim.openstreetmap.org/${req.params.path}?${params}`;
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'UGNavigator/1.0 (ugnavigator.onrender.com)',
+                'Accept': 'application/json',
+                'Accept-Language': 'en',
+            }
+        });
+        const data = await response.json();
+        res.json(data);
+    } catch (err) {
+        console.error('[Nominatim Proxy] Error:', err.message);
+        res.status(500).json({ error: 'Nominatim request failed' });
+    }
+});
+
 // ─── Routes ─────────────────────────────────────────────────────────────────
 app.use('/admin', adminRoutes);
 app.use('/auth/login', loginLimiter);
 app.use('/auth/register', generalLimiter);
 app.use('/auth', authRoutes);
 app.use('/analytics', analyticsRoutes);
-app.use('/proxy', proxyRoutes);
+
 // ─── 404 Handler ────────────────────────────────────────────────────────────
 app.use((req, res) => {
     res.status(404).json({ error: 'Endpoint not found' });
@@ -158,7 +176,7 @@ if (process.env.NODE_ENV === 'production') {
         } catch (err) {
             console.error('[Keep-alive] Ping failed:', err.message);
         }
-    }, 10 * 60 * 1000); // every 10 minutes
+    }, 10 * 60 * 1000);
 }
 
 // ─── Graceful Shutdown ───────────────────────────────────────────────────────

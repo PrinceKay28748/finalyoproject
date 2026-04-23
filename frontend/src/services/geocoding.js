@@ -1,6 +1,6 @@
 // services/geocoding.js
 // Handles all Nominatim API calls with proper rate limiting
-// Uses BACKEND proxy in production, Vite proxy in development
+// In production, requests go through the backend proxy to avoid CORS issues
 
 import { UG_CENTER } from "../function/utils/bounds";
 import { distanceKm } from "../function/utils/distance";
@@ -9,16 +9,15 @@ import { API_URL } from '../config';
 // ========================
 // NOMINATIM CONFIGURATION
 // ========================
-// Use backend proxy in production, Vite proxy in development
-const isProduction = import.meta.env.PROD;
-const NOMINATIM_BASE = isProduction 
-  ? `${API_URL}/api/proxy/nominatim`  // Production: use backend proxy
-  : '/api/nominatim';                  // Development: use Vite proxy
+// In development, Vite proxies /api/nominatim → nominatim.openstreetmap.org
+// In production, requests go through the Express backend proxy
+const NOMINATIM_BASE = import.meta.env.DEV
+  ? '/api/nominatim'
+  : `${API_URL}/api/nominatim`;
 
-// Headers required by Nominatim (only used in development, backend proxy handles it in production)
+// Headers required by Nominatim
 const NOMINATIM_HEADERS = {
   'Accept-Language': 'en',
-  'User-Agent': 'UG-Navigator/1.0 (pkay28748@gmail.com)'
 };
 
 // ========================
@@ -31,40 +30,34 @@ const RATE_LIMIT_MS = 1000; // 1 second between requests
 
 async function processQueue() {
   if (isProcessing || requestQueue.length === 0) return;
-  
+
   isProcessing = true;
-  
+
   const now = Date.now();
   const timeSinceLastRequest = now - lastRequestTime;
   const timeToWait = Math.max(0, RATE_LIMIT_MS - timeSinceLastRequest);
-  
+
   if (timeToWait > 0) {
     await new Promise(resolve => setTimeout(resolve, timeToWait));
   }
-  
+
   const { url, resolve, reject, retryCount = 0 } = requestQueue.shift();
-  
+
   try {
     lastRequestTime = Date.now();
-    
-    const fetchOptions = isProduction 
-      ? { 
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' }
-          // Backend will add its own User-Agent
-        }
-      : { headers: NOMINATIM_HEADERS };
-    
-    const response = await fetch(url, fetchOptions);
-    
+
+    const response = await fetch(url, {
+      headers: NOMINATIM_HEADERS
+    });
+
     if (response.status === 429) {
       throw new Error('RATE_LIMITED');
     }
-    
+
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
-    
+
     const data = await response.json();
     resolve(data);
   } catch (error) {
@@ -76,7 +69,7 @@ async function processQueue() {
       reject(error);
     }
   }
-  
+
   isProcessing = false;
   processQueue();
 }
@@ -96,12 +89,11 @@ export async function geocode(query) {
   if (!query || query.trim().length < 2) {
     return [];
   }
-  
+
   try {
     const { lat, lng } = UG_CENTER;
     let results = [];
 
-    // Clean the query — remove extra spaces
     const cleanQuery = query.trim();
 
     // Pass 1 — University of Ghana Legon Accra suffix (best for campus buildings)
@@ -127,7 +119,6 @@ export async function geocode(query) {
       return [];
     }
 
-    // Format results and sort by distance to UG center
     return results
       .map((item) => ({
         name: item.display_name.split(",").slice(0, 2).join(", "),
@@ -148,27 +139,17 @@ export async function reverseGeocode(lat, lng) {
   try {
     const url = `${NOMINATIM_BASE}/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`;
     const data = await queuedFetch(url);
-    
+
     if (!data || !data.display_name) {
       return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
     }
-    
-    // Try to get a clean, readable name
-    if (data.address?.building) {
-      return data.address.building;
-    }
-    
-    if (data.address?.road) {
-      return data.address.road;
-    }
-    
-    if (data.address?.footway) {
-      return data.address.footway;
-    }
-    
-    // Fallback to first part of display name
+
+    if (data.address?.building) return data.address.building;
+    if (data.address?.road) return data.address.road;
+    if (data.address?.footway) return data.address.footway;
+
     return data.display_name.split(",").slice(0, 2).join(", ") || "Selected point";
-    
+
   } catch (error) {
     console.error("[reverseGeocode] Error:", error);
     return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
