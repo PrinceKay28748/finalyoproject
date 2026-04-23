@@ -1,20 +1,21 @@
-
-
 // services/geocoding.js
 // Handles all Nominatim API calls with proper rate limiting
-// Uses Vite proxy to avoid CORS issues — requests go through /api/nominatim
+// Uses BACKEND proxy in production, Vite proxy in development
 
 import { UG_CENTER } from "../function/utils/bounds";
 import { distanceKm } from "../function/utils/distance";
 import { API_URL } from '../config';
+
 // ========================
 // NOMINATIM CONFIGURATION
 // ========================
-// Using Vite proxy — no CORS issues!
-// The proxy forwards /api/nominatim/* to https://nominatim.openstreetmap.org/*
-const NOMINATIM_BASE = '/api/nominatim';
+// Use backend proxy in production, Vite proxy in development
+const isProduction = import.meta.env.PROD;
+const NOMINATIM_BASE = isProduction 
+  ? `${API_URL}/api/proxy/nominatim`  // Production: use backend proxy
+  : '/api/nominatim';                  // Development: use Vite proxy
 
-// Headers required by Nominatim
+// Headers required by Nominatim (only used in development, backend proxy handles it in production)
 const NOMINATIM_HEADERS = {
   'Accept-Language': 'en',
   'User-Agent': 'UG-Navigator/1.0 (pkay28748@gmail.com)'
@@ -46,10 +47,15 @@ async function processQueue() {
   try {
     lastRequestTime = Date.now();
     
-    // No CORS proxy needed — Vite handles it!
-    const response = await fetch(url, { 
-      headers: NOMINATIM_HEADERS 
-    });
+    const fetchOptions = isProduction 
+      ? { 
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+          // Backend will add its own User-Agent
+        }
+      : { headers: NOMINATIM_HEADERS };
+    
+    const response = await fetch(url, fetchOptions);
     
     if (response.status === 429) {
       throw new Error('RATE_LIMITED');
@@ -168,6 +174,3 @@ export async function reverseGeocode(lat, lng) {
     return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
   }
 }
-
-
-
