@@ -7,13 +7,14 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "migrate": "node src/db/migrate.js"
+    "migrate": "node src/db/migrate-pg.js"
   },
   "keywords": [
     "campus",
     "navigation",
     "auth",
-    "postgresql"
+    "postgresql",
+    "supabase"
   ],
   "author": "",
   "license": "MIT",
@@ -22,16 +23,17 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.18.2",
-    "express-rate-limit": "^7.1.5",
+    "express-rate-limit": "^2.5.0",
     "express-validator": "^7.0.0",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.0",
     "nodemailer": "^8.0.5",
-    "pg": "^8.11.3",
-    "sqlite3": "^6.0.1",
-    "uuid": "^14.0.0"
+    "pg": "^8.11.3"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=20.0.0 <23.0.0"
   }
 }
