@@ -16,6 +16,7 @@ import { handleError } from './utils/errorHandler.js';
 import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
 import analyticsRoutes from './routes/analytics.js';
+import proxyRoutes from './routes/proxy.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -112,7 +113,7 @@ app.use('/auth/login', loginLimiter);
 app.use('/auth/register', generalLimiter);
 app.use('/auth', authRoutes);
 app.use('/analytics', analyticsRoutes);
-
+app.use('/proxy', proxyRoutes);
 // ─── 404 Handler ────────────────────────────────────────────────────────────
 app.use((req, res) => {
     res.status(404).json({ error: 'Endpoint not found' });
