@@ -1,11 +1,12 @@
+
+
 // frontend/src/components/Admin/AdminDashboard.jsx
 // Modern Admin Dashboard — Fully Responsive with modern icons
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthContext } from '../../context/AuthContext';
+import { API_URL } from '../../config';
 import './AdminDashboard.css';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 // Modern SVG Icons - clean, minimal, professional
 const Icons = {
