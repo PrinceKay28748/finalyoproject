@@ -18,7 +18,7 @@ import adminRoutes from './routes/admin.js';
 import analyticsRoutes from './routes/analytics.js';
 
 const app = express();
-app.set('trust proxy', 1); // required on Render — fixes express-rate-limit X-Forwarded-For warning
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
 
 // ─── Helper to check if email belongs to admin ─────────────────────────────
@@ -39,7 +39,6 @@ const isAdminEmail = async (email) => {
 // ─── Security Middleware ────────────────────────────────────────────────────
 app.use(helmet());
 
-// CORS
 app.use(cors({
     origin: [
         'http://localhost:5173',
@@ -51,7 +50,6 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Rate Limiting with admin bypass
 const loginLimiter = rateLimit({
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
     max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 5,
@@ -89,14 +87,10 @@ const generalLimiter = rateLimit({
     }
 });
 
-// Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
-
-// Parameter sanitization
 app.use(sanitizeParams);
 
-// Request logging
 app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
     next();
@@ -108,10 +102,7 @@ app.get('/health', async (req, res) => {
         await query('SELECT 1');
         res.json({ status: 'healthy', timestamp: new Date().toISOString() });
     } catch (err) {
-        res.status(500).json({
-            status: 'unhealthy',
-            error: 'Database connection failed'
-        });
+        res.status(500).json({ status: 'unhealthy', error: 'Database connection failed' });
     }
 });
 
@@ -156,7 +147,20 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   `);
 });
 
-// Graceful shutdown
+// ─── Keep-alive ping (prevents Render free tier cold starts) ────────────────
+if (process.env.NODE_ENV === 'production') {
+    const PING_URL = process.env.RENDER_EXTERNAL_URL || 'https://api-ug-navigator.onrender.com';
+    setInterval(async () => {
+        try {
+            await fetch(`${PING_URL}/health`);
+            console.log('[Keep-alive] Pinged /health');
+        } catch (err) {
+            console.error('[Keep-alive] Ping failed:', err.message);
+        }
+    }, 10 * 60 * 1000); // every 10 minutes
+}
+
+// ─── Graceful Shutdown ───────────────────────────────────────────────────────
 process.on('SIGTERM', () => {
     console.log('[Server] SIGTERM received, shutting down gracefully...');
     server.close(() => {
