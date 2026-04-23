@@ -1,7 +1,8 @@
 // frontend/src/services/analyticsLogger.js
 // Analytics logging service
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+//const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from '../config';
 
 async function fetchWithAuth(url, options = {}) {
   const token = sessionStorage.getItem('accessToken');

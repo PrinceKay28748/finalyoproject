@@ -2,8 +2,9 @@
 // Authentication hook - manages login state and tokens
 
 import { useState, useCallback, useEffect } from 'react';
+import { API_URL } from '../config';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+//const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 export function useAuth() {
     const [user, setUser] = useState(null);

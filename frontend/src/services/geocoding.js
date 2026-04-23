@@ -6,7 +6,7 @@
 
 import { UG_CENTER } from "../function/utils/bounds";
 import { distanceKm } from "../function/utils/distance";
-
+import { API_URL } from '../config';
 // ========================
 // NOMINATIM CONFIGURATION
 // ========================
@@ -171,94 +171,3 @@ export async function reverseGeocode(lat, lng) {
 
 
 
-// import { UG_CENTER } from "../function/utils/bounds";
-// import { distanceKm } from "../function/utils/distance";
-
-// const NOMINATIM_HEADERS = {
-//   "Accept-Language": "en",
-//   "User-Agent": "UGNavigator/1.0",
-// };
-
-// // Module-level cache — same query won't hit the API twice in a session
-// // Key: lowercase trimmed query string, Value: results array
-// const geocodeCache       = new Map();
-// const reverseGeocodeCache = new Map();
-
-// // Searches for a location using a three-pass strategy so partial and informal
-// // names still return results — similar to how Bolt and Google Maps handle search
-// export async function geocode(query) {
-//   const cacheKey = query.toLowerCase().trim();
-
-//   // Return cached result if available
-//   if (geocodeCache.has(cacheKey)) {
-//     console.log("[Geocoding] Cache hit:", cacheKey);
-//     return geocodeCache.get(cacheKey);
-//   }
-
-//   try {
-//     const { lat, lng } = UG_CENTER;
-
-//     // Pass 1 — bias toward UG Legon, no hard boundary so partial names work
-//     const q1   = encodeURIComponent(query + " University of Ghana Legon Accra");
-//     const url1 = `https://nominatim.openstreetmap.org/search?q=${q1}&format=json&limit=8&countrycodes=gh&lat=${lat}&lon=${lng}`;
-//     let data   = await fetchJSON(url1);
-
-//     // Pass 2 — retry with a softer suffix if first pass returned nothing
-//     if (!data.length) {
-//       const q2   = encodeURIComponent(query + " Legon Accra Ghana");
-//       const url2 = `https://nominatim.openstreetmap.org/search?q=${q2}&format=json&limit=8&countrycodes=gh`;
-//       data       = await fetchJSON(url2);
-//     }
-
-//     // Pass 3 — bare query as last resort, still biased toward UG center
-//     if (!data.length) {
-//       const q3   = encodeURIComponent(query);
-//       const url3 = `https://nominatim.openstreetmap.org/search?q=${q3}&format=json&limit=8&countrycodes=gh&lat=${lat}&lon=${lng}`;
-//       data       = await fetchJSON(url3);
-//     }
-
-//     // Clean up results and sort by proximity to UG center
-//     const results = data
-//       .map((d) => ({
-//         name: d.display_name.split(",").slice(0, 2).join(", "),
-//         lat:  parseFloat(d.lat),
-//         lng:  parseFloat(d.lon),
-//         dist: distanceKm(lat, lng, parseFloat(d.lat), parseFloat(d.lon)),
-//       }))
-//       .sort((a, b) => a.dist - b.dist)
-//       .slice(0, 5);
-
-//     // Store in cache for this session
-//     geocodeCache.set(cacheKey, results);
-//     return results;
-
-//   } catch {
-//     return [];
-//   }
-// }
-
-// // Converts a lat/lng coordinate into a human-readable location name
-// export async function reverseGeocode(lat, lng) {
-//   // Round to 4 decimal places as cache key (~11m precision — enough for campus)
-//   const cacheKey = `${lat.toFixed(4)},${lng.toFixed(4)}`;
-
-//   if (reverseGeocodeCache.has(cacheKey)) {
-//     return reverseGeocodeCache.get(cacheKey);
-//   }
-
-//   try {
-//     const url    = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`;
-//     const data   = await fetchJSON(url);
-//     const result = data.display_name?.split(",").slice(0, 2).join(", ") || "Selected point";
-//     reverseGeocodeCache.set(cacheKey, result);
-//     return result;
-//   } catch {
-//     return "Selected point";
-//   }
-// }
-
-// // Internal helper — fetches JSON with standard headers
-// async function fetchJSON(url) {
-//   const res = await fetch(url, { headers: NOMINATIM_HEADERS });
-//   return res.json();
-// }
