@@ -780,3 +780,31 @@ body.dragging-legend .leaflet-container {
   user-select: none;
   -webkit-user-select: none;
 }
+
+/* CRITICAL: Prevent map interaction when dragging legend */
+body.dragging-legend .leaflet-container {
+  pointer-events: none !important;
+  touch-action: none !important;
+}
+
+/* Ensure legend stays interactive while dragging */
+.legend-sheet.dragging {
+  pointer-events: auto;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Prevent text selection during drag */
+.legend-sheet.dragging * {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Ensure drag handle captures events first */
+.legend-handle-wrap {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  position: relative;
+  z-index: 10;
+}

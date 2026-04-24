@@ -122,10 +122,11 @@ export default function Legend({
     alert("Location link copied! Share it with your friends.");
   };
 
-  // Drag handlers - removed preventDefault from move handler
+  // Drag handlers - COMPLETELY isolated from map
   const handleDragStart = (e) => {
-    // Only prevent default on the handle element, not on document
+    // CRITICAL: Prevent event from reaching the map
     e.stopPropagation();
+    e.preventDefault();
     
     setIsDragging(true);
     dragStartY.current = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
@@ -133,14 +134,18 @@ export default function Legend({
     dragStartExpanded.current = expanded;
     lastDragTime.current = Date.now();
     dragVelocity.current = 0;
-    if (sheetRef.current) sheetRef.current.classList.add('dragging');
+    if (sheetRef.current) {
+      sheetRef.current.classList.add('dragging');
+      sheetRef.current.style.transition = 'none';
+    }
   };
 
   const handleDragMove = (e) => {
     if (!isDragging) return;
     
-    // Removed e.preventDefault() - let CSS touch-action handle it
+    // CRITICAL: Stop propagation and prevent default to block map interactions
     e.stopPropagation();
+    e.preventDefault();
     
     const currentY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
     const deltaY = currentY - dragStartY.current;
@@ -157,11 +162,19 @@ export default function Legend({
     } else {
       newTranslateY = Math.min(maxDrag, Math.max(0, maxDrag + deltaY));
     }
-    if (sheetRef.current) sheetRef.current.style.transform = `translateY(${newTranslateY}px)`;
+    if (sheetRef.current) {
+      sheetRef.current.style.transform = `translateY(${newTranslateY}px)`;
+    }
   };
 
-  const handleDragEnd = () => {
+  const handleDragEnd = (e) => {
     if (!isDragging) return;
+    
+    // CRITICAL: Prevent final event from reaching map
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
     
     const sheetHeight = sheetRef.current?.offsetHeight || 400;
     const maxDrag = sheetHeight - peekHeight;
@@ -175,32 +188,31 @@ export default function Legend({
     setExpanded(shouldExpand);
     if (sheetRef.current) {
       sheetRef.current.style.transform = '';
+      sheetRef.current.style.transition = '';
       sheetRef.current.classList.remove('dragging');
     }
     setIsDragging(false);
   };
 
-  useEffect(() => {
-    if (!isDragging && sheetRef.current) sheetRef.current.style.transform = '';
-  }, [expanded, isDragging]);
-
-  // Updated useEffect with proper event handling - no preventDefault in touchmove
+  // Global event listeners with proper isolation
   useEffect(() => {
     if (!isDragging) {
       document.body.classList.remove('dragging-legend');
       return;
     }
+    
     document.body.classList.add('dragging-legend');
     
+    // Add passive: false to allow preventDefault on touchmove
     const handleMouseMove = (e) => handleDragMove(e);
-    const handleMouseUp = () => handleDragEnd();
+    const handleMouseUp = (e) => handleDragEnd(e);
     const handleTouchMove = (e) => handleDragMove(e);
-    const handleTouchEnd = () => handleDragEnd();
+    const handleTouchEnd = (e) => handleDragEnd(e);
 
-    // Add event listeners without preventDefault - CSS touch-action handles it
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-    document.addEventListener('touchmove', handleTouchMove);
+    // Use { passive: false } for touch events to enable preventDefault
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
     document.addEventListener('touchend', handleTouchEnd);
 
     return () => {
@@ -211,6 +223,13 @@ export default function Legend({
       document.removeEventListener('touchend', handleTouchEnd);
     };
   }, [isDragging]);
+
+  // Reset transform when expanded changes
+  useEffect(() => {
+    if (!isDragging && sheetRef.current) {
+      sheetRef.current.style.transform = '';
+    }
+  }, [expanded, isDragging]);
 
   if (!visible) return null;
 
