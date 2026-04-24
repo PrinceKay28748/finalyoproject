@@ -4,14 +4,14 @@ import { useAuthContext } from "../../context/AuthContext";
 import "./AuthPage.css";
 
 export default function RegisterPage({ onSwitchToLogin }) {
-  const [email, setEmail]                   = useState("");
-  const [username, setUsername]             = useState("");
-  const [password, setPassword]             = useState("");
+  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [passwordStrength, setPasswordStrength] = useState(0);
-  const [isLoading, setIsLoading]           = useState(false);
-  const [error, setError]                   = useState("");
-  const [success, setSuccess]               = useState(false);
-  const [showPassword, setShowPassword]     = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const { register } = useAuthContext();
 
@@ -35,7 +35,9 @@ export default function RegisterPage({ onSwitchToLogin }) {
     setError("");
 
     if (passwordStrength < 3) {
-      setError("Password is too weak. Include uppercase, lowercase, and numbers.");
+      setError(
+        "Password is too weak. Include uppercase, lowercase, and numbers.",
+      );
       return;
     }
 
@@ -67,8 +69,14 @@ export default function RegisterPage({ onSwitchToLogin }) {
       <div className="auth-hero">
         <div className="auth-hero-bg">UG</div>
         <img src="/icon-512.png" alt="UG Navigator" width={80} height={80} />
-        <h1>Join the<br />community.</h1>
-        <p>Create an account and start navigating Legon campus with confidence.</p>
+        <h1>
+          Join the
+          <br />
+          community.
+        </h1>
+        <p>
+          Create an account and start navigating Legon campus with confidence.
+        </p>
       </div>
 
       {/* Right side — Form */}
@@ -93,12 +101,17 @@ export default function RegisterPage({ onSwitchToLogin }) {
         {/* ERROR MESSAGE */}
         {error && !success && (
           <div className="auth-error-split" role="alert">
-            <span className="error-icon">⚠️</span>
             <span className="error-message">{error}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ opacity: success ? 0.5 : 1, pointerEvents: success ? 'none' : 'auto' }}>
+        <form
+          onSubmit={handleSubmit}
+          style={{
+            opacity: success ? 0.5 : 1,
+            pointerEvents: success ? "none" : "auto",
+          }}
+        >
           <div className="form-group-split">
             <input
               id="reg-email"
@@ -155,20 +168,23 @@ export default function RegisterPage({ onSwitchToLogin }) {
                   className="strength-fill-split"
                   style={{
                     width: `${(passwordStrength / 4) * 100}%`,
-                    backgroundColor: strengthColors[passwordStrength - 1] || "#ef4444",
+                    backgroundColor:
+                      strengthColors[passwordStrength - 1] || "#ef4444",
                   }}
                 />
               </div>
               <span className="strength-label-split">
                 Password strength:{" "}
-                <strong>{strengthLabels[passwordStrength - 1] || "Weak"}</strong>
+                <strong>
+                  {strengthLabels[passwordStrength - 1] || "Weak"}
+                </strong>
               </span>
             </div>
           )}
 
           <button
             type="submit"
-            className={`auth-button-split ${isLoading ? 'loading' : ''}`}
+            className={`auth-button-split ${isLoading ? "loading" : ""}`}
             disabled={isLoading || success || passwordStrength < 3}
           >
             {isLoading ? (

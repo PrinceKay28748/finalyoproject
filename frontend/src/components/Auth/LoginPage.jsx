@@ -4,11 +4,11 @@ import { useAuthContext } from "../../context/AuthContext";
 import "./AuthPage.css";
 
 export default function LoginPage({ onSwitchToRegister, onForgotPassword }) {
-  const [email, setEmail]           = useState("");
-  const [password, setPassword]     = useState("");
-  const [isLoading, setIsLoading]   = useState(false);
-  const [error, setError]           = useState("");
-  const [success, setSuccess]       = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const { login } = useAuthContext();
@@ -50,8 +50,15 @@ export default function LoginPage({ onSwitchToRegister, onForgotPassword }) {
       <div className="auth-hero">
         <div className="auth-hero-bg">UG</div>
         <img src="/icon-512.png" alt="UG Navigator" width={80} height={80} />
-        <h1>Navigate<br />Legon.</h1>
-        <p>Context-aware routing for University of Ghana — accessible, safe, and fast.</p>
+        <h1>
+          Navigate
+          <br />
+          Legon.
+        </h1>
+        <p>
+          Context-aware routing for University of Ghana — accessible, safe, and
+          fast.
+        </p>
       </div>
 
       {/* Right side — Form */}
@@ -76,12 +83,17 @@ export default function LoginPage({ onSwitchToRegister, onForgotPassword }) {
         {/* ERROR MESSAGE */}
         {error && !success && (
           <div className="auth-error-split" role="alert">
-            <span className="error-icon">⚠️</span>
             <span className="error-message">{error}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ opacity: success ? 0.5 : 1, pointerEvents: success ? 'none' : 'auto' }}>
+        <form
+          onSubmit={handleSubmit}
+          style={{
+            opacity: success ? 0.5 : 1,
+            pointerEvents: success ? "none" : "auto",
+          }}
+        >
           <div className="form-group-split">
             <input
               id="email"
@@ -130,7 +142,7 @@ export default function LoginPage({ onSwitchToRegister, onForgotPassword }) {
 
           <button
             type="submit"
-            className={`auth-button-split ${isLoading ? 'loading' : ''}`}
+            className={`auth-button-split ${isLoading ? "loading" : ""}`}
             disabled={isLoading || success}
           >
             {isLoading ? (
