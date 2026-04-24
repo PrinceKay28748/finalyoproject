@@ -2,9 +2,8 @@
 // Reset Password Page — Enter new password
 
 import { useState, useEffect } from "react";
+import { API_URL } from "../../config";
 import "./AuthPage.css";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 export default function ResetPasswordPage({ token, onComplete }) {
   const [password, setPassword] = useState("");

@@ -3,8 +3,9 @@
 
 import { useState } from 'react';
 import './AuthPage.css';
+import { API_URL } from "../../config";
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 export default function ForgotPasswordPage({ onBackToLogin }) {
   const [email, setEmail] = useState('');
