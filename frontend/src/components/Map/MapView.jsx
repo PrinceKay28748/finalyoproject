@@ -153,7 +153,7 @@ export default function MapView({
         />
         <MapClickHandler onMapClick={onMapClick} />
         
-        {/* GPS location dot */}
+        {/* GPS location dot with direction and speed */}
         <GpsLocationMarker
           location={currentLocation}
           accuracy={accuracy}
@@ -166,10 +166,20 @@ export default function MapView({
           visible={useCustomLocation && !!customStartPoint}
         />
 
-        {/* ===== 4-ROUTE RENDERING ===== */}
-        {markersVisible && (
+        {/* ===== 4-ROUTE RENDERING WITH PROGRESS TRACKING ===== */}
+        {markersVisible && hasValidRoute && (
+          <RouteLayer
+            route={primaryRoute}
+            visible={markersVisible}
+            profile={activeProfile}
+            currentLocation={currentLocation}
+            showProgress={true}
+          />
+        )}
+
+        {/* Alternative routes — only show when navigation not active (no progress tracking on alternatives) */}
+        {markersVisible && alternativeRoutes.length > 0 && !hasValidRoute && (
           <>
-            {/* Alternative routes — faded with smooth animations */}
             {alternativeRoutes.map((alt, index) => {
               const routeCoords = alt.route?.coordinates;
               if (!routeCoords || routeCoords.length === 0) return null;
@@ -186,50 +196,36 @@ export default function MapView({
                   lineJoin="round"
                   className="alternative-route"
                   interactive={false}
-                  style={{
-                    animation: `fadeInAlternative 0.6s ease-out ${index * 0.1}s both`
-                  }}
                 />
               );
             })}
-            
-            {/* Primary route — bright and bold (opacity 1.0, thicker) */}
-            {hasValidRoute && (
-              <Polyline
-                key={`primary-${activeProfile}-${primaryRoute?.totalDistance}`}
-                positions={primaryRoute.coordinates.map(c => [c.lat, c.lng])}
-                color={ROUTE_COLORS[activeProfile]}
-                weight={7}
-                opacity={1}
-                smoothFactor={2}
-                lineCap="round"
-                lineJoin="round"
-                className="primary-route"
-              />
-            )}
           </>
         )}
 
-        {/* Fallback: show old RouteLayer if no multi-route data (backward compatibility) */}
-        {markersVisible && !hasValidRoute && !isRouting && (
-          <div style={{
-            position: "fixed",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            backgroundColor: "rgba(0, 0, 0, 0.8)",
-            color: "white",
-            padding: "20px 40px",
-            borderRadius: "8px",
-            zIndex: 1000,
-            textAlign: "center",
-            pointerEvents: "none"
-          }}>
-            <p>Unable to calculate route</p>
-            <p style={{ fontSize: "12px", marginTop: "8px", opacity: 0.7 }}>
-              Please check your start and destination points
-            </p>
-          </div>
+        {/* Fallback: show simple route if RouteLayer not used */}
+        {markersVisible && hasValidRoute && (
+          <>
+            {/* Alternative routes (faded) */}
+            {alternativeRoutes.map((alt, index) => {
+              const routeCoords = alt.route?.coordinates;
+              if (!routeCoords || routeCoords.length === 0) return null;
+              
+              return (
+                <Polyline
+                  key={`alt-${alt.profile}-${alt.route?.totalDistance}`}
+                  positions={routeCoords.map(c => [c.lat, c.lng])}
+                  color={ROUTE_COLORS[alt.profile]}
+                  weight={4}
+                  opacity={0.35}
+                  smoothFactor={2}
+                  lineCap="round"
+                  lineJoin="round"
+                  className="alternative-route"
+                  interactive={false}
+                />
+              );
+            })}
+          </>
         )}
 
         {/* Markers */}
@@ -284,11 +280,13 @@ export default function MapView({
         🎯
       </button>
 
-      {/* Rerouting indicator - hidden, background only (no UI blocking) */}
-      {/* The system silently recalculates routes when deviation is detected */}
-
-      {/* Off-route warning - removed to prevent UI blocking */}
-      {/* Rerouting happens silently in the background */}
+      {/* Rerouting indicator - subtle, non-blocking */}
+      {isRerouting && (
+        <div className="rerouting-indicator">
+          <div className="rerouting-spinner-small" />
+          <span>Updating route...</span>
+        </div>
+      )}
 
       {/* Loading indicator */}
       {markersVisible && isRouting && !hasValidRoute && (

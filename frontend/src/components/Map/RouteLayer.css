@@ -89,3 +89,57 @@
 .route-main.highlight {
   animation: highlightRoute 0.6s ease-in-out;
 }
+
+/* RouteLayer.css */
+
+/* Completed route styling (behind user) */
+.route-completed {
+  stroke-dasharray: none;
+  transition: all 0.3s ease;
+}
+
+.route-completed-dashed {
+  animation: dash-move 30s linear infinite;
+}
+
+@keyframes dash-move {
+  to {
+    stroke-dashoffset: -100;
+  }
+}
+
+/* Remaining route styling (ahead of user) */
+.route-remaining {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+  transition: all 0.3s ease;
+}
+
+.route-remaining-glow {
+  filter: blur(4px);
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.1;
+  }
+  50% {
+    opacity: 0.2;
+  }
+}
+
+/* Smooth transitions when route updates */
+.route-completed,
+.route-remaining {
+  transition: all 0.5s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+}
+
+/* Active navigation state */
+.navigating .route-completed {
+  opacity: 0.3;
+}
+
+.navigating .route-remaining {
+  opacity: 1;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.15));
+}
