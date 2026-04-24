@@ -1,5 +1,5 @@
 // backend/src/routes/analytics.js
-// Analytics logging endpoints
+// Analytics logging endpoints - PostgreSQL version for Supabase
 
 import express from 'express';
 import { query } from '../config/db.js';
@@ -29,7 +29,7 @@ router.post('/log', async (req, res) => {
     
     await query(
       `INSERT INTO user_activity (user_id, activity_type, metadata, created_at)
-       VALUES (?, ?, ?, CURRENT_TIMESTAMP)`,
+       VALUES ($1, $2, $3, NOW())`,
       [userId, activity_type, metadata || null]
     );
     
@@ -56,7 +56,7 @@ router.post('/route', async (req, res) => {
     
     await query(
       `INSERT INTO route_logs (user_id, start_location, end_location, profile_used, route_distance, created_at)
-       VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+       VALUES ($1, $2, $3, $4, $5, NOW())`,
       [userId, start_location || null, end_location || null, profile_used || null, distance || null]
     );
     
