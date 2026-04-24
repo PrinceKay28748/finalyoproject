@@ -311,7 +311,7 @@ router.post('/forgot-password', async (req, res) => {
             [user.id, tokenHash, expiresAt.toISOString()]
         );
 
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const frontendUrl = process.env.FRONTEND_URL || 'https://ugnavigator.onrender.com';
         const emailResult = await sendPasswordResetEmail(email, token, frontendUrl);
 
         if (!emailResult.success) {

@@ -19,9 +19,9 @@ const transporter = nodemailer.createTransport({
  * Send password reset email
  * @param {string} to - Recipient email address
  * @param {string} token - Reset token
- * @param {string} frontendUrl - Frontend URL (e.g., http://localhost:5173)
+ * @param {string} frontendUrl - Frontend URL (e.g., https://ugnavigator.onrender.com)
  */
-export async function sendPasswordResetEmail(to, token, frontendUrl = 'http://localhost:5173') {
+export async function sendPasswordResetEmail(to, token, frontendUrl = 'https://ugnavigator.onrender.com') {
   const resetLink = `${frontendUrl}/reset-password?token=${token}`;
   
   const html = `
