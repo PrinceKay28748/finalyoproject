@@ -13,7 +13,6 @@ import { handleError } from './utils/errorHandler.js';
 import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
 import analyticsRoutes from './routes/analytics.js';
-import proxyRoutes from './routes/proxy.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -104,25 +103,57 @@ app.get('/health', async (req, res) => {
     }
 });
 
-// ─── Nominatim Proxy ─────────────────────────────────────────────────────────
+// ============================================
+// NOMINATIM PROXY - Enhanced version
+// ============================================
 // Proxies /api/nominatim/search and /api/nominatim/reverse to Nominatim
 // This is what the frontend calls in production
 app.get('/api/nominatim/:path(*)', async (req, res) => {
     try {
-        const params = new URLSearchParams(req.query).toString();
-        const url = `https://nominatim.openstreetmap.org/${req.params.path}?${params}`;
+        const params = new URLSearchParams(req.query);
+        
+        // Force JSON format
+        if (!params.has('format')) {
+            params.set('format', 'json');
+        }
+        
+        // Ensure we get address details
+        if (req.params.path.includes('reverse') && !params.has('addressdetails')) {
+            params.set('addressdetails', '1');
+        }
+        
+        const url = `https://nominatim.openstreetmap.org/${req.params.path}?${params.toString()}`;
+        
+        console.log('[Nominatim Proxy] Requesting:', url);
+        
         const response = await fetch(url, {
             headers: {
-                'User-Agent': 'UGNavigator/1.0 (ugnavigator.onrender.com)',
+                'User-Agent': 'UGNavigator/1.0 (https://ugnavigator.onrender.com)',
                 'Accept': 'application/json',
                 'Accept-Language': 'en',
+                'Referer': 'https://ugnavigator.onrender.com'
             }
         });
+        
+        if (!response.ok) {
+            console.error('[Nominatim Proxy] HTTP error:', response.status);
+            return res.status(response.status).json({ 
+                error: `Nominatim returned ${response.status}` 
+            });
+        }
+        
         const data = await response.json();
+        
+        // Check if Nominatim returned an error
+        if (data && data.error) {
+            console.error('[Nominatim Proxy] Nominatim error:', data.error);
+            return res.status(400).json({ error: data.error });
+        }
+        
         res.json(data);
     } catch (err) {
         console.error('[Nominatim Proxy] Error:', err.message);
-        res.status(500).json({ error: 'Nominatim request failed' });
+        res.status(500).json({ error: 'Nominatim request failed', details: err.message });
     }
 });
 
@@ -162,6 +193,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 ║    • DELETE /auth/me         - Delete account              ║
 ║    • GET    /health          - Health check                ║
 ║    • GET    /admin/*         - Admin dashboard            ║
+║    • GET    /api/nominatim/* - Nominatim proxy            ║
 ║                                                            ║
 ╚════════════════════════════════════════════════════════════╝
   `);
