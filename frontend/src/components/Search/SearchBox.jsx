@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { geocode } from "../../services/geocoding";
 import { saveRecentSearch, getRecentSearches, clearRecentSearches } from "../../services/recentSearches";
 import "./SearchBox.css";
@@ -18,9 +18,14 @@ export default function SearchBox({
   const [showDropdown, setShowDropdown] = useState(false);
   const [recentSearches, setRecentSearches] = useState([]);
   const [showAllRecent, setShowAllRecent] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  
   const debounceRef = useRef(null);
   const inputRef = useRef(null);
   const dropdownRef = useRef(null);
+  const abortControllerRef = useRef(null);
+  const lastQueryRef = useRef("");
+  const cacheRef = useRef(new Map()); // Cache results for better UX
 
   // Load recent searches
   useEffect(() => {
@@ -33,6 +38,22 @@ export default function SearchBox({
     return () => window.removeEventListener("recentSearchesUpdated", handleUpdate);
   }, []);
 
+  // Cancel pending requests
+  const cancelPendingRequest = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+  }, []);
+
+  // Clear debounce timeout
+  const clearDebounce = useCallback(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+  }, []);
+
   const handleInputClick = () => {
     setShowDropdown(true);
     if (onFocus) onFocus();
@@ -41,26 +62,80 @@ export default function SearchBox({
   const handleChange = (e) => {
     const val = e.target.value;
     onChange(val);
-    clearTimeout(debounceRef.current);
-
-    if (val.length < 1) {
-      setShowDropdown(true);
+    
+    // Clear previous debounce
+    clearDebounce();
+    
+    // Cancel any pending API request
+    cancelPendingRequest();
+    
+    // If empty, show recent searches only
+    if (val.length < 2) {
       setSuggestions([]);
+      setLoading(false);
+      setIsTyping(false);
+      setShowDropdown(true);
+      lastQueryRef.current = "";
       return;
     }
-
+    
+    // Show loading state
+    setIsTyping(true);
     setLoading(true);
+    setShowDropdown(true);
+    
+    // Check cache first (results for same query)
+    if (cacheRef.current.has(val)) {
+      console.log(`[Search] Cache hit for "${val}"`);
+      setSuggestions(cacheRef.current.get(val));
+      setLoading(false);
+      setIsTyping(false);
+      lastQueryRef.current = val;
+      return;
+    }
+    
+    // Set longer debounce for better UX - 600ms gives user time to type
+    // and reduces rate limiting hits
     debounceRef.current = setTimeout(async () => {
+      // Don't search if query is too short or hasn't changed meaningfully
+      if (val.length < 2) {
+        setSuggestions([]);
+        setLoading(false);
+        setIsTyping(false);
+        return;
+      }
+      
+      // Skip if same as last query (prevents duplicate requests)
+      if (lastQueryRef.current === val) {
+        setLoading(false);
+        setIsTyping(false);
+        return;
+      }
+      
+      lastQueryRef.current = val;
+      
       try {
+        console.log(`[Search] Fetching results for "${val}"`);
         const results = await geocode(val);
+        
+        // Cache results
+        cacheRef.current.set(val, results);
+        
+        // Limit cache size to 50 items
+        if (cacheRef.current.size > 50) {
+          const firstKey = cacheRef.current.keys().next().value;
+          cacheRef.current.delete(firstKey);
+        }
+        
         setSuggestions(results);
-        setShowDropdown(true);
       } catch (error) {
+        console.error("[Search] Error:", error);
         setSuggestions([]);
       } finally {
         setLoading(false);
+        setIsTyping(false);
       }
-    }, 350);
+    }, 650); // Increased from 350ms to 650ms - better for rate limiting
   };
 
   const handleSelect = (loc) => {
@@ -69,6 +144,10 @@ export default function SearchBox({
     saveRecentSearch(loc);
     setRecentSearches(getRecentSearches());
     setShowDropdown(false);
+    
+    // Clear pending requests
+    clearDebounce();
+    cancelPendingRequest();
   };
 
   const handleClearAll = () => {
@@ -88,6 +167,14 @@ export default function SearchBox({
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      clearDebounce();
+      cancelPendingRequest();
+    };
+  }, [clearDebounce, cancelPendingRequest]);
 
   const visibleRecent = showAllRecent ? recentSearches : recentSearches.slice(0, 5);
   const hasMoreRecent = recentSearches.length > 5;
@@ -210,17 +297,28 @@ export default function SearchBox({
             </div>
           )}
 
-          {/* Loading */}
-          {loading && <div style={{ padding: "12px 16px", fontSize: "13px", color: "var(--sub)" }}>Searching...</div>}
+          {/* Loading indicator with message */}
+          {loading && (
+            <div style={{ padding: "12px 16px", fontSize: "13px", color: "var(--sub)", display: "flex", alignItems: "center", gap: "10px" }}>
+              <div style={{ width: "14px", height: "14px", border: "2px solid var(--border)", borderTopColor: accentColor, borderRadius: "50%", animation: "ugspin 0.7s linear infinite" }} />
+              Searching...
+            </div>
+          )}
 
-          {/* Suggestions */}
+          {/* Suggestions - show even while typing (no flashing) */}
           {!loading && suggestions.length > 0 && (
             <>
-              {value.length >= 1 && <div style={{ padding: "8px 12px", fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", borderBottom: "1px solid var(--border)" }}>Suggestions</div>}
-              {suggestions.map((loc, i) => (
+              <div style={{ padding: "8px 12px", fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", borderBottom: "1px solid var(--border)" }}>
+                {isTyping ? "Suggestions (keep typing for more)" : "Suggestions"}
+              </div>
+              {suggestions.slice(0, 7).map((loc, i) => (
                 <div
-                  key={i}
-                  onClick={() => handleSelect(loc)}
+                  key={`${loc.name}-${i}`}
+                  onMouseDown={(e) => {
+                    // Use mousedown instead of click to prevent blur
+                    e.preventDefault();
+                    handleSelect(loc);
+                  }}
                   style={{ padding: "11px 16px", cursor: "pointer", fontSize: "13px", color: "var(--text)", display: "flex", alignItems: "center", gap: "10px", borderBottom: "1px solid var(--border)" }}
                   onMouseEnter={(e) => (e.target.style.background = "var(--hover-row)")}
                   onMouseLeave={(e) => (e.target.style.background = "transparent")}
@@ -234,8 +332,10 @@ export default function SearchBox({
           )}
 
           {/* No results */}
-          {!loading && suggestions.length === 0 && value.length >= 1 && !showCurrentLocationOption && (
-            <div style={{ padding: "12px 16px", fontSize: "13px", color: "var(--sub)" }}>No results — try a different name</div>
+          {!loading && suggestions.length === 0 && value.length >= 2 && !showCurrentLocationOption && (
+            <div style={{ padding: "12px 16px", fontSize: "13px", color: "var(--sub)" }}>
+              No results — try a different name
+            </div>
           )}
         </div>
       )}
