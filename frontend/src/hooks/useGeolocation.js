@@ -1,11 +1,81 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
-// Watches the user's GPS position continuously and only updates state
-// when a more accurate fix comes in — prevents jumping to a worse location
+// Optimized geolocation for walking navigation
+// Features:
+// - Smooth position updates (5 meters minimum movement)
+// - Filters out noisy GPS jumps
+// - Calculates direction/distance from last position
+// - Battery-efficient for walking speeds
+
 export function useGeolocation() {
-  const [location, setLocation] = useState(null);  // { lat, lng }
+  const [location, setLocation] = useState(null);  // { lat, lng, heading, speed, timestamp }
   const [accuracy, setAccuracy] = useState(null);  // accuracy in metres
-  const [error, setError]       = useState(null);  // error message if GPS fails
+  const [error, setError] = useState(null);
+  const [lastPosition, setLastPosition] = useState(null);
+  
+  // Refs to track movement for filtering
+  const watchIdRef = useRef(null);
+  const lastUpdateTimeRef = useRef(0);
+  const consecutiveErrorsRef = useRef(0);
+
+  // Calculate distance between two coordinates (Haversine formula)
+  const calculateDistance = useCallback((lat1, lng1, lat2, lng2) => {
+    const R = 6371000; // Earth's radius in meters
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  }, []);
+
+  // Calculate bearing between two points (for heading/direction)
+  const calculateHeading = useCallback((lat1, lng1, lat2, lng2) => {
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const lat1Rad = lat1 * Math.PI / 180;
+    const lat2Rad = lat2 * Math.PI / 180;
+    const y = Math.sin(dLng) * Math.cos(lat2Rad);
+    const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) -
+              Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLng);
+    const bearing = Math.atan2(y, x) * 180 / Math.PI;
+    return (bearing + 360) % 360;
+  }, []);
+
+  // Filter out noisy GPS jumps (rejects positions that are unrealistic for walking)
+  const isValidMovement = useCallback((newLat, newLng, oldLat, oldLng, timeDelta) => {
+    if (!oldLat || !oldLng) return true;
+    
+    const distance = calculateDistance(oldLat, oldLng, newLat, newLng);
+    const timeSeconds = timeDelta / 1000;
+    
+    // Maximum realistic walking speed: 2.5 m/s (~9 km/h)
+    // Maximum running speed: 5 m/s (~18 km/h)
+    const maxSpeed = 5.0; // meters per second
+    
+    if (timeSeconds > 0 && distance / timeSeconds > maxSpeed) {
+      console.log(`[Geolocation] Filtered jump: ${(distance / timeSeconds).toFixed(1)} m/s`);
+      return false;
+    }
+    
+    // Also filter out positions that haven't moved enough (GPS jitter)
+    if (distance < 3 && timeSeconds > 2) {
+      return false;
+    }
+    
+    return true;
+  }, [calculateDistance]);
+
+  // Smooth position with exponential moving average
+  const smoothPosition = useCallback((newLat, newLng, oldLat, oldLng, alpha = 0.3) => {
+    if (!oldLat || !oldLng) return { lat: newLat, lng: newLng };
+    
+    // Exponential moving average for smoother tracking
+    return {
+      lat: oldLat + alpha * (newLat - oldLat),
+      lng: oldLng + alpha * (newLng - oldLng)
+    };
+  }, []);
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -13,27 +83,114 @@ export function useGeolocation() {
       return;
     }
 
-    let bestAccuracy = Infinity;
+    // Optimized options for walking navigation
+    const options = {
+      enableHighAccuracy: true,     // Use GPS for better accuracy
+      maximumAge: 5000,             // Accept positions up to 5 seconds old
+      timeout: 10000,               // Wait 10 seconds for GPS fix
+    };
 
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        const { latitude, longitude, accuracy: acc } = pos.coords;
-
-        // Only accept this fix if it's more accurate than the last one
-        if (acc < bestAccuracy) {
-          bestAccuracy = acc;
-          setLocation({ lat: latitude, lng: longitude });
-          setAccuracy(Math.round(acc));
-          setError(null);
+    const handlePosition = (pos) => {
+      const { latitude, longitude, accuracy: acc, speed, heading: gpsHeading } = pos.coords;
+      const timestamp = pos.timestamp;
+      const timeDelta = timestamp - lastUpdateTimeRef.current;
+      
+      // Reset error counter on success
+      consecutiveErrorsRef.current = 0;
+      
+      // Validate accuracy (ignore positions worse than 50 meters)
+      if (acc > 50) {
+        console.log(`[Geolocation] Poor accuracy (${acc}m), ignoring...`);
+        return;
+      }
+      
+      // Check if movement is realistic
+      let isValid = true;
+      if (lastPosition) {
+        isValid = isValidMovement(
+          latitude, longitude,
+          lastPosition.lat, lastPosition.lng,
+          timeDelta
+        );
+      }
+      
+      if (!isValid) {
+        console.log('[Geolocation] Invalid movement detected, ignoring...');
+        return;
+      }
+      
+      // Smooth the position to reduce jitter
+      let finalLat = latitude;
+      let finalLng = longitude;
+      
+      if (lastPosition && timeDelta < 3000) {
+        const smoothed = smoothPosition(latitude, longitude, lastPosition.lat, lastPosition.lng);
+        finalLat = smoothed.lat;
+        finalLng = smoothed.lng;
+      }
+      
+      // Calculate heading from movement (if GPS heading not available)
+      let finalHeading = gpsHeading || 0;
+      if (lastPosition && timeDelta > 500) {
+        const calculatedHeading = calculateHeading(
+          lastPosition.lat, lastPosition.lng,
+          finalLat, finalLng
+        );
+        if (!gpsHeading && calculatedHeading !== undefined) {
+          finalHeading = calculatedHeading;
         }
-      },
-      (err) => setError(err.message),
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+      }
+      
+      // Calculate movement speed if available
+      let finalSpeed = speed || 0;
+      if (lastPosition && timeDelta > 1000 && !speed) {
+        const distance = calculateDistance(
+          lastPosition.lat, lastPosition.lng,
+          finalLat, finalLng
+        );
+        const timeSeconds = timeDelta / 1000;
+        finalSpeed = distance / timeSeconds;
+      }
+      
+      // Update state
+      setLocation({
+        lat: finalLat,
+        lng: finalLng,
+        heading: finalHeading,
+        speed: finalSpeed,
+        timestamp: timestamp,
+        rawAccuracy: acc
+      });
+      setAccuracy(Math.round(acc));
+      setError(null);
+      setLastPosition({ lat: finalLat, lng: finalLng });
+      lastUpdateTimeRef.current = timestamp;
+    };
+
+    const handleError = (err) => {
+      consecutiveErrorsRef.current++;
+      console.warn('[Geolocation] Error:', err.message);
+      
+      // Only set error after multiple consecutive failures
+      if (consecutiveErrorsRef.current >= 3) {
+        setError(err.message);
+      }
+    };
+
+    // Start watching position
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      handlePosition,
+      handleError,
+      options
     );
 
-    // Clean up the watcher when the component unmounts
-    return () => navigator.geolocation.clearWatch(watchId);
-  }, []);
+    // Clean up
+    return () => {
+      if (watchIdRef.current) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+    };
+  }, [calculateDistance, calculateHeading, isValidMovement, smoothPosition, lastPosition]);
 
   return { location, accuracy, error };
 }
