@@ -1,6 +1,5 @@
 // services/geocoding.js
 // Handles all Nominatim API calls with proper rate limiting
-// In production, requests go through the backend proxy to avoid CORS issues
 
 import { UG_CENTER } from "../function/utils/bounds";
 import { distanceKm } from "../function/utils/distance";
@@ -9,16 +8,9 @@ import { API_URL } from '../config';
 // ========================
 // NOMINATIM CONFIGURATION
 // ========================
-// In development, Vite proxies /api/nominatim → nominatim.openstreetmap.org
-// In production, requests go through the Express backend proxy
 const NOMINATIM_BASE = import.meta.env.DEV
   ? '/api/nominatim'
   : `${API_URL}/api/nominatim`;
-
-// Headers required by Nominatim
-const NOMINATIM_HEADERS = {
-  'Accept-Language': 'en',
-};
 
 // ========================
 // RATE LIMITING QUEUE
@@ -26,10 +18,14 @@ const NOMINATIM_HEADERS = {
 let requestQueue = [];
 let isProcessing = false;
 let lastRequestTime = 0;
-const RATE_LIMIT_MS = 2000; // 2 seconds between requests (increased from 1500)
+const RATE_LIMIT_MS = 3000; // 3 seconds between requests (more aggressive)
 
 // Pending requests deduplication
 const pendingRequests = new Map();
+
+// Cache for results (24 hour TTL)
+const cache = new Map();
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 async function processQueue() {
   if (isProcessing || requestQueue.length === 0) return;
@@ -48,9 +44,13 @@ async function processQueue() {
 
   try {
     lastRequestTime = Date.now();
+    console.log(`[RateLimit] Making request, queue size: ${requestQueue.length}`);
 
     const response = await fetch(url, {
-      headers: NOMINATIM_HEADERS
+      headers: {
+        'Accept-Language': 'en',
+        'User-Agent': 'UGNavigator/1.0 (https://ugnavigator.onrender.com)'
+      }
     });
 
     if (response.status === 429) {
@@ -64,9 +64,11 @@ async function processQueue() {
     const data = await response.json();
     resolve(data);
   } catch (error) {
-    if (error.message === 'RATE_LIMITED' && retryCount < 3) {
-      console.warn(`Rate limited, retrying in 2 seconds... (attempt ${retryCount + 1}/3)`);
-      await new Promise(resolve => setTimeout(resolve, 2000));
+    if (error.message === 'RATE_LIMITED' && retryCount < 5) {
+      // Exponential backoff: 2s, 4s, 8s, 16s, 32s
+      const backoff = Math.pow(2, retryCount) * 1000;
+      console.warn(`Rate limited, retrying in ${backoff/1000}s... (attempt ${retryCount + 1}/5)`);
+      await new Promise(resolve => setTimeout(resolve, backoff));
       requestQueue.unshift({ url, resolve, reject, retryCount: retryCount + 1 });
     } else {
       reject(error);
@@ -85,7 +87,7 @@ function queuedFetch(url) {
 }
 
 // ========================
-// SEARCH FUNCTIONS — THREE-PASS STRATEGY
+// SEARCH FUNCTION - SINGLE PASS OPTIMIZED
 // ========================
 
 export async function geocode(query) {
@@ -95,7 +97,14 @@ export async function geocode(query) {
 
   const normalizedQuery = query.trim().toLowerCase();
   
-  // Check if there's already a pending request for this exact query
+  // Check cache first
+  const cached = cache.get(normalizedQuery);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    console.log(`[geocode] Cache hit for "${normalizedQuery}"`);
+    return cached.results;
+  }
+  
+  // Check pending request
   if (pendingRequests.has(normalizedQuery)) {
     console.log(`[geocode] Reusing pending request for: "${normalizedQuery}"`);
     return pendingRequests.get(normalizedQuery);
@@ -104,48 +113,40 @@ export async function geocode(query) {
   const promise = (async () => {
     try {
       const { lat, lng } = UG_CENTER;
-      let results = [];
-
-      const cleanQuery = query.trim();
-
-      // Pass 1 — University of Ghana Legon Accra suffix (best for campus buildings)
-      const q1 = encodeURIComponent(cleanQuery + " University of Ghana Legon Accra");
-      const url1 = `${NOMINATIM_BASE}/search?q=${q1}&format=json&limit=8&countrycodes=gh&lat=${lat}&lon=${lng}`;
-      results = await queuedFetch(url1);
-
-      // Pass 2 — Legon Accra Ghana suffix (broader campus area)
-      if (!results || results.length === 0) {
-        const q2 = encodeURIComponent(cleanQuery + " Legon Accra Ghana");
-        const url2 = `${NOMINATIM_BASE}/search?q=${q2}&format=json&limit=8&countrycodes=gh`;
-        results = await queuedFetch(url2);
-      }
-
-      // Pass 3 — bare query with UG bias (last resort)
-      if (!results || results.length === 0) {
-        const q3 = encodeURIComponent(cleanQuery);
-        const url3 = `${NOMINATIM_BASE}/search?q=${q3}&format=json&limit=8&countrycodes=gh&lat=${lat}&lon=${lng}`;
-        results = await queuedFetch(url3);
-      }
+      const cleanQuery = encodeURIComponent(query.trim());
+      
+      // SINGLE REQUEST - Combined search with viewbox and bounded=0
+      // This replaces the 3-pass strategy
+      const url = `${NOMINATIM_BASE}/search?q=${cleanQuery}&format=json&limit=8&countrycodes=gh&viewbox=${lng-0.05},${lat-0.05},${lng+0.05},${lat+0.05}&bounded=0&addressdetails=1`;
+      
+      console.log(`[geocode] Single request for "${query.trim()}"`);
+      const results = await queuedFetch(url);
 
       if (!results || results.length === 0) {
         return [];
       }
 
-      return results
+      const formatted = results
         .map((item) => ({
-          name: item.display_name.split(",").slice(0, 2).join(", "),
+          name: item.display_name?.split(",").slice(0, 2).join(", ") || item.display_name,
           lat: parseFloat(item.lat),
           lng: parseFloat(item.lon),
           dist: distanceKm(lat, lng, parseFloat(item.lat), parseFloat(item.lon)),
         }))
         .sort((a, b) => a.dist - b.dist)
         .slice(0, 5);
-
+      
+      // Cache results
+      cache.set(normalizedQuery, {
+        results: formatted,
+        timestamp: Date.now()
+      });
+      
+      return formatted;
     } catch (error) {
       console.error("[geocode] Error:", error);
       return [];
     } finally {
-      // Clean up pending request after completion
       pendingRequests.delete(normalizedQuery);
     }
   })();
