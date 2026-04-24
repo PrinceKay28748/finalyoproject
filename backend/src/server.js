@@ -13,6 +13,7 @@ import { handleError } from './utils/errorHandler.js';
 import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
 import analyticsRoutes from './routes/analytics.js';
+import proxyRoutes from './routes/proxy.js';
 
 const app = express();
 app.set('trust proxy', 1);
