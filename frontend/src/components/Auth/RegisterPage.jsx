@@ -1,18 +1,17 @@
 // frontend/src/components/Auth/RegisterPage.jsx
-// Bold & Minimal — Swiss Design for UG Navigator
-
 import { useState } from "react";
 import { useAuthContext } from "../../context/AuthContext";
 import "./AuthPage.css";
 
 export default function RegisterPage({ onSwitchToLogin }) {
-  const [email, setEmail] = useState("");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail]                   = useState("");
+  const [username, setUsername]             = useState("");
+  const [password, setPassword]             = useState("");
   const [passwordStrength, setPasswordStrength] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading]           = useState(false);
+  const [error, setError]                   = useState("");
+  const [success, setSuccess]               = useState(false);
+  const [showPassword, setShowPassword]     = useState(false);
 
   const { register } = useAuthContext();
 
@@ -36,22 +35,25 @@ export default function RegisterPage({ onSwitchToLogin }) {
     setError("");
 
     if (passwordStrength < 3) {
-      setError(
-        "Password is too weak. Include uppercase, lowercase, and numbers.",
-      );
+      setError("Password is too weak. Include uppercase, lowercase, and numbers.");
       return;
     }
 
     setIsLoading(true);
+
     try {
       const result = await register(email, username, password);
 
       if (!result.success) {
         setError(result.error || "Registration failed");
+        setIsLoading(false);
+      } else {
+        // Success — show success state briefly before app re-renders
+        setSuccess(true);
+        setIsLoading(false);
       }
     } catch (err) {
       setError(err.message || "Registration failed");
-    } finally {
       setIsLoading(false);
     }
   };
@@ -61,74 +63,81 @@ export default function RegisterPage({ onSwitchToLogin }) {
 
   return (
     <div className="auth-container-split">
-      {/* Left side — Hero / Brand */}
+      {/* Left side — Hero */}
       <div className="auth-hero">
         <div className="auth-hero-bg">UG</div>
         <img src="/icon-512.png" alt="UG Navigator" width={80} height={80} />
-        <h1>
-          Join the
-          <br />
-          community.
-        </h1>
-        <p>
-          Create an account and start navigating Legon campus with confidence.
-        </p>
+        <h1>Join the<br />community.</h1>
+        <p>Create an account and start navigating Legon campus with confidence.</p>
       </div>
 
-      {/* Right side — Register Form */}
+      {/* Right side — Form */}
       <div className="auth-form-panel">
         <div className="auth-form-header">
           <h2>Get started</h2>
           <p>Join UG Navigator today</p>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          {/* ERROR DISPLAY */}
-          {error && (
-            <div className="auth-error-split" role="alert">
-              <span className="error-message">{error}</span>
+        {/* SUCCESS STATE */}
+        {success && (
+          <div className="auth-success-split" role="status">
+            <span className="success-icon">✓</span>
+            <div className="success-text">
+              <strong>Account created!</strong>
+              <span>Welcome to UG Navigator...</span>
             </div>
-          )}
+            <div className="success-spinner" />
+          </div>
+        )}
 
+        {/* ERROR MESSAGE */}
+        {error && !success && (
+          <div className="auth-error-split" role="alert">
+            <span className="error-icon">⚠️</span>
+            <span className="error-message">{error}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} style={{ opacity: success ? 0.5 : 1, pointerEvents: success ? 'none' : 'auto' }}>
           <div className="form-group-split">
             <input
-              id="email"
+              id="reg-email"
               type="email"
               placeholder=" "
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              disabled={isLoading}
+              disabled={isLoading || success}
               required
               autoComplete="email"
             />
-            <label htmlFor="email">Email address</label>
+            <label htmlFor="reg-email">Email address</label>
           </div>
 
           <div className="form-group-split">
             <input
-              id="username"
+              id="reg-username"
               type="text"
               placeholder=" "
               value={username}
               onChange={(e) => setUsername(e.target.value.slice(0, 50))}
-              disabled={isLoading}
+              disabled={isLoading || success}
               required
             />
-            <label htmlFor="username">Username</label>
+            <label htmlFor="reg-username">Username</label>
           </div>
 
           <div className="form-group-split">
             <input
-              id="password"
+              id="reg-password"
               type={showPassword ? "text" : "password"}
               placeholder=" "
               value={password}
               onChange={handlePasswordChange}
-              disabled={isLoading}
+              disabled={isLoading || success}
               required
               autoComplete="new-password"
             />
-            <label htmlFor="password">Password</label>
+            <label htmlFor="reg-password">Password</label>
             <button
               type="button"
               className="password-toggle-split"
@@ -146,24 +155,21 @@ export default function RegisterPage({ onSwitchToLogin }) {
                   className="strength-fill-split"
                   style={{
                     width: `${(passwordStrength / 4) * 100}%`,
-                    backgroundColor:
-                      strengthColors[passwordStrength - 1] || "#ef4444",
+                    backgroundColor: strengthColors[passwordStrength - 1] || "#ef4444",
                   }}
                 />
               </div>
               <span className="strength-label-split">
                 Password strength:{" "}
-                <strong>
-                  {strengthLabels[passwordStrength - 1] || "Weak"}
-                </strong>
+                <strong>{strengthLabels[passwordStrength - 1] || "Weak"}</strong>
               </span>
             </div>
           )}
 
           <button
             type="submit"
-            className="auth-button-split"
-            disabled={isLoading || passwordStrength < 3}
+            className={`auth-button-split ${isLoading ? 'loading' : ''}`}
+            disabled={isLoading || success || passwordStrength < 3}
           >
             {isLoading ? (
               <>
@@ -180,7 +186,7 @@ export default function RegisterPage({ onSwitchToLogin }) {
           type="button"
           className="auth-secondary-split"
           onClick={onSwitchToLogin}
-          disabled={isLoading}
+          disabled={isLoading || success}
         >
           Already have an account? Sign in
         </button>
