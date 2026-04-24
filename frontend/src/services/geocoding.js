@@ -26,7 +26,10 @@ const NOMINATIM_HEADERS = {
 let requestQueue = [];
 let isProcessing = false;
 let lastRequestTime = 0;
-const RATE_LIMIT_MS = 1000; // 1 second between requests
+const RATE_LIMIT_MS = 2000; // 2 seconds between requests (increased from 1500)
+
+// Pending requests deduplication
+const pendingRequests = new Map();
 
 async function processQueue() {
   if (isProcessing || requestQueue.length === 0) return;
@@ -90,49 +93,65 @@ export async function geocode(query) {
     return [];
   }
 
-  try {
-    const { lat, lng } = UG_CENTER;
-    let results = [];
-
-    const cleanQuery = query.trim();
-
-    // Pass 1 — University of Ghana Legon Accra suffix (best for campus buildings)
-    const q1 = encodeURIComponent(cleanQuery + " University of Ghana Legon Accra");
-    const url1 = `${NOMINATIM_BASE}/search?q=${q1}&format=json&limit=8&countrycodes=gh&lat=${lat}&lon=${lng}`;
-    results = await queuedFetch(url1);
-
-    // Pass 2 — Legon Accra Ghana suffix (broader campus area)
-    if (!results || results.length === 0) {
-      const q2 = encodeURIComponent(cleanQuery + " Legon Accra Ghana");
-      const url2 = `${NOMINATIM_BASE}/search?q=${q2}&format=json&limit=8&countrycodes=gh`;
-      results = await queuedFetch(url2);
-    }
-
-    // Pass 3 — bare query with UG bias (last resort)
-    if (!results || results.length === 0) {
-      const q3 = encodeURIComponent(cleanQuery);
-      const url3 = `${NOMINATIM_BASE}/search?q=${q3}&format=json&limit=8&countrycodes=gh&lat=${lat}&lon=${lng}`;
-      results = await queuedFetch(url3);
-    }
-
-    if (!results || results.length === 0) {
-      return [];
-    }
-
-    return results
-      .map((item) => ({
-        name: item.display_name.split(",").slice(0, 2).join(", "),
-        lat: parseFloat(item.lat),
-        lng: parseFloat(item.lon),
-        dist: distanceKm(lat, lng, parseFloat(item.lat), parseFloat(item.lon)),
-      }))
-      .sort((a, b) => a.dist - b.dist)
-      .slice(0, 5);
-
-  } catch (error) {
-    console.error("[geocode] Error:", error);
-    return [];
+  const normalizedQuery = query.trim().toLowerCase();
+  
+  // Check if there's already a pending request for this exact query
+  if (pendingRequests.has(normalizedQuery)) {
+    console.log(`[geocode] Reusing pending request for: "${normalizedQuery}"`);
+    return pendingRequests.get(normalizedQuery);
   }
+
+  const promise = (async () => {
+    try {
+      const { lat, lng } = UG_CENTER;
+      let results = [];
+
+      const cleanQuery = query.trim();
+
+      // Pass 1 — University of Ghana Legon Accra suffix (best for campus buildings)
+      const q1 = encodeURIComponent(cleanQuery + " University of Ghana Legon Accra");
+      const url1 = `${NOMINATIM_BASE}/search?q=${q1}&format=json&limit=8&countrycodes=gh&lat=${lat}&lon=${lng}`;
+      results = await queuedFetch(url1);
+
+      // Pass 2 — Legon Accra Ghana suffix (broader campus area)
+      if (!results || results.length === 0) {
+        const q2 = encodeURIComponent(cleanQuery + " Legon Accra Ghana");
+        const url2 = `${NOMINATIM_BASE}/search?q=${q2}&format=json&limit=8&countrycodes=gh`;
+        results = await queuedFetch(url2);
+      }
+
+      // Pass 3 — bare query with UG bias (last resort)
+      if (!results || results.length === 0) {
+        const q3 = encodeURIComponent(cleanQuery);
+        const url3 = `${NOMINATIM_BASE}/search?q=${q3}&format=json&limit=8&countrycodes=gh&lat=${lat}&lon=${lng}`;
+        results = await queuedFetch(url3);
+      }
+
+      if (!results || results.length === 0) {
+        return [];
+      }
+
+      return results
+        .map((item) => ({
+          name: item.display_name.split(",").slice(0, 2).join(", "),
+          lat: parseFloat(item.lat),
+          lng: parseFloat(item.lon),
+          dist: distanceKm(lat, lng, parseFloat(item.lat), parseFloat(item.lon)),
+        }))
+        .sort((a, b) => a.dist - b.dist)
+        .slice(0, 5);
+
+    } catch (error) {
+      console.error("[geocode] Error:", error);
+      return [];
+    } finally {
+      // Clean up pending request after completion
+      pendingRequests.delete(normalizedQuery);
+    }
+  })();
+
+  pendingRequests.set(normalizedQuery, promise);
+  return promise;
 }
 
 export async function reverseGeocode(lat, lng) {

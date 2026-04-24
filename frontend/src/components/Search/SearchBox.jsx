@@ -19,13 +19,14 @@ export default function SearchBox({
   const [recentSearches, setRecentSearches] = useState([]);
   const [showAllRecent, setShowAllRecent] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [lastRequestId, setLastRequestId] = useState(0);
   
   const debounceRef = useRef(null);
   const inputRef = useRef(null);
   const dropdownRef = useRef(null);
   const abortControllerRef = useRef(null);
   const lastQueryRef = useRef("");
-  const cacheRef = useRef(new Map()); // Cache results for better UX
+  const cacheRef = useRef(new Map());
 
   // Load recent searches
   useEffect(() => {
@@ -79,6 +80,10 @@ export default function SearchBox({
       return;
     }
     
+    // Generate unique request ID for this typing session
+    const requestId = Date.now();
+    setLastRequestId(requestId);
+    
     // Show loading state
     setIsTyping(true);
     setLoading(true);
@@ -94,10 +99,17 @@ export default function SearchBox({
       return;
     }
     
-    // Set longer debounce for better UX - 600ms gives user time to type
-    // and reduces rate limiting hits
+    // Set longer debounce for better UX - 1000ms gives user time to type
     debounceRef.current = setTimeout(async () => {
-      // Don't search if query is too short or hasn't changed meaningfully
+      // Check if this is still the latest request (prevents stale responses)
+      if (requestId !== lastRequestId) {
+        console.log(`[Search] Skipping stale request ${requestId}`);
+        setLoading(false);
+        setIsTyping(false);
+        return;
+      }
+      
+      // Don't search if query is too short
       if (val.length < 2) {
         setSuggestions([]);
         setLoading(false);
@@ -118,24 +130,31 @@ export default function SearchBox({
         console.log(`[Search] Fetching results for "${val}"`);
         const results = await geocode(val);
         
-        // Cache results
-        cacheRef.current.set(val, results);
-        
-        // Limit cache size to 50 items
-        if (cacheRef.current.size > 50) {
-          const firstKey = cacheRef.current.keys().next().value;
-          cacheRef.current.delete(firstKey);
+        // Only update if this is still the latest request
+        if (requestId === lastRequestId) {
+          // Cache results
+          cacheRef.current.set(val, results);
+          
+          // Limit cache size to 50 items
+          if (cacheRef.current.size > 50) {
+            const firstKey = cacheRef.current.keys().next().value;
+            cacheRef.current.delete(firstKey);
+          }
+          
+          setSuggestions(results);
         }
-        
-        setSuggestions(results);
       } catch (error) {
         console.error("[Search] Error:", error);
-        setSuggestions([]);
+        if (requestId === lastRequestId) {
+          setSuggestions([]);
+        }
       } finally {
-        setLoading(false);
-        setIsTyping(false);
+        if (requestId === lastRequestId) {
+          setLoading(false);
+          setIsTyping(false);
+        }
       }
-    }, 650); // Increased from 350ms to 650ms - better for rate limiting
+    }, 1000);
   };
 
   const handleSelect = (loc) => {
@@ -315,7 +334,6 @@ export default function SearchBox({
                 <div
                   key={`${loc.name}-${i}`}
                   onMouseDown={(e) => {
-                    // Use mousedown instead of click to prevent blur
                     e.preventDefault();
                     handleSelect(loc);
                   }}
