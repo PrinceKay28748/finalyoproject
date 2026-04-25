@@ -11,6 +11,7 @@
   height: 100%;
   width: 100%;
   background: var(--bg);
+  touch-action: pan-x pan-y pinch-zoom;
 }
 
 /* ============================================
@@ -249,7 +250,7 @@
 }
 
 /* ============================================
-   REROUTING INDICATOR (Subtle)
+   REROUTING INDICATOR
    ============================================ */
 
 .rerouting-indicator {
@@ -280,10 +281,9 @@
 }
 
 /* ============================================
-   ROUTE STYLES (Primary & Alternative)
+   ROUTE STYLES
    ============================================ */
 
-/* Alternative routes */
 .alternative-route {
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -296,7 +296,6 @@
   stroke-width: 5 !important;
 }
 
-/* Alternative routes - staggered fade in animation */
 @keyframes fadeInAlternative {
   0% {
     opacity: 0;
@@ -308,7 +307,6 @@
   }
 }
 
-/* Primary route */
 .primary-route {
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -316,54 +314,12 @@
   transition: color 0.3s ease;
 }
 
-/* Force route line repaint on profile change */
 .route-line {
   transition: stroke 0.1s ease;
 }
 
 .leaflet-path {
   transition: stroke 0.3s ease;
-}
-
-/* ============================================
-   ANIMATIONS
-   ============================================ */
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 /* ============================================
@@ -387,6 +343,41 @@
 @keyframes wiggle {
   0%, 100% { transform: translateX(-50%) rotate(var(--heading, 0deg)); }
   50% { transform: translateX(-50%) rotate(calc(var(--heading, 0deg) + 2deg)); }
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ============================================
