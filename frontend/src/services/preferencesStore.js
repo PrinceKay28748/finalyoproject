@@ -1,11 +1,22 @@
 // services/preferencesStore.js
-// IndexedDB storage for user preferences (profile, theme, recent searches, favorites)
+// IndexedDB storage for user preferences + localStorage for route state
 
 const DB_NAME = 'ug-routing-preferences';
 const STORE_NAME = 'prefs';
 const PREFS_KEY = 'user-preferences';
 
 let dbInstance = null;
+
+// localStorage keys for route persistence
+const ROUTE_STATE_KEYS = {
+  START_POINT: 'ug_nav_start_point',
+  DEST_POINT: 'ug_nav_dest_point',
+  START_TEXT: 'ug_nav_start_text',
+  DEST_TEXT: 'ug_nav_dest_text',
+  MARKERS_VISIBLE: 'ug_nav_markers_visible',
+  VEHICLE_MODE: 'ug_nav_vehicle_mode',
+  ACTIVE_PROFILE: 'ug_nav_active_profile'
+};
 
 /**
  * Initialize preferences database
@@ -108,6 +119,68 @@ export async function loadPreferences() {
 }
 
 /**
+ * Save route state to localStorage (survives page refresh)
+ */
+export function saveRouteState(state) {
+  try {
+    if (state.startPoint) {
+      localStorage.setItem(ROUTE_STATE_KEYS.START_POINT, JSON.stringify(state.startPoint));
+    }
+    if (state.destPoint) {
+      localStorage.setItem(ROUTE_STATE_KEYS.DEST_POINT, JSON.stringify(state.destPoint));
+    }
+    if (state.startText) {
+      localStorage.setItem(ROUTE_STATE_KEYS.START_TEXT, state.startText);
+    }
+    if (state.destText) {
+      localStorage.setItem(ROUTE_STATE_KEYS.DEST_TEXT, state.destText);
+    }
+    if (typeof state.markersVisible !== 'undefined') {
+      localStorage.setItem(ROUTE_STATE_KEYS.MARKERS_VISIBLE, JSON.stringify(state.markersVisible));
+    }
+    if (state.vehicleMode) {
+      localStorage.setItem(ROUTE_STATE_KEYS.VEHICLE_MODE, state.vehicleMode);
+    }
+    if (state.activeProfile) {
+      localStorage.setItem(ROUTE_STATE_KEYS.ACTIVE_PROFILE, state.activeProfile);
+    }
+    console.log('[Preferences] Route state saved to localStorage');
+  } catch (err) {
+    console.warn('[Preferences] Failed to save route state:', err);
+  }
+}
+
+/**
+ * Load route state from localStorage
+ */
+export function loadRouteState() {
+  try {
+    return {
+      startPoint: JSON.parse(localStorage.getItem(ROUTE_STATE_KEYS.START_POINT) || 'null'),
+      destPoint: JSON.parse(localStorage.getItem(ROUTE_STATE_KEYS.DEST_POINT) || 'null'),
+      startText: localStorage.getItem(ROUTE_STATE_KEYS.START_TEXT) || '',
+      destText: localStorage.getItem(ROUTE_STATE_KEYS.DEST_TEXT) || '',
+      markersVisible: JSON.parse(localStorage.getItem(ROUTE_STATE_KEYS.MARKERS_VISIBLE) || 'false'),
+      vehicleMode: localStorage.getItem(ROUTE_STATE_KEYS.VEHICLE_MODE) || 'walk',
+      activeProfile: localStorage.getItem(ROUTE_STATE_KEYS.ACTIVE_PROFILE) || 'standard'
+    };
+  } catch (err) {
+    console.warn('[Preferences] Failed to load route state:', err);
+    return null;
+  }
+}
+
+/**
+ * Clear route state from localStorage
+ */
+export function clearRouteState() {
+  Object.values(ROUTE_STATE_KEYS).forEach(key => {
+    localStorage.removeItem(key);
+  });
+  console.log('[Preferences] Route state cleared');
+}
+
+/**
  * Add a location to recent searches
  */
 export async function addRecentSearch(location) {
@@ -115,12 +188,10 @@ export async function addRecentSearch(location) {
     const prefs = await loadPreferences();
     const recentSearches = prefs.recentSearches || [];
 
-    // Remove duplicates (keep only if different name/coords)
     const filtered = recentSearches.filter(
       (s) => s.name !== location.name || s.lat !== location.lat || s.lng !== location.lng
     );
 
-    // Add new search to front, keep last 10
     const updated = [
       { ...location, timestamp: Date.now() },
       ...filtered,
@@ -146,7 +217,6 @@ export async function saveFavoriteLocation(location) {
     const prefs = await loadPreferences();
     const savedLocations = prefs.savedLocations || [];
 
-    // Check if already saved
     const exists = savedLocations.find((l) => l.name === location.name);
     if (exists) return savedLocations;
 

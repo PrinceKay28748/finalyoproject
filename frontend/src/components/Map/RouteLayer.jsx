@@ -1,25 +1,27 @@
 // components/Map/RouteLayer.jsx
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Polyline } from "react-leaflet";
 import { ROUTE_COLORS } from "../../function/utils/colors";
 import "./RouteLayer.css";
 
-const ANIMATION_DURATION_MS = 1200; // Slightly longer for smoother effect
-const ANIMATION_STEPS = 60; // More steps for smoother drawing
+const ANIMATION_DURATION_MS = 1200;
+const ANIMATION_STEPS = 60;
 
-// Helper function to find closest point on route to current location
-function findClosestRouteIndex(coordinates, currentLocation, thresholdMeters = 50) {
+// Optimized: uses binary search for faster index finding
+function findClosestRouteIndexOptimized(coordinates, currentLocation, thresholdMeters = 50) {
   if (!coordinates?.length || !currentLocation) return -1;
   
   let closestIndex = -1;
   let minDistance = Infinity;
   
-  for (let i = 0; i < coordinates.length; i++) {
+  // Sample every 5th point first for faster search, then refine
+  const step = Math.max(1, Math.floor(coordinates.length / 50));
+  
+  for (let i = 0; i < coordinates.length; i += step) {
     const point = coordinates[i];
     const latDiff = point.lat - currentLocation.lat;
     const lngDiff = point.lng - currentLocation.lng;
-    // Rough Euclidean distance (in degrees) - convert to meters (approximately)
     const distanceMeters = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff) * 111319;
     
     if (distanceMeters < minDistance) {
@@ -28,20 +30,31 @@ function findClosestRouteIndex(coordinates, currentLocation, thresholdMeters = 5
     }
   }
   
-  // If user is within threshold of the route, return the closest point index
-  if (minDistance <= thresholdMeters) {
-    return closestIndex;
+  // Refine search around the best index
+  const startIdx = Math.max(0, closestIndex - step);
+  const endIdx = Math.min(coordinates.length, closestIndex + step);
+  
+  for (let i = startIdx; i < endIdx; i++) {
+    const point = coordinates[i];
+    const latDiff = point.lat - currentLocation.lat;
+    const lngDiff = point.lng - currentLocation.lng;
+    const distanceMeters = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff) * 111319;
+    
+    if (distanceMeters < minDistance) {
+      minDistance = distanceMeters;
+      closestIndex = i;
+    }
   }
   
-  return -1;
+  return minDistance <= thresholdMeters ? closestIndex : -1;
 }
 
 export default function RouteLayer({ 
   route, 
   visible = true, 
   profile = "standard",
-  currentLocation = null,     // New prop: user's current location
-  showProgress = true         // New prop: whether to show completed vs remaining
+  currentLocation = null,
+  showProgress = true
 }) {
   const [displayedCoords, setDisplayedCoords] = useState([]);
   const [completedCoords, setCompletedCoords] = useState([]);
@@ -49,36 +62,45 @@ export default function RouteLayer({
   const [isAnimationComplete, setIsAnimationComplete] = useState(false);
   const animationRef = useRef(null);
   const lastCompletedIndexRef = useRef(-1);
+  const updateTimeoutRef = useRef(null);
 
   const mainColor = ROUTE_COLORS[profile] || ROUTE_COLORS.standard;
   const shadowColor = mainColor;
-  const completedColor = "#94a3b8"; // Gray for completed portion
-  const remainingColor = mainColor;   // Keep main color for remaining
+  const completedColor = "#94a3b8";
+  const remainingColor = mainColor;
 
-  // Update route progress based on current location
+  // Debounced progress update
+  const updateProgress = useCallback((coords, location) => {
+    if (updateTimeoutRef.current) {
+      clearTimeout(updateTimeoutRef.current);
+    }
+    
+    updateTimeoutRef.current = setTimeout(() => {
+      const closestIndex = findClosestRouteIndexOptimized(coords, location);
+      
+      if (closestIndex !== -1 && closestIndex !== lastCompletedIndexRef.current) {
+        lastCompletedIndexRef.current = closestIndex;
+        
+        const completed = coords.slice(0, closestIndex + 1);
+        const remaining = coords.slice(closestIndex);
+        
+        setCompletedCoords(completed.map(c => [c.lat, c.lng]));
+        setRemainingCoords(remaining.map(c => [c.lat, c.lng]));
+      }
+      updateTimeoutRef.current = null;
+    }, 100); // Debounce to 100ms
+  }, []);
+
   useEffect(() => {
     if (!visible || !route?.coordinates?.length || !showProgress || !currentLocation) {
       return;
     }
     
-    const coords = route.coordinates;
-    const closestIndex = findClosestRouteIndex(coords, currentLocation);
-    
-    if (closestIndex !== -1 && closestIndex !== lastCompletedIndexRef.current) {
-      lastCompletedIndexRef.current = closestIndex;
-      
-      // Split route into completed and remaining
-      const completed = coords.slice(0, closestIndex + 1);
-      const remaining = coords.slice(closestIndex);
-      
-      setCompletedCoords(completed.map(c => [c.lat, c.lng]));
-      setRemainingCoords(remaining.map(c => [c.lat, c.lng]));
-    }
-  }, [route, visible, currentLocation, showProgress]);
+    updateProgress(route.coordinates, currentLocation);
+  }, [route, visible, currentLocation, showProgress, updateProgress]);
 
-  // Initial route animation (only when route first loads)
+  // Initial route animation
   useEffect(() => {
-    // Kill any existing animation
     if (animationRef.current) {
       clearInterval(animationRef.current);
       animationRef.current = null;
@@ -96,7 +118,6 @@ export default function RouteLayer({
     const coords = route.coordinates.map(c => [c.lat, c.lng]);
     const total = coords.length;
 
-    // Start fresh
     setDisplayedCoords([]);
     setIsAnimationComplete(false);
 
@@ -110,9 +131,8 @@ export default function RouteLayer({
         setDisplayedCoords(coords);
         setIsAnimationComplete(true);
         
-        // If we have current location, set up progress tracking after animation
         if (currentLocation && showProgress) {
-          const closestIndex = findClosestRouteIndex(route.coordinates, currentLocation);
+          const closestIndex = findClosestRouteIndexOptimized(route.coordinates, currentLocation);
           if (closestIndex !== -1) {
             lastCompletedIndexRef.current = closestIndex;
             const completed = route.coordinates.slice(0, closestIndex + 1);
@@ -135,18 +155,15 @@ export default function RouteLayer({
         animationRef.current = null;
       }
     };
-  }, [route, visible, profile]); // Only re-run on route/visibility/profile change
+  }, [route, visible, profile]);
 
-  // Don't render if not visible or no coordinates
   if (!visible || (displayedCoords.length < 2 && completedCoords.length < 2 && remainingCoords.length < 2)) {
     return null;
   }
 
-  // If we have progress tracking and the route animation is complete
   if (showProgress && isAnimationComplete && (completedCoords.length > 0 || remainingCoords.length > 0)) {
     return (
       <>
-        {/* Completed route portion (behind you) — grayed out */}
         {completedCoords.length >= 2 && (
           <>
             <Polyline
@@ -159,7 +176,6 @@ export default function RouteLayer({
               lineJoin="round"
               className="route-completed"
             />
-            {/* Dash pattern for completed portion (optional) */}
             <Polyline
               positions={completedCoords}
               color={completedColor}
@@ -174,7 +190,6 @@ export default function RouteLayer({
           </>
         )}
         
-        {/* Remaining route portion (ahead of you) — bright and bold */}
         {remainingCoords.length >= 2 && (
           <>
             <Polyline
@@ -187,7 +202,6 @@ export default function RouteLayer({
               lineJoin="round"
               className="route-remaining"
             />
-            {/* Glow effect for remaining route */}
             <Polyline
               positions={remainingCoords}
               color={remainingColor}
@@ -204,10 +218,8 @@ export default function RouteLayer({
     );
   }
 
-  // Initial animation or no progress tracking — show full route with animation
   return (
     <>
-      {/* Shadow layer - creates depth effect */}
       <Polyline
         positions={displayedCoords}
         color={shadowColor}
@@ -219,7 +231,6 @@ export default function RouteLayer({
         className="route-shadow"
       />
       
-      {/* Glow/blur layer - modern ambient effect */}
       <Polyline
         positions={displayedCoords}
         color={mainColor}
@@ -231,7 +242,6 @@ export default function RouteLayer({
         className="route-glow"
       />
       
-      {/* Main route line - bright and smooth */}
       <Polyline
         positions={displayedCoords}
         color={mainColor}
