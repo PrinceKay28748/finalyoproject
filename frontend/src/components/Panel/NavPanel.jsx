@@ -1,5 +1,5 @@
 // components/Panel/NavPanel.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuthContext } from "../../context/AuthContext";
 import SearchBox from "../Search/SearchBox";
 import PortalSearchBox from "../Search/PortalSearchBox";
@@ -32,10 +32,23 @@ export default function NavPanel({
   locationError,
   darkMode,
   onToggleDarkMode,
+  // NEW PROP: Allow parent to control expansion
+  isExpanded: externalIsExpanded,
+  onExpandRequest,
 }) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [internalIsExpanded, setInternalIsExpanded] = useState(false);
   const [hasRoute, setHasRoute] = useState(false);
   const { logout, user } = useAuthContext();
+
+  // Use external control if provided, otherwise use internal state
+  const isExpanded = externalIsExpanded !== undefined ? externalIsExpanded : internalIsExpanded;
+  const setIsExpanded = (value) => {
+    if (onExpandRequest) {
+      onExpandRequest(value);
+    } else {
+      setInternalIsExpanded(value);
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
