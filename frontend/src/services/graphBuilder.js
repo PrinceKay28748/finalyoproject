@@ -104,12 +104,16 @@ export async function buildGraph() {
       return null;
     }
 
-    const graph = processOSMData(data.elements);
+    let graph = processOSMData(data.elements);
 
     if (!graph || Object.keys(graph.nodes).length === 0) {
       console.warn("[GraphBuilder] Graph is empty after processing");
       return null;
     }
+
+    // Add manual pedestrian connections for UG Legon campus
+    const manualGraph = addManualPedestrianConnections(graph, 25);
+    graph = { nodes: manualGraph.nodes, edges: manualGraph.edges };
 
     const enhancedGraph = connectNearbyNodes(graph, 15);
     
@@ -213,6 +217,150 @@ function processOSMData(elements) {
   console.log(`[GraphBuilder] ${Object.keys(connectedNodes).length} connected nodes, ${isolatedCount} isolated removed`);
 
   return { nodes: connectedNodes, edges };
+}
+
+/**
+ * Manually adds missing pedestrian connections for UG Legon campus
+ * These are known shortcuts and internal paths that may be missing from OSM data
+ */
+function addManualPedestrianConnections(graph, thresholdMeters = 25) {
+  const nodes = graph.nodes;
+  const edges = [...graph.edges];
+  const edgeSet = new Set(graph.edges.map(e => e.id));
+  
+  let connectionsAdded = 0;
+  
+  // Define critical pedestrian connections between key campus points
+  // Format: { from: {lat, lng}, to: {lat, lng}, tags: {} }
+  const manualConnections = [
+    // 1. Basic School area to Nsia Road (direct north connection - CRITICAL)
+    { 
+      from: { lat: 5.6482, lng: -0.1878 }, 
+      to: { lat: 5.6525, lng: -0.1872 }, 
+      tags: { highway: 'footway', foot: 'yes', surface: 'asphalt', name: 'Basic School Connector' }
+    },
+    // 2. Nsia Road to Akuafo Road (central campus corridor)
+    { 
+      from: { lat: 5.6525, lng: -0.1872 }, 
+      to: { lat: 5.6548, lng: -0.1863 }, 
+      tags: { highway: 'footway', foot: 'yes', surface: 'asphalt', name: 'Nsia-Akuafo Link' }
+    },
+    // 3. Akuafo Road to Onyaa Road junction
+    { 
+      from: { lat: 5.6548, lng: -0.1863 }, 
+      to: { lat: 5.6565, lng: -0.1848 }, 
+      tags: { highway: 'footway', foot: 'yes', surface: 'asphalt', name: 'Akuafo-Onyaa Link' }
+    },
+    // 4. Onyaa Road to E.A. Boateng Road
+    { 
+      from: { lat: 5.6565, lng: -0.1848 }, 
+      to: { lat: 5.6590, lng: -0.1832 }, 
+      tags: { highway: 'footway', foot: 'yes', surface: 'asphalt', name: 'Onyaa-Boateng Link' }
+    },
+    // 5. E.A. Boateng Road to School of Engineering area
+    { 
+      from: { lat: 5.6590, lng: -0.1832 }, 
+      to: { lat: 5.6620, lng: -0.1818 }, 
+      tags: { highway: 'footway', foot: 'yes', surface: 'asphalt', name: 'Boateng-Engineering Link' }
+    },
+    // 6. Direct field shortcut (pedestrian only - across the oval)
+    { 
+      from: { lat: 5.6508, lng: -0.1868 }, 
+      to: { lat: 5.6542, lng: -0.1858 }, 
+      tags: { highway: 'path', foot: 'yes', surface: 'grass', informal: 'yes', name: 'Field Shortcut' }
+    },
+    // 7. Ivan Addae Mensah Intersection connector
+    { 
+      from: { lat: 5.6570, lng: -0.1885 }, 
+      to: { lat: 5.6582, lng: -0.1868 }, 
+      tags: { highway: 'footway', foot: 'yes', surface: 'asphalt', name: 'Ivan Addae Connector' }
+    },
+    // 8. Additional shortcut through central campus
+    { 
+      from: { lat: 5.6535, lng: -0.1865 }, 
+      to: { lat: 5.6555, lng: -0.1855 }, 
+      tags: { highway: 'path', foot: 'yes', surface: 'paved', name: 'Central Campus Shortcut' }
+    },
+    // 9. Legon Road to Nsia Road connector (avoid perimeter)
+    { 
+      from: { lat: 5.6495, lng: -0.1890 }, 
+      to: { lat: 5.6520, lng: -0.1875 }, 
+      tags: { highway: 'footway', foot: 'yes', surface: 'asphalt', name: 'Legon-Nsia Connector' }
+    },
+    // 10. Direct connection from basic school area to Akuafo area
+    { 
+      from: { lat: 5.6490, lng: -0.1870 }, 
+      to: { lat: 5.6540, lng: -0.1860 }, 
+      tags: { highway: 'path', foot: 'yes', surface: 'paved', name: 'Basic School to Akuafo Direct' }
+    },
+    // 11. Additional connection through central campus grid
+    { 
+      from: { lat: 5.6550, lng: -0.1870 }, 
+      to: { lat: 5.6568, lng: -0.1855 }, 
+      tags: { highway: 'footway', foot: 'yes', surface: 'asphalt', name: 'Central Grid Connector' }
+    },
+    // 12. Shortcut near UG Post Office
+    { 
+      from: { lat: 5.6510, lng: -0.1880 }, 
+      to: { lat: 5.6530, lng: -0.1875 }, 
+      tags: { highway: 'path', foot: 'yes', surface: 'paved', name: 'Post Office Shortcut' }
+    },
+  ];
+  
+  // Helper function to find or create a node
+  function findOrCreateNode(lat, lng) {
+    // First try to find an existing node within threshold
+    for (const [nodeId, node] of Object.entries(nodes)) {
+      const dist = distanceKm(lat, lng, node.lat, node.lng) * 1000;
+      if (dist <= 10) {
+        return nodeId;
+      }
+    }
+    
+    // Create new node
+    const newNodeId = `manual_${lat.toFixed(6)}_${lng.toFixed(6)}`;
+    nodes[newNodeId] = {
+      id: newNodeId,
+      lat: lat,
+      lng: lng,
+      neighbors: []
+    };
+    return newNodeId;
+  }
+  
+  // Add each manual connection
+  for (const conn of manualConnections) {
+    const fromNodeId = findOrCreateNode(conn.from.lat, conn.from.lng);
+    const toNodeId = findOrCreateNode(conn.to.lat, conn.to.lng);
+    
+    if (fromNodeId === toNodeId) continue;
+    
+    const edgeKey = `${fromNodeId}-${toNodeId}`;
+    const reverseKey = `${toNodeId}-${fromNodeId}`;
+    
+    if (edgeSet.has(edgeKey) || edgeSet.has(reverseKey)) continue;
+    
+    const distance = distanceKm(conn.from.lat, conn.from.lng, conn.to.lat, conn.to.lng) * 1000;
+    
+    edgeSet.add(edgeKey);
+    connectionsAdded++;
+    
+    const newEdge = {
+      id: edgeKey,
+      from: fromNodeId,
+      to: toNodeId,
+      distance: distance,
+      tags: conn.tags,
+      type: conn.tags.highway
+    };
+    
+    edges.push(newEdge);
+    nodes[fromNodeId].neighbors.push({ nodeId: toNodeId, edgeId: edgeKey, distance: distance });
+    nodes[toNodeId].neighbors.push({ nodeId: fromNodeId, edgeId: edgeKey, distance: distance });
+  }
+  
+  console.log(`[GraphBuilder] Added ${connectionsAdded} manual pedestrian connections`);
+  return { nodes, edges };
 }
 
 function connectNearbyNodes(graph, thresholdMeters = 15) {

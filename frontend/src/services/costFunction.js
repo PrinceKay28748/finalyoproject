@@ -155,6 +155,25 @@ const HIGHWAY_BASE_COST = {
   motorway: 9999,
 };
 
+// ─── Campus road preference (for direct central routes) ──────────────────────
+// These roads are the preferred central campus routes
+const CAMPUS_CORE_ROADS = [
+  'Nsia Road', 'Akuafo Road', 'Onyaa Road', 'E.A. Boateng Road',
+  'Legon Road', 'Ivan Addae Mensah Intersection', 'JQB Road'
+];
+
+// Bonus multiplier for campus core roads (0.85 = 15% cheaper, making them more attractive)
+const CAMPUS_CORE_BONUS = 0.85;
+
+// Penalty for perimeter roads to discourage long detours (1.15 = 15% more expensive)
+const PERIMETER_ROAD_PENALTY = 1.15;
+
+// Perimeter road names (major roads that cause long detours)
+const PERIMETER_ROADS = [
+  'Ring Road West', 'Ring Road East', 'J.J. Rawlings Avenue',
+  'N4', 'Legon Boundary Road', 'McCarthy Link'
+];
+
 const BUSY_AREA_TYPES = ["footway", "pedestrian", "residential"];
 const PEAK_HOURS = [8, 9, 12, 13, 16, 17];
 
@@ -234,6 +253,34 @@ export function isEdgeAllowed(edge, vehicleMode) {
 }
 
 /**
+ * Check if a road is in the campus core (preferred for direct routes)
+ */
+function isCampusCoreRoad(roadName, tags) {
+  if (!roadName && !tags?.name) return false;
+  const name = (roadName || tags?.name || '').toLowerCase();
+  for (const coreRoad of CAMPUS_CORE_ROADS) {
+    if (name.includes(coreRoad.toLowerCase()) || name === coreRoad.toLowerCase()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Check if a road is a perimeter road (penalized to avoid detours)
+ */
+function isPerimeterRoad(roadName, tags) {
+  if (!roadName && !tags?.name) return false;
+  const name = (roadName || tags?.name || '').toLowerCase();
+  for (const perimeterRoad of PERIMETER_ROADS) {
+    if (name.includes(perimeterRoad.toLowerCase())) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Get estimated travel time in minutes based on vehicle mode and distance
  */
 export function getEstimatedTime(distanceMeters, vehicleMode) {
@@ -256,9 +303,21 @@ export function calculateEdgeCost(edge, profile, timePeriod, vehicleRestricted, 
   const w = profile.weights;
 
   const highwayType = tags.highway || "residential";
-  const highwayCost = HIGHWAY_BASE_COST[highwayType] ?? 1.3;
+  let highwayCost = HIGHWAY_BASE_COST[highwayType] ?? 1.3;
 
   if (highwayCost === 9999) return 9999 * distance;
+
+  // ─── Campus core preference (for walking mode only) ──────────────────────────
+  // Contextual factors (surface, incline, lighting, traffic) are still applied on top
+  let campusBonus = 1.0;
+  if (vehicleMode === 'walk') {
+    const roadName = tags.name || '';
+    if (isCampusCoreRoad(roadName, tags)) {
+      campusBonus = CAMPUS_CORE_BONUS;
+    } else if (isPerimeterRoad(roadName, tags)) {
+      campusBonus = PERIMETER_ROAD_PENALTY;
+    }
+  }
 
   const surfaceTag = tags.surface?.toLowerCase() || "unknown";
   const surfacePenalty = SURFACE_PENALTIES[surfaceTag] ?? 1.3;
@@ -292,7 +351,8 @@ export function calculateEdgeCost(edge, profile, timePeriod, vehicleRestricted, 
     }
   }
 
-  return distance * highwayCost * surfaceCost * inclineCost * sidewalkCost * lightingCost * trafficCost * gateCost;
+  // Final cost = distance × campusBonus × highwayCost × surfaceCost × inclineCost × sidewalkCost × lightingCost × trafficCost × gateCost
+  return distance * campusBonus * highwayCost * surfaceCost * inclineCost * sidewalkCost * lightingCost * trafficCost * gateCost;
 }
 
 function isEdgeNearGate(edge) {
