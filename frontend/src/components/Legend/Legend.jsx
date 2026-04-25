@@ -21,9 +21,15 @@ function formatDistance(meters) {
   return `${(meters / 1000).toFixed(1)} km`;
 }
 
-// Estimates walking time at 5 km/h (83.33 m/min)
-function formatWalkingTime(meters) {
-  const minutes = Math.ceil(meters / 83.33);
+// Estimates time based on vehicle mode
+function formatTravelTime(meters, vehicleMode = 'walk') {
+  let speedKmh;
+  if (vehicleMode === 'walk') speedKmh = 5;
+  else if (vehicleMode === 'car') speedKmh = 30;
+  else if (vehicleMode === 'motorcycle') speedKmh = 25;
+  else speedKmh = 5;
+  
+  const minutes = Math.ceil(meters / (speedKmh * 1000 / 60));
   if (minutes < 1) return "< 1 min";
   if (minutes < 60) return `${minutes} min`;
   const h = Math.floor(minutes / 60);
@@ -31,17 +37,7 @@ function formatWalkingTime(meters) {
   return m === 0 ? `${h} hr` : `${h} hr ${m} min`;
 }
 
-// Estimates driving time at 20 km/h on campus
-function formatDrivingTime(meters) {
-  const minutes = Math.ceil(meters / 333.33);
-  if (minutes < 1) return "< 1 min";
-  if (minutes < 60) return `${minutes} min`;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return m === 0 ? `${h} hr` : `${h} hr ${m} min`;
-}
-
-// Get current traffic level based on hour and day of week
+// Get current traffic level
 function getTrafficInfo() {
   const now = new Date();
   const hour = now.getHours();
@@ -87,26 +83,17 @@ function getTrafficInfo() {
   return { level: "Low", icon: "⚫", multiplier: 1.0, message: "Low traffic" };
 }
 
-// Route profile config with colors
+// Route profile config
 const PROFILE_CONFIG = {
   standard: { label: "Standard", color: "#2563eb", icon: IconMap },
-  accessible: {
-    label: "Accessible",
-    color: "#8b5cf6",
-    icon: IconAccessibility,
-  },
+  accessible: { label: "Accessible", color: "#8b5cf6", icon: IconAccessibility },
   night: { label: "Night Safety", color: "#f59e0b", icon: IconMoon },
   fastest: { label: "Fastest", color: "#22c55e", icon: IconBolt },
 };
 
 const PROFILES = [
   { key: "standard", icon: IconMap, label: "Standard", color: "#2563eb" },
-  {
-    key: "accessible",
-    icon: IconAccessibility,
-    label: "Accessible",
-    color: "#8b5cf6",
-  },
+  { key: "accessible", icon: IconAccessibility, label: "Accessible", color: "#8b5cf6" },
   { key: "night", icon: IconMoon, label: "Night", color: "#f59e0b" },
   { key: "fastest", icon: IconBolt, label: "Fastest", color: "#22c55e" },
 ];
@@ -117,6 +104,7 @@ const Legend = forwardRef(function Legend({
   visible,
   route,
   activeProfile = "standard",
+  vehicleMode = "walk",
   warnings = [],
   alternatives = [],
   onSelectAlternative,
@@ -135,17 +123,14 @@ const Legend = forwardRef(function Legend({
   const sheetRef = useRef(null);
   const peekHeight = 70;
 
-  // Expose methods to parent component via ref
   useImperativeHandle(ref, () => ({
     collapse: () => {
       if (expanded) {
-        console.log("[Legend] Collapsing legend via external call");
         setExpanded(false);
       }
     },
     expand: () => {
       if (!expanded) {
-        console.log("[Legend] Expanding legend via external call");
         setExpanded(true);
       }
     },
@@ -164,7 +149,6 @@ const Legend = forwardRef(function Legend({
       return;
     }
 
-    // Use production URL explicitly in production, otherwise use localhost
     const baseUrl = import.meta.env.PROD
       ? "https://ugnavigator.onrender.com"
       : window.location.origin;
@@ -172,21 +156,16 @@ const Legend = forwardRef(function Legend({
     const link = `${baseUrl}?lat=${currentLocation.lat}&lng=${currentLocation.lng}&name=Shared%20Location`;
 
     navigator.clipboard.writeText(link);
-    alert(
-      "Location link copied! Share it with your friends.\n\nThe link will work on any device.",
-    );
+    alert("Location link copied! Share it with your friends.");
   };
 
-  // Drag handlers - COMPLETELY isolated from map
+  // Drag handlers
   const handleDragStart = (e) => {
-    // CRITICAL: Prevent event from reaching the map
     e.stopPropagation();
     e.preventDefault();
 
     setIsDragging(true);
-    dragStartY.current = e.type.includes("touch")
-      ? e.touches[0].clientY
-      : e.clientY;
+    dragStartY.current = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
     dragCurrentY.current = dragStartY.current;
     dragStartExpanded.current = expanded;
     lastDragTime.current = Date.now();
@@ -200,18 +179,14 @@ const Legend = forwardRef(function Legend({
   const handleDragMove = (e) => {
     if (!isDragging) return;
 
-    // CRITICAL: Stop propagation and prevent default to block map interactions
     e.stopPropagation();
     e.preventDefault();
 
-    const currentY = e.type.includes("touch")
-      ? e.touches[0].clientY
-      : e.clientY;
+    const currentY = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
     const deltaY = currentY - dragStartY.current;
     const now = Date.now();
     const timeDelta = Math.max(1, now - lastDragTime.current);
-    dragVelocity.current =
-      (deltaY - (dragCurrentY.current - dragStartY.current)) / timeDelta;
+    dragVelocity.current = (deltaY - (dragCurrentY.current - dragStartY.current)) / timeDelta;
     dragCurrentY.current = currentY;
     lastDragTime.current = now;
     const sheetHeight = sheetRef.current?.offsetHeight || 400;
@@ -230,7 +205,6 @@ const Legend = forwardRef(function Legend({
   const handleDragEnd = (e) => {
     if (!isDragging) return;
 
-    // CRITICAL: Prevent final event from reaching map
     if (e) {
       e.stopPropagation();
       e.preventDefault();
@@ -238,11 +212,7 @@ const Legend = forwardRef(function Legend({
 
     const sheetHeight = sheetRef.current?.offsetHeight || 400;
     const maxDrag = sheetHeight - peekHeight;
-    const currentTranslate = parseFloat(
-      sheetRef.current?.style.transform?.match(
-        /translateY\(([-\d.]+)px\)/,
-      )?.[1] || 0,
-    );
+    const currentTranslate = parseFloat(sheetRef.current?.style.transform?.match(/translateY\(([-\d.]+)px\)/)?.[1] || 0);
     let shouldExpand;
     if (Math.abs(dragVelocity.current) > 0.3) {
       shouldExpand = dragVelocity.current < 0;
@@ -258,7 +228,6 @@ const Legend = forwardRef(function Legend({
     setIsDragging(false);
   };
 
-  // Global event listeners with proper isolation
   useEffect(() => {
     if (!isDragging) {
       document.body.classList.remove("dragging-legend");
@@ -267,7 +236,6 @@ const Legend = forwardRef(function Legend({
 
     document.body.classList.add("dragging-legend");
 
-    // Add passive: false to allow preventDefault on touchmove
     const handleMouseMove = (e) => handleDragMove(e);
     const handleMouseUp = (e) => handleDragEnd(e);
     const handleTouchMove = (e) => handleDragMove(e);
@@ -275,7 +243,6 @@ const Legend = forwardRef(function Legend({
 
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
-    // Use { passive: false } for touch events to enable preventDefault
     document.addEventListener("touchmove", handleTouchMove, { passive: false });
     document.addEventListener("touchend", handleTouchEnd);
 
@@ -288,7 +255,6 @@ const Legend = forwardRef(function Legend({
     };
   }, [isDragging]);
 
-  // Reset transform when expanded changes
   useEffect(() => {
     if (!isDragging && sheetRef.current) {
       sheetRef.current.style.transform = "";
@@ -304,6 +270,10 @@ const Legend = forwardRef(function Legend({
   const hasWarnings = warnings.length > 0;
   const hasAlts = alternatives.length > 0;
 
+  const estimatedTime = hasRoute ? formatTravelTime(distMeters, vehicleMode) : null;
+  const carTime = hasRoute ? formatTravelTime(distMeters, 'car') : null;
+  const walkTime = hasRoute ? formatTravelTime(distMeters, 'walk') : null;
+
   const getBarWidth = () => {
     const level = traffic.level;
     if (level === "Heavy") return "100%";
@@ -318,6 +288,14 @@ const Legend = forwardRef(function Legend({
   const CarIcon = IconCar;
   const RulerIcon = IconRuler;
   const ShareIcon = IconShare;
+
+  // Get vehicle display info
+  const vehicleDisplay = {
+    walk: { icon: "🚶", label: "Walk" },
+    car: { icon: "🚗", label: "Drive" },
+    motorcycle: { icon: "🏍️", label: "Ride" },
+  };
+  const currentVehicle = vehicleDisplay[vehicleMode] || vehicleDisplay.walk;
 
   return (
     <div
@@ -346,10 +324,8 @@ const Legend = forwardRef(function Legend({
         </div>
         {hasRoute && (
           <div className="legend-peek-time">
-            <span className="peek-time-value">
-              {formatWalkingTime(distMeters)}
-            </span>
-            <span className="peek-time-label">walk</span>
+            <span className="peek-time-value">{estimatedTime}</span>
+            <span className="peek-time-label">{currentVehicle.label}</span>
           </div>
         )}
       </div>
@@ -363,11 +339,7 @@ const Legend = forwardRef(function Legend({
             <span className="profile-label" style={{ color: profile.color }}>
               {profile.label} Route
             </span>
-            {isFallback && (
-              <span className="legend-badge legend-badge--warn">
-                Direct path
-              </span>
-            )}
+            {isFallback && <span className="legend-badge legend-badge--warn">Direct path</span>}
           </div>
 
           <div className="legend-profiles">
@@ -383,10 +355,7 @@ const Legend = forwardRef(function Legend({
                   title={p.label}
                 >
                   <span className="legend-profile-icon">
-                    <IconComponent
-                      className="w-4 h-4"
-                      color={isActive ? p.color : "currentColor"}
-                    />
+                    <IconComponent className="w-4 h-4" color={isActive ? p.color : "currentColor"} />
                   </span>
                   <span>{p.label}</span>
                 </button>
@@ -404,10 +373,8 @@ const Legend = forwardRef(function Legend({
                     <WalkIcon className="w-5 h-5" color="#22c55e" />
                   </span>
                   <div className="stat-card-info">
-                    <span className="stat-card-value">
-                      {formatWalkingTime(distMeters)}
-                    </span>
-                    <span className="stat-card-label">Walking</span>
+                    <span className="stat-card-value">{walkTime}</span>
+                    <span className="stat-card-label">Walk</span>
                   </div>
                 </div>
                 <div className="legend-stat-divider" />
@@ -416,10 +383,8 @@ const Legend = forwardRef(function Legend({
                     <CarIcon className="w-5 h-5" color="#f59e0b" />
                   </span>
                   <div className="stat-card-info">
-                    <span className="stat-card-value">
-                      {formatDrivingTime(distMeters)}
-                    </span>
-                    <span className="stat-card-label">Driving</span>
+                    <span className="stat-card-value">{carTime}</span>
+                    <span className="stat-card-label">Drive</span>
                   </div>
                 </div>
                 <div className="legend-stat-divider" />
@@ -428,9 +393,7 @@ const Legend = forwardRef(function Legend({
                     <RulerIcon className="w-5 h-5" color="#3b82f6" />
                   </span>
                   <div className="stat-card-info">
-                    <span className="stat-card-value">
-                      {formatDistance(distMeters)}
-                    </span>
+                    <span className="stat-card-value">{formatDistance(distMeters)}</span>
                     <span className="stat-card-label">Distance</span>
                   </div>
                 </div>
@@ -455,9 +418,7 @@ const Legend = forwardRef(function Legend({
           )}
 
           <button className="legend-share-btn" onClick={handleShareLocation}>
-            <span className="share-icon">
-              <ShareIcon className="w-4 h-4" color="#3b82f6" />
-            </span>
+            <span className="share-icon"><ShareIcon className="w-4 h-4" color="#3b82f6" /></span>
             <span>Share my location</span>
           </button>
 
@@ -473,9 +434,7 @@ const Legend = forwardRef(function Legend({
                   <span className="alt-line alt-line--primary" />
                   <div className="alt-info">
                     <span className="alt-name">Recommended</span>
-                    <span className="alt-time">
-                      {formatWalkingTime(distMeters)}
-                    </span>
+                    <span className="alt-time">{estimatedTime}</span>
                   </div>
                   <span className="alt-dist">{formatDistance(distMeters)}</span>
                 </div>
@@ -488,13 +447,9 @@ const Legend = forwardRef(function Legend({
                     <span className="alt-line alt-line--secondary" />
                     <div className="alt-info">
                       <span className="alt-name">Alternative {i + 1}</span>
-                      <span className="alt-time">
-                        {formatWalkingTime(alt.totalDistance)}
-                      </span>
+                      <span className="alt-time">{formatTravelTime(alt.totalDistance, vehicleMode)}</span>
                     </div>
-                    <span className="alt-dist">
-                      {formatDistance(alt.totalDistance)}
-                    </span>
+                    <span className="alt-dist">{formatDistance(alt.totalDistance)}</span>
                   </div>
                 ))}
               </div>
@@ -506,15 +461,10 @@ const Legend = forwardRef(function Legend({
               <div className="legend-divider" />
               <div className="legend-warnings">
                 {warnings.map((w, i) => {
-                  const WarningIcon =
-                    w.type === "danger" ? IconWarning : IconInfo;
-                  const warningColor =
-                    w.type === "danger" ? "#ef4444" : "#3b82f6";
+                  const WarningIcon = w.type === "danger" ? IconWarning : IconInfo;
+                  const warningColor = w.type === "danger" ? "#ef4444" : "#3b82f6";
                   return (
-                    <div
-                      key={i}
-                      className={`legend-warning legend-warning--${w.type || "info"}`}
-                    >
+                    <div key={i} className={`legend-warning legend-warning--${w.type || "info"}`}>
                       <span className="warning-icon">
                         <WarningIcon className="w-4 h-4" color={warningColor} />
                       </span>
