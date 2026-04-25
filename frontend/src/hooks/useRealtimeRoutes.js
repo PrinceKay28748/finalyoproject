@@ -5,10 +5,10 @@ import { getAllRoutes, findNearestNode } from "../services/routing";
 import { getDistanceToRoute, distanceBetween, findClosestPointOnRoute } from "../function/utils/geometry";
 
 // Configuration constants
-const DEVIATION_THRESHOLD_METERS = 25;  // Google Maps standard
-const REROUTE_DEBOUNCE_MS = 2000;      // Wait 2 seconds before recalculating
-const MIN_POSITION_CHANGE_METERS = 5;   // Ignore GPS jitter less than 5 meters
-const PROGRESS_UPDATE_INTERVAL_MS = 1000; // Update progress every second when moving
+const DEVIATION_THRESHOLD_METERS = 25;
+const REROUTE_DEBOUNCE_MS = 2000;
+const MIN_POSITION_CHANGE_METERS = 5;
+const PROGRESS_UPDATE_INTERVAL_MS = 1000;
 
 // Profile configuration for display
 export const ROUTE_PROFILES = {
@@ -48,9 +48,8 @@ export function useRealtimeRoutes({
   endNodeId, 
   currentLocation, 
   activeProfile,
-  isActive  // When true, starts watching for deviations
+  isActive
 }) {
-  // State for all 4 routes
   const [routes, setRoutes] = useState({
     standard: null,
     fastest: null,
@@ -69,20 +68,14 @@ export function useRealtimeRoutes({
     closestPointIndex: -1
   });
   
-  // Refs for tracking
   const lastRerouteTime = useRef(0);
   const lastPositionRef = useRef(null);
   const deviationTimerRef = useRef(null);
   const progressUpdateIntervalRef = useRef(null);
-  const currentRouteRef = useRef(null);
 
-  /**
-   * Calculate all 4 routes from a given node to destination
-   */
   const calculateRoutes = useCallback(async (fromNodeId, reason = "initial") => {
     if (!graph || !fromNodeId || !endNodeId) return;
     
-    // Rate limit to prevent spam
     const now = Date.now();
     if (now - lastRerouteTime.current < 500) return;
     
@@ -93,29 +86,16 @@ export function useRealtimeRoutes({
     lastRerouteTime.current = now;
     
     try {
-      console.log(`[Routes] Calculating ${reason} from node ${fromNodeId}...`);
       const allRoutes = await getAllRoutes(graph, fromNodeId, endNodeId);
-      
-      console.log("[Routes] Calculation result:", {
-        reason,
-        standard: allRoutes.standard ? `✓ ${allRoutes.standard.totalDistanceKm?.toFixed(2)}km` : "✗ null",
-        fastest: allRoutes.fastest ? `✓ ${allRoutes.fastest.totalDistanceKm?.toFixed(2)}km` : "✗ null",
-        accessible: allRoutes.accessible ? `✓ ${allRoutes.accessible.totalDistanceKm?.toFixed(2)}km` : "✗ null",
-        night: allRoutes.night ? `✓ ${allRoutes.night.totalDistanceKm?.toFixed(2)}km` : "✗ null",
-      });
-      
       setRoutes(allRoutes);
       setLastRouteUpdate(now);
       
-      // Reset progress when routes are recalculated
       setRouteProgress({
         completedDistance: 0,
         remainingDistance: allRoutes[activeProfile]?.totalDistanceKm * 1000 || 0,
         percentage: 0,
         closestPointIndex: -1
       });
-      
-      console.log(`[Routes] ${reason} — all 4 routes updated`);
     } catch (err) {
       console.error("[Routes] Calculation failed:", err);
     } finally {
@@ -125,19 +105,14 @@ export function useRealtimeRoutes({
     }
   }, [graph, endNodeId, activeProfile]);
 
-  /**
-   * Update route progress based on current location
-   */
   const updateRouteProgress = useCallback(() => {
     const activeRoute = routes[activeProfile];
     if (!isActive || !currentLocation || !activeRoute?.coordinates?.length) return;
     
     const { lat, lng } = currentLocation;
-    const { closestIndex, distanceToRoute, distanceFromStart } = findClosestPointOnRoute(
-      lat, lng, activeRoute.coordinates
-    );
+    const { closestIndex, distanceFromStart } = findClosestPointOnRoute(lat, lng, activeRoute.coordinates);
     
-    const totalDistance = activeRoute.totalDistanceKm * 1000; // Convert to meters
+    const totalDistance = activeRoute.totalDistanceKm * 1000;
     const completed = distanceFromStart;
     const remaining = Math.max(0, totalDistance - completed);
     const percentage = totalDistance > 0 ? (completed / totalDistance) * 100 : 0;
@@ -147,30 +122,20 @@ export function useRealtimeRoutes({
       remainingDistance: remaining,
       percentage: percentage,
       closestPointIndex: closestIndex,
-      distanceToRoute
+      distanceToRoute: 0
     });
-    
-    return { completed, remaining, percentage, closestIndex, distanceToRoute };
   }, [routes, activeProfile, isActive, currentLocation]);
 
-  /**
-   * Initial route calculation when start or destination changes
-   */
   useEffect(() => {
     if (startNodeId && endNodeId && graph) {
       calculateRoutes(startNodeId, "initial");
     }
   }, [startNodeId, endNodeId, graph, calculateRoutes]);
 
-  /**
-   * Start/stop progress update interval
-   */
   useEffect(() => {
     if (isActive && routes[activeProfile] && currentLocation) {
-      // Initial progress update
       updateRouteProgress();
       
-      // Set up interval for continuous progress updates
       if (progressUpdateIntervalRef.current) {
         clearInterval(progressUpdateIntervalRef.current);
       }
@@ -193,12 +158,7 @@ export function useRealtimeRoutes({
     };
   }, [isActive, routes, activeProfile, currentLocation, updateRouteProgress]);
 
-  /**
-   * Real-time deviation detection and auto-reroute
-   * Only runs when isActive is true (markers visible and user moving)
-   */
   useEffect(() => {
-    // Don't check if not active or missing data
     if (!isActive || !currentLocation || !routes[activeProfile] || !graph || !endNodeId) return;
     
     const activeRoute = routes[activeProfile];
@@ -206,40 +166,31 @@ export function useRealtimeRoutes({
     
     const { lat, lng } = currentLocation;
     
-    // Skip if user hasn't moved enough (prevents jitter)
     if (lastPositionRef.current) {
       const moved = distanceBetween(lat, lng, lastPositionRef.current.lat, lastPositionRef.current.lng);
       if (moved < MIN_POSITION_CHANGE_METERS) return;
     }
     lastPositionRef.current = { lat, lng };
     
-    // Calculate distance from current position to the active route
     const distanceToRoute = getDistanceToRoute(lat, lng, activeRoute.coordinates);
     
     if (distanceToRoute > DEVIATION_THRESHOLD_METERS) {
-      // User is off-route
       if (!deviationDetected) {
         setDeviationDetected(true);
-        console.log(`[Routes] Deviation detected: ${distanceToRoute.toFixed(1)}m from route`);
       }
       
-      // Clear any existing timer
       if (deviationTimerRef.current) clearTimeout(deviationTimerRef.current);
       
-      // Set timer to recalculate after confirming deviation
       deviationTimerRef.current = setTimeout(async () => {
         const nearestNode = findNearestNode(graph, lat, lng);
         if (nearestNode && nearestNode !== startNodeId) {
-          console.log(`[Routes] Rerouting from nearest node: ${nearestNode}`);
           await calculateRoutes(nearestNode, "deviation");
         }
         deviationTimerRef.current = null;
       }, REROUTE_DEBOUNCE_MS);
     } else {
-      // Back on route — clear deviation state
       if (deviationDetected) {
         setDeviationDetected(false);
-        console.log(`[Routes] Back on route`);
       }
       if (deviationTimerRef.current) {
         clearTimeout(deviationTimerRef.current);
@@ -247,23 +198,15 @@ export function useRealtimeRoutes({
       }
     }
     
-    // Cleanup timer on unmount
     return () => {
       if (deviationTimerRef.current) clearTimeout(deviationTimerRef.current);
     };
   }, [currentLocation, routes, activeProfile, graph, endNodeId, calculateRoutes, deviationDetected, startNodeId, isActive]);
 
-  /**
-   * Get the primary route (based on active profile)
-   */
   const getPrimaryRoute = useCallback(() => {
     return routes[activeProfile];
   }, [routes, activeProfile]);
 
-  /**
-   * Get all alternative routes (all except active profile)
-   * Filters out routes that are identical to the primary route
-   */
   const getAlternativeRoutes = useCallback(() => {
     const alternatives = [];
     const allProfiles = ["standard", "fastest", "accessible", "night"];
@@ -273,7 +216,6 @@ export function useRealtimeRoutes({
       if (profile !== activeProfile && routes[profile] && routes[profile].coordinates?.length > 0) {
         const routeB = routes[profile];
         
-        // Quick identity check: compare distance and key coordinates
         const isIdentical = primaryRoute &&
           primaryRoute.totalDistance === routeB.totalDistance &&
           primaryRoute.coordinates.length === routeB.coordinates.length &&
@@ -293,9 +235,6 @@ export function useRealtimeRoutes({
     return alternatives;
   }, [routes, activeProfile]);
 
-  /**
-   * Check if a specific route is identical to another
-   */
   const areRoutesIdentical = useCallback((profileA, profileB) => {
     const routeA = routes[profileA];
     const routeB = routes[profileB];
@@ -304,7 +243,6 @@ export function useRealtimeRoutes({
     if (routeA.totalDistance !== routeB.totalDistance) return false;
     if (routeA.coordinates.length !== routeB.coordinates.length) return false;
     
-    // Quick check: compare first and last coordinates
     const firstA = routeA.coordinates[0];
     const firstB = routeB.coordinates[0];
     const lastA = routeA.coordinates[routeA.coordinates.length - 1];
@@ -319,14 +257,14 @@ export function useRealtimeRoutes({
   }, [routes]);
 
   return {
-    routes,                 // All 4 routes: { standard, fastest, accessible, night }
+    routes,
     primaryRoute: getPrimaryRoute(),
     alternativeRoutes: getAlternativeRoutes(),
     isLoading,
     isRerouting,
     deviationDetected,
     lastRouteUpdate,
-    routeProgress,          // New: progress tracking
+    routeProgress,
     areRoutesIdentical,
     refreshRoutes: () => {
       if (startNodeId && endNodeId) calculateRoutes(startNodeId, "manual");
