@@ -93,6 +93,7 @@ export default function MapView({
   deviationDetected = false,
   warnings = [],
   activeProfile = "standard",
+  vehicleMode = "walk",
   flyTarget,
   darkMode,
   waitingForStart,
@@ -129,8 +130,6 @@ export default function MapView({
   };
 
   const hasValidRoute = primaryRoute && primaryRoute.coordinates && primaryRoute.coordinates.length > 0;
-
-  // REMOVED: The spammy debug log
 
   return (
     <div className="map-wrap">
@@ -170,6 +169,7 @@ export default function MapView({
             route={primaryRoute}
             visible={markersVisible}
             profile={activeProfile}
+            vehicleMode={vehicleMode}
             currentLocation={currentLocation}
             showProgress={true}
           />
@@ -294,6 +294,7 @@ export default function MapView({
         route={primaryRoute}
         allRoutes={allRoutes}
         activeProfile={activeProfile}
+        vehicleMode={vehicleMode}
         currentLocation={currentLocation}
         warnings={warnings}
         onProfileChange={onProfileChange}
