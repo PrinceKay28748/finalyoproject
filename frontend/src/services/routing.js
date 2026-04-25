@@ -5,7 +5,7 @@ import { calculateEdgeCost, buildRouteContext, getActiveWarnings, PROFILES } fro
 import { distanceKm } from "../function/utils/distance";
 import { MinHeap }    from "../function/utils/MinHeap";
 
-// New: Convert degrees to meters approximation
+// Convert degrees to meters approximation
 function degreesToMeters(latDiff, lngDiff, lat) {
   const latMeters = latDiff * 111319;
   const lngMeters = lngDiff * 85200 * Math.cos(lat * Math.PI / 180);
@@ -45,13 +45,7 @@ function perpendicularDistance(p, a, b) {
 }
 
 /**
- * Finds the nearest node ID to a given GPS coordinate with expanded search radius
- * 
- * @param {Object} graph - Graph with nodes
- * @param {number} lat - Latitude
- * @param {number} lng - Longitude
- * @param {number} maxDistanceDegrees - Maximum search distance in degrees (~0.005 = ~500m)
- * @returns {string|null} Nearest node ID or null if none within radius
+ * Finds the nearest node ID to a given GPS coordinate
  */
 export function findNearestNode(graph, lat, lng, maxDistanceDegrees = 0.01) {
   if (!graph?.nodes) return null;
@@ -64,35 +58,20 @@ export function findNearestNode(graph, lat, lng, maxDistanceDegrees = 0.01) {
     const dy = node.lng - lng;
     const dist = Math.hypot(dx, dy);
     
-    // Only consider nodes within the search radius
     if (dist < minDist && dist < maxDistanceDegrees) {
       minDist = dist;
       nearestId = nodeId;
     }
   }
   
-  if (nearestId) {
-    const distanceMeters = degreesToMeters(minDist, minDist, lat);
-    console.log(`[findNearestNode] Found node at ${distanceMeters.toFixed(1)}m from target`);
-  } else {
-    console.warn(`[findNearestNode] No node found within ${maxDistanceDegrees} degrees`);
-  }
-  
+  // LOG REMOVED - was spamming console
   return nearestId;
 }
 
 /**
  * Finds the optimal path between two nodes using Dijkstra + min-heap
- *
- * @param {Object} graph       - Graph with nodes and edges
- * @param {string} startNodeId - Starting node ID
- * @param {string} endNodeId   - Destination node ID
- * @param {string} profileKey  - Active routing profile
- * @returns {Object|null} Path with coordinates, distance and metadata
  */
 export function findShortestPath(graph, startNodeId, endNodeId, profileKey = "standard") {
-  console.log(`[Routing] Finding path — profile: ${profileKey}`);
-
   if (!graph?.nodes || !graph?.edges) {
     console.error("[Routing] Invalid graph");
     return null;
@@ -168,13 +147,12 @@ export function findShortestPath(graph, startNodeId, endNodeId, profileKey = "st
     }
   }
 
-  // ── No path — try fallback for OSM data gaps (INCREASED from 100m to 300m) ──
+  // ── No path — try fallback for OSM data gaps ──
   if (distances[endNodeId] === Infinity) {
     const s = nodes[startNodeId];
     const e = nodes[endNodeId];
     const directDist = distanceKm(s.lat, s.lng, e.lat, e.lng) * 1000;
 
-    // Increased fallback threshold from 100 to 300 meters
     if (directDist <= 300) {
       console.log(`[Routing] Fallback direct connection — ${directDist.toFixed(1)}m`);
       return {
@@ -188,7 +166,7 @@ export function findShortestPath(graph, startNodeId, endNodeId, profileKey = "st
       };
     }
 
-    console.warn(`[Routing] No path found - direct distance ${directDist.toFixed(1)}m exceeds fallback threshold`);
+    console.warn(`[Routing] No path found - direct distance ${directDist.toFixed(1)}m exceeds fallback`);
     return null;
   }
 
@@ -200,7 +178,7 @@ export function findShortestPath(graph, startNodeId, endNodeId, profileKey = "st
     current = previous[current];
   }
 
-  // Calculate actual physical distance (not weighted cost) for display
+  // Calculate actual physical distance
   let actualDistMetres = 0;
   for (let i = 0; i < pathNodeIds.length - 1; i++) {
     const a = nodes[pathNodeIds[i]];
@@ -213,11 +191,6 @@ export function findShortestPath(graph, startNodeId, endNodeId, profileKey = "st
 
   // Simplify the path
   const simplifiedCoords = simplifyPath(rawCoords);
-
-  console.log(
-    `[Routing] Path — ${pathNodeIds.length} nodes → ${simplifiedCoords.length} after simplification, ` +
-    `${(actualDistMetres / 1000).toFixed(2)}km`
-  );
 
   return {
     nodes:           pathNodeIds,
@@ -233,7 +206,6 @@ export function findShortestPath(graph, startNodeId, endNodeId, profileKey = "st
 
 /**
  * Calculates all four route variants in parallel
- * Profiles: standard, fastest, accessible, night
  */
 export async function getAllRoutes(graph, startNodeId, endNodeId) {
   const startTime = performance.now();
@@ -244,9 +216,6 @@ export async function getAllRoutes(graph, startNodeId, endNodeId) {
     Promise.resolve(findShortestPath(graph, startNodeId, endNodeId, "accessible")),
     Promise.resolve(findShortestPath(graph, startNodeId, endNodeId, "night"))
   ]);
-  
-  const elapsed = performance.now() - startTime;
-  console.log(`[Routing] All 4 routes calculated in ${elapsed.toFixed(0)}ms`);
   
   // Generate warnings for each route based on context and profile
   if (standard?.context) standard.context.warnings = getActiveWarnings(standard.context, "standard");
