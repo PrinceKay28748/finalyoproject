@@ -4,13 +4,11 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { getAllRoutes, findNearestNode } from "../services/routing";
 import { getDistanceToRoute, distanceBetween, findClosestPointOnRoute } from "../function/utils/geometry";
 
-// Configuration constants
 const DEVIATION_THRESHOLD_METERS = 25;
 const REROUTE_DEBOUNCE_MS = 2000;
 const MIN_POSITION_CHANGE_METERS = 5;
 const PROGRESS_UPDATE_INTERVAL_MS = 1000;
 
-// Profile configuration for display
 export const ROUTE_PROFILES = {
   standard: {
     key: "standard",
@@ -48,6 +46,7 @@ export function useRealtimeRoutes({
   endNodeId, 
   currentLocation, 
   activeProfile,
+  vehicleMode = 'walk',
   isActive
 }) {
   const [routes, setRoutes] = useState({
@@ -86,7 +85,7 @@ export function useRealtimeRoutes({
     lastRerouteTime.current = now;
     
     try {
-      const allRoutes = await getAllRoutes(graph, fromNodeId, endNodeId);
+      const allRoutes = await getAllRoutes(graph, fromNodeId, endNodeId, activeProfile, vehicleMode);
       setRoutes(allRoutes);
       setLastRouteUpdate(now);
       
@@ -103,7 +102,7 @@ export function useRealtimeRoutes({
       setIsRerouting(false);
       setDeviationDetected(false);
     }
-  }, [graph, endNodeId, activeProfile]);
+  }, [graph, endNodeId, activeProfile, vehicleMode]);
 
   const updateRouteProgress = useCallback(() => {
     const activeRoute = routes[activeProfile];

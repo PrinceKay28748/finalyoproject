@@ -64,14 +64,18 @@ export function findNearestNode(graph, lat, lng, maxDistanceDegrees = 0.01) {
     }
   }
   
-  // LOG REMOVED - was spamming console
   return nearestId;
 }
 
 /**
  * Finds the optimal path between two nodes using Dijkstra + min-heap
+ * @param {Object} graph - Graph with nodes and edges
+ * @param {string} startNodeId - Starting node ID
+ * @param {string} endNodeId - Destination node ID
+ * @param {string} profileKey - Routing profile (standard, fastest, accessible, night)
+ * @param {string} vehicleMode - Vehicle mode (walk, car, motorcycle)
  */
-export function findShortestPath(graph, startNodeId, endNodeId, profileKey = "standard") {
+export function findShortestPath(graph, startNodeId, endNodeId, profileKey = "standard", vehicleMode = "walk") {
   if (!graph?.nodes || !graph?.edges) {
     console.error("[Routing] Invalid graph");
     return null;
@@ -92,6 +96,7 @@ export function findShortestPath(graph, startNodeId, endNodeId, profileKey = "st
       totalDistanceKm: 0,
       isFallback:      false,
       profile:         profileKey,
+      vehicleMode:     vehicleMode,
     };
   }
 
@@ -136,7 +141,8 @@ export function findShortestPath(graph, startNodeId, endNodeId, profileKey = "st
 
       const edgeKey  = `${current}-${neighbor.nodeId}`;
       const edge     = edgeMap[edgeKey] || { distance: neighbor.distance, tags: {}, type: "residential" };
-      const edgeCost = calculateEdgeCost(edge, profile, context.timePeriod, context.vehicleRestricted, context.currentHour);
+      // Pass vehicleMode to calculateEdgeCost
+      const edgeCost = calculateEdgeCost(edge, profile, context.timePeriod, context.vehicleRestricted, context.currentHour, vehicleMode);
       const altCost  = distances[current] + edgeCost;
 
       if (altCost < distances[neighbor.nodeId]) {
@@ -162,6 +168,7 @@ export function findShortestPath(graph, startNodeId, endNodeId, profileKey = "st
         totalDistanceKm: directDist / 1000,
         isFallback:      true,
         profile:         profileKey,
+        vehicleMode:     vehicleMode,
         context,
       };
     }
@@ -200,22 +207,31 @@ export function findShortestPath(graph, startNodeId, endNodeId, profileKey = "st
     weightedCost:    distances[endNodeId],
     isFallback:      false,
     profile:         profileKey,
+    vehicleMode:     vehicleMode,
     context,
   };
 }
 
 /**
  * Calculates all four route variants in parallel
+ * @param {Object} graph - Graph with nodes and edges
+ * @param {string} startNodeId - Starting node ID
+ * @param {string} endNodeId - Destination node ID
+ * @param {string} profileKey - Routing profile
+ * @param {string} vehicleMode - Vehicle mode (walk, car, motorcycle)
  */
-export async function getAllRoutes(graph, startNodeId, endNodeId) {
+export async function getAllRoutes(graph, startNodeId, endNodeId, profileKey = "standard", vehicleMode = "walk") {
   const startTime = performance.now();
   
   const [standard, fastest, accessible, night] = await Promise.all([
-    Promise.resolve(findShortestPath(graph, startNodeId, endNodeId, "standard")),
-    Promise.resolve(findShortestPath(graph, startNodeId, endNodeId, "fastest")),
-    Promise.resolve(findShortestPath(graph, startNodeId, endNodeId, "accessible")),
-    Promise.resolve(findShortestPath(graph, startNodeId, endNodeId, "night"))
+    Promise.resolve(findShortestPath(graph, startNodeId, endNodeId, "standard", vehicleMode)),
+    Promise.resolve(findShortestPath(graph, startNodeId, endNodeId, "fastest", vehicleMode)),
+    Promise.resolve(findShortestPath(graph, startNodeId, endNodeId, "accessible", vehicleMode)),
+    Promise.resolve(findShortestPath(graph, startNodeId, endNodeId, "night", vehicleMode))
   ]);
+  
+  const elapsed = performance.now() - startTime;
+  console.log(`[Routing] All 4 routes calculated in ${elapsed.toFixed(0)}ms (vehicle: ${vehicleMode})`);
   
   // Generate warnings for each route based on context and profile
   if (standard?.context) standard.context.warnings = getActiveWarnings(standard.context, "standard");

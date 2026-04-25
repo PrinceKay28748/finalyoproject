@@ -6,7 +6,7 @@ import { useRealtimeRoutes, ROUTE_PROFILES } from "./hooks/useRealtimeRoutes";
 import { geocode, reverseGeocode } from "./services/geocoding";
 import { findNearestNode } from "./services/routing";
 import { buildGraph } from "./services/graphBuilder";
-import { loadPreferences, savePreferences } from "./services/preferencesStore";
+import { loadPreferences, savePreferences, loadRouteState, saveRouteState, clearRouteState } from "./services/preferencesStore";
 import { logRouteCalculated, logSearch, logLogin } from "./services/analyticsLogger";
 import NavPanel                    from "./components/Panel/NavPanel";
 import ErrorBoundary              from "./components/ErrorBoundary";
@@ -16,10 +16,9 @@ import { useAuthContext }         from "./context/AuthContext";
 import AdminDashboard             from './components/Admin/AdminDashboard';
 import "./index.css";
 
-// Lazy load the map — reduces initial bundle, map only loads when needed
+// Lazy load the map
 const MapView = lazy(() => import("./components/Map/MapView"));
 
-// Loading fallback shown while MapView chunk is downloading
 function MapLoader() {
   return (
     <div className="map-loader">
@@ -32,51 +31,70 @@ function MapLoader() {
 export default function App() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuthContext();
   
-  const [startPoint, setStartPoint]           = useState(null);   // resolved start location
-  const [destPoint, setDestPoint]             = useState(null);   // resolved destination
-  const [startText, setStartText]             = useState("");     // start input text
-  const [destText, setDestText]               = useState("");     // destination input text
-  const [flyTarget, setFlyTarget]             = useState(null);   // triggers map fly-to
-  const [darkMode, setDarkMode]               = useState(false);  // dark/light toggle
-  const [markersVisible, setMarkersVisible]   = useState(false);  // show markers + route
-  const [waitingForStart, setWaitingForStart] = useState(false);  // pin-start tap mode
-  const [isResolving, setIsResolving]         = useState(false);  // geocoding in progress
-  const [activeProfile, setActiveProfile]     = useState("standard"); // routing profile
-  const [lastLoggedRoute, setLastLoggedRoute] = useState(null); // prevent duplicate logging
+  const [startPoint, setStartPoint]           = useState(null);
+  const [destPoint, setDestPoint]             = useState(null);
+  const [startText, setStartText]             = useState("");
+  const [destText, setDestText]               = useState("");
+  const [flyTarget, setFlyTarget]             = useState(null);
+  const [darkMode, setDarkMode]               = useState(false);
+  const [markersVisible, setMarkersVisible]   = useState(false);
+  const [waitingForStart, setWaitingForStart] = useState(false);
+  const [isResolving, setIsResolving]         = useState(false);
+  const [activeProfile, setActiveProfile]     = useState("standard");
+  const [vehicleMode, setVehicleMode]         = useState("walk");
+  const [lastLoggedRoute, setLastLoggedRoute] = useState(null);
   
-  // Route lock state - prevents map clicks from changing destination
   const [isRouteLocked, setIsRouteLocked] = useState(false);
-  
-  // NEW: Nav panel expansion state
   const [isNavExpanded, setIsNavExpanded] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   
-  // Custom location state (green pin)
   const [customStartPoint, setCustomStartPoint] = useState(null);
   const [useCustomLocation, setUseCustomLocation] = useState(false);
-  
-  // Shared location flag (for purple pin)
   const [isSharedLocation, setIsSharedLocation] = useState(false);
-  
-  // Legend expanded state for map zoom adjustment
   const [isLegendExpanded, setIsLegendExpanded] = useState(true);
   
-  // Graph object
   const [graph, setGraph] = useState(null);
   const [graphLoading, setGraphLoading] = useState(true);
   
-  // Ref to store legend collapse function from child
   const legendCollapseRef = useRef(null);
 
-  // GPS location from the custom hook
   const { location: currentLocation, accuracy, error: locationError } = useGeolocation();
 
-  // Check if current user is admin
   const isAdmin = user?.is_admin === 1 || user?.is_admin === true;
-  
-  // Check if we're on admin route
   const isAdminRoute = window.location.pathname === '/admin';
 
-  // Parse shared location from URL on initial load
+  // Load saved route state on mount
+  useEffect(() => {
+    const savedState = loadRouteState();
+    if (savedState) {
+      if (savedState.startPoint) setStartPoint(savedState.startPoint);
+      if (savedState.destPoint) setDestPoint(savedState.destPoint);
+      if (savedState.startText) setStartText(savedState.startText);
+      if (savedState.destText) setDestText(savedState.destText);
+      if (savedState.markersVisible) setMarkersVisible(savedState.markersVisible);
+      if (savedState.activeProfile) setActiveProfile(savedState.activeProfile);
+      if (savedState.vehicleMode) setVehicleMode(savedState.vehicleMode);
+      console.log('[App] Restored route state from storage');
+    }
+    setIsInitialLoad(false);
+  }, []);
+
+  // Save route state whenever critical values change
+  useEffect(() => {
+    if (isInitialLoad) return;
+    
+    saveRouteState({
+      startPoint,
+      destPoint,
+      startText,
+      destText,
+      markersVisible,
+      activeProfile,
+      vehicleMode,
+    });
+  }, [startPoint, destPoint, startText, destText, markersVisible, activeProfile, vehicleMode, isInitialLoad]);
+
+  // Parse shared location from URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const lat = params.get('lat');
@@ -97,7 +115,7 @@ export default function App() {
     }
   }, []);
 
-  // Load the graph on mount
+  // Load graph
   useEffect(() => {
     console.log("[App] Loading road network graph...");
     setGraphLoading(true);
@@ -115,12 +133,13 @@ export default function App() {
     });
   }, []);
 
-  // Load user preferences on mount
+  // Load preferences
   useEffect(() => {
     loadPreferences().then((prefs) => {
       if (prefs) {
         if (prefs.activeProfile) setActiveProfile(prefs.activeProfile);
         if (prefs.darkMode !== undefined) setDarkMode(prefs.darkMode);
+        if (prefs.vehicleMode) setVehicleMode(prefs.vehicleMode);
         console.log("[App] Preferences loaded:", prefs);
       }
     }).catch((err) => {
@@ -128,41 +147,38 @@ export default function App() {
     });
   }, []);
 
-  // Log login when user becomes authenticated
+  // Log login
   useEffect(() => {
     if (isAuthenticated && user) {
       logLogin();
     }
   }, [isAuthenticated, user]);
 
-  // Save preferences when profile or theme changes
+  // Save preferences
   useEffect(() => {
     savePreferences({
       activeProfile,
       darkMode,
+      vehicleMode,
     }).catch((err) => {
       console.warn("[App] Failed to save preferences:", err);
     });
-  }, [activeProfile, darkMode]);
+  }, [activeProfile, darkMode, vehicleMode]);
 
-  // Determine which start point to use for routing
   const effectiveStartPoint = useCustomLocation && customStartPoint ? customStartPoint : startPoint;
   const effectiveStartText = useCustomLocation && customStartPoint 
     ? customStartPoint.name || "Custom location" 
     : startText;
 
-  // Helper to convert lat/lng to node ID
   const getNodeId = useCallback((point) => {
     if (!point || !graph) return null;
     if (point.nodeId) return point.nodeId;
     return findNearestNode(graph, point.lat, point.lng);
   }, [graph]);
 
-  // Get node IDs for routing
   const startNodeId = effectiveStartPoint ? getNodeId(effectiveStartPoint) : null;
   const destNodeId = destPoint ? getNodeId(destPoint) : null;
 
-  // Real-time 4-route hook
   const { 
     primaryRoute,
     alternativeRoutes,
@@ -176,13 +192,14 @@ export default function App() {
     endNodeId: destNodeId,
     currentLocation,
     activeProfile,
+    vehicleMode,
     isActive: markersVisible && effectiveStartPoint && destPoint
   });
 
-  // Log route when it's calculated (avoid duplicate logs)
+  // Log route
   useEffect(() => {
     if (markersVisible && primaryRoute && effectiveStartPoint && destPoint) {
-      const routeKey = `${effectiveStartPoint.name}-${destPoint.name}-${activeProfile}-${primaryRoute.totalDistanceKm}`;
+      const routeKey = `${effectiveStartPoint.name}-${destPoint.name}-${activeProfile}-${vehicleMode}-${primaryRoute.totalDistanceKm}`;
       if (lastLoggedRoute !== routeKey) {
         setLastLoggedRoute(routeKey);
         logRouteCalculated(
@@ -193,12 +210,11 @@ export default function App() {
         );
       }
     }
-  }, [markersVisible, primaryRoute, effectiveStartPoint, destPoint, activeProfile]);
+  }, [markersVisible, primaryRoute, effectiveStartPoint, destPoint, activeProfile, vehicleMode]);
 
-  // Build warnings array from route context
   const warnings = primaryRoute?.context?.warnings || [];
 
-  // Auto-fill FROM with GPS location on first fix
+  // Auto-fill FROM with GPS
   const [hasAutoFilled, setHasAutoFilled] = useState(false);
   if (currentLocation && !hasAutoFilled && !useCustomLocation) {
     setStartPoint(currentLocation);
@@ -206,27 +222,24 @@ export default function App() {
     setHasAutoFilled(true);
   }
 
-  // Lock route when markers are visible and route exists
+  // Lock route when markers are visible
   useEffect(() => {
     if (markersVisible && primaryRoute && primaryRoute.coordinates?.length > 0) {
       setIsRouteLocked(true);
-      console.log("[App] Route locked - map clicks will not change destination");
+      console.log("[App] Route locked");
     } else {
       setIsRouteLocked(false);
     }
   }, [markersVisible, primaryRoute]);
 
-  // Register legend collapse function
   const registerLegendCollapse = useCallback((collapseFn) => {
     legendCollapseRef.current = collapseFn;
   }, []);
 
-  // Handle nav panel expand request
   const handleNavExpandRequest = useCallback((expanded) => {
     setIsNavExpanded(expanded);
   }, []);
 
-  // Handle various actions
   const handleUseCurrentLocation = () => {
     if (!currentLocation) return;
     setStartPoint(currentLocation);
@@ -255,16 +268,12 @@ export default function App() {
     setDestPoint(loc);
     setDestText(loc.name);
     setFlyTarget(loc);
-    // Log search
     logSearch(destText, loc.name);
   };
 
-  // Map click handler - collapses legend when route is locked, expands nav when setting destination
   const handleMapClick = useCallback(async (latlng) => {
-    // If route is locked, only collapse the legend (don't change destination)
     if (isRouteLocked) {
-      console.log("[App] Route locked - collapsing legend, ignoring destination change");
-      // Collapse legend if it's expanded and we have a reference
+      console.log("[App] Route locked - collapsing legend");
       if (isLegendExpanded && legendCollapseRef.current) {
         legendCollapseRef.current();
         setIsLegendExpanded(false);
@@ -272,7 +281,6 @@ export default function App() {
       return;
     }
     
-    // Normal behavior when route is not locked
     const name = await reverseGeocode(latlng.lat, latlng.lng);
     const loc = { lat: latlng.lat, lng: latlng.lng, name };
     if (waitingForStart) {
@@ -285,9 +293,7 @@ export default function App() {
       setDestPoint(loc);
       setDestText(name);
       setIsSharedLocation(false);
-      // Expand nav panel so user can click Directions
       setIsNavExpanded(true);
-      // Log map click as search
       logSearch(`Map click at ${latlng.lat}, ${latlng.lng}`, name);
     }
   }, [waitingForStart, isRouteLocked, isLegendExpanded]);
@@ -359,7 +365,6 @@ export default function App() {
     setIsSharedLocation(false);
   };
 
-  // Reset also unlocks the route and resets nav expansion
   const handleReset = () => {
     setDestPoint(null);
     setDestText("");
@@ -368,9 +373,10 @@ export default function App() {
     setUseCustomLocation(false);
     setCustomStartPoint(null);
     setIsSharedLocation(false);
-    setIsRouteLocked(false);  // Unlock route on reset
-    setIsNavExpanded(false);   // Reset nav panel
-    console.log("[App] Route unlocked - map clicks will work normally again");
+    setIsRouteLocked(false);
+    setIsNavExpanded(false);
+    clearRouteState();
+    console.log("[App] Route unlocked and cleared");
     if (currentLocation) {
       setStartPoint(currentLocation);
       setStartText("My current location");
@@ -391,11 +397,6 @@ export default function App() {
     (effectiveStartPoint || effectiveStartText.trim().length > 0) &&
     (destPoint || destText.trim().length > 0);
 
-  // ============================================
-  // ADMIN ROUTE HANDLING — Outside ProtectedRoute
-  // ============================================
-  
-  // Show loading while checking auth
   if (authLoading) {
     return (
       <div className="map-loader">
@@ -405,25 +406,17 @@ export default function App() {
     );
   }
   
-  // Handle admin route
   if (isAdminRoute) {
-    // If not authenticated, show login page
     if (!isAuthenticated) {
       return <AuthPage />;
     }
-    // If authenticated but not admin, redirect to home
     if (!isAdmin) {
       window.location.href = '/';
       return null;
     }
-    // If authenticated and admin, show admin dashboard
     return <AdminDashboard />;
   }
 
-  // ============================================
-  // REGULAR APP (wrapped in ProtectedRoute)
-  // ============================================
-  
   return (
     <ProtectedRoute>
       <ErrorBoundary>
@@ -453,7 +446,8 @@ export default function App() {
             onToggleDarkMode={() => setDarkMode((d) => !d)}
             activeProfile={activeProfile}
             onProfileChange={setActiveProfile}
-            // NEW PROPS for nav panel expansion
+            vehicleMode={vehicleMode}
+            onVehicleModeChange={setVehicleMode}
             isExpanded={isNavExpanded}
             onExpandRequest={handleNavExpandRequest}
           />
@@ -479,11 +473,13 @@ export default function App() {
               deviationDetected={deviationDetected}
               warnings={warnings}
               activeProfile={activeProfile}
+              vehicleMode={vehicleMode}
               useCustomLocation={useCustomLocation}
               isSharedLocation={isSharedLocation}
               isLegendExpanded={isLegendExpanded}
               onLegendExpandedChange={setIsLegendExpanded}
               onProfileChange={setActiveProfile}
+              onVehicleModeChange={setVehicleMode}
               onMapClick={handleMapClick}
               onCustomLocationDragEnd={handleCustomLocationDragEnd}
               onRecenter={handleRecenter}
