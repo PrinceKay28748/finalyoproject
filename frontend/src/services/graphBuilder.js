@@ -23,15 +23,15 @@ function getBoundsValues(bounds) {
   return { south: 5.62, west: -0.21, north: 5.672, east: -0.175 };
 }
 
-// Optimized Overpass query — only fetch essential walkable paths
+// Optimized Overpass query — includes ALL walkable roads including secondary/primary
 const getOSMQuery = (bounds) => {
   const { south, west, north, east } = getBoundsValues(bounds);
   
   return `
-    [out:json][timeout:30];
+    [out:json][timeout:45];
     (
-      // Walkable paths and roads suitable for campus navigation
-      way["highway"~"footway|path|pedestrian|steps|residential|service|track|living_street|unclassified"](${south},${west},${north},${east});
+      // ALL roads - expanded to include secondary, primary, tertiary
+      way["highway"~"footway|path|pedestrian|steps|residential|service|track|living_street|unclassified|tertiary|secondary|primary|tertiary_link|secondary_link"](${south},${west},${north},${east});
       node(w);
     );
     out body;
@@ -41,11 +41,11 @@ const getOSMQuery = (bounds) => {
 };
 
 // Fetch with retry logic
-async function fetchWithRetry(url, query, retries = 2) {
+async function fetchWithRetry(url, query, retries = 3) {
   for (let i = 0; i <= retries; i++) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      const timeoutId = setTimeout(() => controller.abort(), 45000);
       
       const response = await fetch(url, {
         method: "POST",
@@ -67,7 +67,7 @@ async function fetchWithRetry(url, query, retries = 2) {
     }
     
     if (i < retries) {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 2000 * (i + 1))); // Exponential backoff
     }
   }
   
@@ -83,13 +83,14 @@ export async function buildGraph() {
     // Check IndexedDB cache first (huge speed boost in dev mode)
     const cached = await getCachedGraph();
     if (cached) {
+      console.log("[GraphBuilder] Using cached graph from IndexedDB");
       return cached;
     }
     
-    console.log("[GraphBuilder] Fetching OSM data for Legon...");
+    console.log("[GraphBuilder] Fetching OSM data for Legon (including secondary/primary roads)...");
 
     const query = getOSMQuery(UG_BOUNDS);
-    console.log("[GraphBuilder] Query optimized for walkable paths");
+    console.log("[GraphBuilder] Query includes: footway, path, pedestrian, steps, residential, service, track, living_street, unclassified, tertiary, secondary, primary");
     
     let response;
     let usedBackup = false;
@@ -121,8 +122,8 @@ export async function buildGraph() {
       return null;
     }
 
-    // Connect nearby nodes to fill gaps in OSM data
-    const enhancedGraph = connectNearbyNodes(graph, 25);
+    // Connect nearby nodes to fill gaps in OSM data (increased threshold for better connectivity)
+    const enhancedGraph = connectNearbyNodes(graph, 30);
     
     const components = findConnectedComponents(enhancedGraph);
     console.log(
@@ -157,7 +158,7 @@ function processOSMData(elements) {
       nodes[id] = { id, lat: el.lat, lng: el.lon, neighbors: [] };
     } else if (el.type === "way" && el.tags?.highway && el.nodes?.length > 0) {
       const highwayType = el.tags.highway;
-      // Skip non-walkable roads
+      // Only skip motorways (keep secondary, primary, etc.)
       if (highwayType === 'motorway' || highwayType === 'motorway_link') {
         return;
       }
@@ -243,10 +244,10 @@ function processOSMData(elements) {
  * Connects nearby nodes that are within a threshold distance
  * This helps fill gaps in OSM data where roads are split or missing connections
  * @param {Object} graph - Graph with nodes and edges
- * @param {number} thresholdMeters - Max distance to connect (default 25m)
+ * @param {number} thresholdMeters - Max distance to connect (default 30m)
  * @returns {Object} Enhanced graph with additional connections
  */
-function connectNearbyNodes(graph, thresholdMeters = 25) {
+function connectNearbyNodes(graph, thresholdMeters = 30) {
   const nodes = graph.nodes;
   const edges = [...graph.edges];
   const edgeSet = new Set(graph.edges.map(e => e.id));
@@ -256,9 +257,8 @@ function connectNearbyNodes(graph, thresholdMeters = 25) {
   
   console.log(`[GraphBuilder] Connecting nodes within ${thresholdMeters}m...`);
   
-  // Create spatial grid for faster neighbor finding (NOT nested loops!)
-  // Converts O(n²) to O(n*k) where k is nodes in nearby cells only
-  const GRID_SIZE_DEG = 0.005; // ~500m cell at equator - tuned for 25m connections
+  // Create spatial grid for faster neighbor finding
+  const GRID_SIZE_DEG = 0.005; // ~500m cell
   const grid = new Map();
   
   // Place nodes in grid cells
@@ -279,7 +279,7 @@ function connectNearbyNodes(graph, thresholdMeters = 25) {
   for (const [cellKey, cellNodes] of grid.entries()) {
     const [cellX, cellY] = cellKey.split(',').map(Number);
     
-    // Get adjacent cells too
+    // Get adjacent cells
     const cellsToCheck = new Set();
     for (let dx = -1; dx <= 1; dx++) {
       for (let dy = -1; dy <= 1; dy++) {
@@ -291,18 +291,15 @@ function connectNearbyNodes(graph, thresholdMeters = 25) {
       }
     }
     
-    // Check within this cell and adjacent cells
     for (let i = 0; i < cellNodes.length; i++) {
       const nodeA = cellNodes[i];
       
-      // Skip nodes that already have many connections
-      if (nodeA.neighbors.length > 5) continue;
+      if (nodeA.neighbors.length > 8) continue;
       
       for (let j = i + 1; j < cellNodes.length; j++) {
         const nodeB = cellNodes[j];
         
-        // Skip if nodeB already has many connections
-        if (nodeB.neighbors.length > 5) continue;
+        if (nodeB.neighbors.length > 8) continue;
         
         const distMeters = distanceKm(nodeA.lat, nodeA.lng, nodeB.lat, nodeB.lng) * 1000;
         
@@ -333,7 +330,7 @@ function connectNearbyNodes(graph, thresholdMeters = 25) {
   }
   
   const elapsed = performance.now() - startTime;
-  console.log(`[GraphBuilder] Added ${connectionsAdded} connections in ${elapsed.toFixed(0)}ms (spatial grid optimization)`);
+  console.log(`[GraphBuilder] Added ${connectionsAdded} connections in ${elapsed.toFixed(0)}ms`);
   
   return { nodes, edges };
 }
