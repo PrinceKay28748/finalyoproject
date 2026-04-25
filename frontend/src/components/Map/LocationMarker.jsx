@@ -2,14 +2,17 @@
 import { Marker, Circle } from "react-leaflet";
 import { currentLocationIcon, customLocationIcon } from "../../function/utils/icons";
 import L from "leaflet";
-import { useState, useEffect } from "react";
 
-// Create pulsing icon based on speed
-function createPulsingIcon(speed, heading) {
-  // Speed determines pulse intensity (standing still = no pulse, walking = subtle, running = strong)
-  const pulseIntensity = Math.min(1, (speed || 0) / 3); // Max pulse at 3 m/s
+// Create pulsing icon based on speed and accuracy
+function createPulsingIcon(speed, heading, isLowAccuracy = false) {
+  // Speed determines pulse intensity
+  const pulseIntensity = Math.min(1, (speed || 0) / 3);
   
   const pulseClass = pulseIntensity > 0.1 ? `pulse-${Math.floor(pulseIntensity * 10)}` : '';
+  
+  // Orange for low accuracy, blue for good accuracy
+  const arrowColor = isLowAccuracy ? "#f59e0b" : "#2563eb";
+  const shadowColor = isLowAccuracy ? "rgba(245, 158, 11, 0.3)" : "rgba(37, 99, 235, 0.3)";
   
   const iconHtml = currentLocationIcon.options.html || '';
   
@@ -23,8 +26,8 @@ function createPulsingIcon(speed, heading) {
       height: 0;
       border-left: 6px solid transparent;
       border-right: 6px solid transparent;
-      border-bottom: 14px solid #2563eb;
-      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+      border-bottom: 14px solid ${arrowColor};
+      filter: drop-shadow(0 2px 4px ${shadowColor});
       animation: ${pulseIntensity > 0 ? 'wiggle 0.5s ease-in-out infinite' : 'none'};
     "></div>
   ` : '';
@@ -62,16 +65,18 @@ function createPulsingIcon(speed, heading) {
   });
 }
 
-// GPS blue dot — with direction and speed indicators
-export function GpsLocationMarker({ location, accuracy }) {
+// GPS marker — color changes based on accuracy
+export function GpsLocationMarker({ location, accuracy, isLowAccuracy = false }) {
   if (!location) return null;
 
   const hasHeading = location.heading && location.heading !== 0;
   const hasSpeed = location.speed && location.speed > 0;
   
-  // Use special icon if we have heading or speed data
+  // Orange for low accuracy, blue for good accuracy
+  const markerColor = isLowAccuracy ? "#f59e0b" : "#2563eb";
+  
   const markerIcon = (hasHeading || hasSpeed)
-    ? createPulsingIcon(location.speed, location.heading)
+    ? createPulsingIcon(location.speed, location.heading, isLowAccuracy)
     : currentLocationIcon;
 
   // Calculate opacity based on accuracy
@@ -90,11 +95,12 @@ export function GpsLocationMarker({ location, accuracy }) {
           center={[location.lat, location.lng]}
           radius={accuracy}
           pathOptions={{
-            color: "#3b82f6",
-            fillColor: "#3b82f6",
+            color: markerColor,
+            fillColor: markerColor,
             fillOpacity: 0.06 * opacity,
             weight: 1.5,
             opacity: 0.4,
+            dashArray: isLowAccuracy ? "5, 5" : undefined, // Dashed circle for low accuracy
           }}
         />
       )}

@@ -12,6 +12,7 @@ export function useGeolocation() {
   const [accuracy, setAccuracy] = useState(null);  // accuracy in metres
   const [error, setError] = useState(null);
   const [lastPosition, setLastPosition] = useState(null);
+  const [isLowAccuracy, setIsLowAccuracy] = useState(false); // NEW: track low accuracy
   
   // Refs to track movement for filtering
   const watchIdRef = useRef(null);
@@ -98,10 +99,21 @@ export function useGeolocation() {
       // Reset error counter on success
       consecutiveErrorsRef.current = 0;
       
-      // Validate accuracy (ignore positions worse than 50 meters)
-      if (acc > 50) {
-        console.log(`[Geolocation] Poor accuracy (${acc}m), ignoring...`);
+      // UPDATED: Increased threshold for laptops (Wi-Fi positioning often 100-200m)
+      // Also track low accuracy status
+      if (acc > 200) {
+        console.log(`[Geolocation] Accuracy too poor (${acc}m), ignoring...`);
         return;
+      }
+      
+      // Set low accuracy flag for positions between 50-200m (laptop typical range)
+      const isLow = acc > 50;
+      setIsLowAccuracy(isLow);
+      
+      if (isLow) {
+        console.log(`[Geolocation] Using low accuracy position (${acc}m) - typical for laptop Wi-Fi positioning`);
+      } else {
+        console.log(`[Geolocation] Good accuracy (${acc}m) - likely GPS fix`);
       }
       
       // Check if movement is realistic
@@ -152,14 +164,15 @@ export function useGeolocation() {
         finalSpeed = distance / timeSeconds;
       }
       
-      // Update state
+      // Update state with low accuracy flag
       setLocation({
         lat: finalLat,
         lng: finalLng,
         heading: finalHeading,
         speed: finalSpeed,
         timestamp: timestamp,
-        rawAccuracy: acc
+        rawAccuracy: acc,
+        isLowAccuracy: isLow  // Add flag to location object
       });
       setAccuracy(Math.round(acc));
       setError(null);
@@ -192,5 +205,5 @@ export function useGeolocation() {
     };
   }, [calculateDistance, calculateHeading, isValidMovement, smoothPosition, lastPosition]);
 
-  return { location, accuracy, error };
+  return { location, accuracy, error, isLowAccuracy }; // NEW: export low accuracy flag
 }
