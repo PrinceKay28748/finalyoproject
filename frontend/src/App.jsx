@@ -44,8 +44,11 @@ export default function App() {
   const [activeProfile, setActiveProfile]     = useState("standard"); // routing profile
   const [lastLoggedRoute, setLastLoggedRoute] = useState(null); // prevent duplicate logging
   
-  // NEW: Route lock state - prevents map clicks from changing destination
+  // Route lock state - prevents map clicks from changing destination
   const [isRouteLocked, setIsRouteLocked] = useState(false);
+  
+  // NEW: Nav panel expansion state
+  const [isNavExpanded, setIsNavExpanded] = useState(false);
   
   // Custom location state (green pin)
   const [customStartPoint, setCustomStartPoint] = useState(null);
@@ -203,7 +206,7 @@ export default function App() {
     setHasAutoFilled(true);
   }
 
-  // NEW: Lock route when markers are visible and route exists
+  // Lock route when markers are visible and route exists
   useEffect(() => {
     if (markersVisible && primaryRoute && primaryRoute.coordinates?.length > 0) {
       setIsRouteLocked(true);
@@ -216,6 +219,11 @@ export default function App() {
   // Register legend collapse function
   const registerLegendCollapse = useCallback((collapseFn) => {
     legendCollapseRef.current = collapseFn;
+  }, []);
+
+  // Handle nav panel expand request
+  const handleNavExpandRequest = useCallback((expanded) => {
+    setIsNavExpanded(expanded);
   }, []);
 
   // Handle various actions
@@ -251,7 +259,7 @@ export default function App() {
     logSearch(destText, loc.name);
   };
 
-  // UPDATED: Map click handler - collapses legend when route is locked
+  // Map click handler - collapses legend when route is locked, expands nav when setting destination
   const handleMapClick = useCallback(async (latlng) => {
     // If route is locked, only collapse the legend (don't change destination)
     if (isRouteLocked) {
@@ -277,6 +285,8 @@ export default function App() {
       setDestPoint(loc);
       setDestText(name);
       setIsSharedLocation(false);
+      // Expand nav panel so user can click Directions
+      setIsNavExpanded(true);
       // Log map click as search
       logSearch(`Map click at ${latlng.lat}, ${latlng.lng}`, name);
     }
@@ -349,7 +359,7 @@ export default function App() {
     setIsSharedLocation(false);
   };
 
-  // UPDATED: Reset also unlocks the route
+  // Reset also unlocks the route and resets nav expansion
   const handleReset = () => {
     setDestPoint(null);
     setDestText("");
@@ -359,6 +369,7 @@ export default function App() {
     setCustomStartPoint(null);
     setIsSharedLocation(false);
     setIsRouteLocked(false);  // Unlock route on reset
+    setIsNavExpanded(false);   // Reset nav panel
     console.log("[App] Route unlocked - map clicks will work normally again");
     if (currentLocation) {
       setStartPoint(currentLocation);
@@ -442,6 +453,9 @@ export default function App() {
             onToggleDarkMode={() => setDarkMode((d) => !d)}
             activeProfile={activeProfile}
             onProfileChange={setActiveProfile}
+            // NEW PROPS for nav panel expansion
+            isExpanded={isNavExpanded}
+            onExpandRequest={handleNavExpandRequest}
           />
 
           <Suspense fallback={<MapLoader />}>
