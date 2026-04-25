@@ -1,5 +1,5 @@
 // components/Legend/Legend.jsx
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useImperativeHandle, forwardRef } from "react";
 import {
   IconMap,
   IconAccessibility,
@@ -111,7 +111,7 @@ const PROFILES = [
   { key: "fastest", icon: IconBolt, label: "Fastest", color: "#22c55e" },
 ];
 
-export default function Legend({
+const Legend = forwardRef(function Legend({
   startText,
   destText,
   visible,
@@ -124,7 +124,7 @@ export default function Legend({
   currentLocation,
   onExpandedChange,
   onProfileChange,
-}) {
+}, ref) {
   const [expanded, setExpanded] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
   const dragStartY = useRef(0);
@@ -134,6 +134,23 @@ export default function Legend({
   const lastDragTime = useRef(0);
   const sheetRef = useRef(null);
   const peekHeight = 70;
+
+  // Expose methods to parent component via ref
+  useImperativeHandle(ref, () => ({
+    collapse: () => {
+      if (expanded) {
+        console.log("[Legend] Collapsing legend via external call");
+        setExpanded(false);
+      }
+    },
+    expand: () => {
+      if (!expanded) {
+        console.log("[Legend] Expanding legend via external call");
+        setExpanded(true);
+      }
+    },
+    isExpanded: () => expanded,
+  }));
 
   useEffect(() => {
     onExpandedChange?.(expanded);
@@ -518,4 +535,6 @@ export default function Legend({
       )}
     </div>
   );
-}
+});
+
+export default Legend;

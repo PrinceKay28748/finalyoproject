@@ -1,7 +1,7 @@
 // components/Map/MapView.jsx
 import { MapContainer, useMap, Polyline } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import TileLayerSwitcher from "./TileLayerSwitcher";
 import SmoothFly         from "./SmoothFly";
@@ -105,9 +105,27 @@ export default function MapView({
   onMapClick,
   onCustomLocationDragEnd,
   onRecenter,
+  // NEW: Props from App.jsx
+  isRouteLocked = false,
+  registerLegendCollapse,
 }) {
   const showDestinationMarker = !!destPoint;
   const displayStartPoint = useCustomLocation && customStartPoint ? customStartPoint : startPoint;
+  
+  // Create ref for Legend component
+  const legendRef = useRef(null);
+
+  // Register the legend collapse function with parent (safe version)
+  useEffect(() => {
+    if (registerLegendCollapse && legendRef.current) {
+      registerLegendCollapse(() => legendRef.current?.collapse());
+    }
+    return () => {
+      if (registerLegendCollapse) {
+        registerLegendCollapse(null);
+      }
+    };
+  }, [registerLegendCollapse]);
 
   // Helper to get the map instance
   const getMap = () => {
@@ -296,8 +314,9 @@ export default function MapView({
         </div>
       )}
 
-      {/* Legend component */}
+      {/* Legend component with ref */}
       <Legend
+        ref={legendRef}
         startText={useCustomLocation && customStartPoint ? customStartPoint.name || "Custom location" : startText}
         destText={destText}
         visible={markersVisible}

@@ -1,5 +1,5 @@
 // App.jsx
-import { useState, useCallback, lazy, Suspense, useEffect } from "react";
+import { useState, useCallback, lazy, Suspense, useEffect, useRef } from "react";
 import AuthPage from "./components/Auth/AuthPage";
 import { useGeolocation }          from "./hooks/useGeolocation";
 import { useRealtimeRoutes, ROUTE_PROFILES } from "./hooks/useRealtimeRoutes";
@@ -44,6 +44,9 @@ export default function App() {
   const [activeProfile, setActiveProfile]     = useState("standard"); // routing profile
   const [lastLoggedRoute, setLastLoggedRoute] = useState(null); // prevent duplicate logging
   
+  // NEW: Route lock state - prevents map clicks from changing destination
+  const [isRouteLocked, setIsRouteLocked] = useState(false);
+  
   // Custom location state (green pin)
   const [customStartPoint, setCustomStartPoint] = useState(null);
   const [useCustomLocation, setUseCustomLocation] = useState(false);
@@ -57,6 +60,9 @@ export default function App() {
   // Graph object
   const [graph, setGraph] = useState(null);
   const [graphLoading, setGraphLoading] = useState(true);
+  
+  // Ref to store legend collapse function from child
+  const legendCollapseRef = useRef(null);
 
   // GPS location from the custom hook
   const { location: currentLocation, accuracy, error: locationError } = useGeolocation();
@@ -197,6 +203,21 @@ export default function App() {
     setHasAutoFilled(true);
   }
 
+  // NEW: Lock route when markers are visible and route exists
+  useEffect(() => {
+    if (markersVisible && primaryRoute && primaryRoute.coordinates?.length > 0) {
+      setIsRouteLocked(true);
+      console.log("[App] Route locked - map clicks will not change destination");
+    } else {
+      setIsRouteLocked(false);
+    }
+  }, [markersVisible, primaryRoute]);
+
+  // Register legend collapse function
+  const registerLegendCollapse = useCallback((collapseFn) => {
+    legendCollapseRef.current = collapseFn;
+  }, []);
+
   // Handle various actions
   const handleUseCurrentLocation = () => {
     if (!currentLocation) return;
@@ -230,7 +251,20 @@ export default function App() {
     logSearch(destText, loc.name);
   };
 
+  // UPDATED: Map click handler - collapses legend when route is locked
   const handleMapClick = useCallback(async (latlng) => {
+    // If route is locked, only collapse the legend (don't change destination)
+    if (isRouteLocked) {
+      console.log("[App] Route locked - collapsing legend, ignoring destination change");
+      // Collapse legend if it's expanded and we have a reference
+      if (isLegendExpanded && legendCollapseRef.current) {
+        legendCollapseRef.current();
+        setIsLegendExpanded(false);
+      }
+      return;
+    }
+    
+    // Normal behavior when route is not locked
     const name = await reverseGeocode(latlng.lat, latlng.lng);
     const loc = { lat: latlng.lat, lng: latlng.lng, name };
     if (waitingForStart) {
@@ -246,7 +280,7 @@ export default function App() {
       // Log map click as search
       logSearch(`Map click at ${latlng.lat}, ${latlng.lng}`, name);
     }
-  }, [waitingForStart]);
+  }, [waitingForStart, isRouteLocked, isLegendExpanded]);
 
   const handleCustomLocationDragEnd = useCallback(async (e) => {
     const { lat, lng } = e.target.getLatLng();
@@ -315,6 +349,7 @@ export default function App() {
     setIsSharedLocation(false);
   };
 
+  // UPDATED: Reset also unlocks the route
   const handleReset = () => {
     setDestPoint(null);
     setDestText("");
@@ -323,6 +358,8 @@ export default function App() {
     setUseCustomLocation(false);
     setCustomStartPoint(null);
     setIsSharedLocation(false);
+    setIsRouteLocked(false);  // Unlock route on reset
+    console.log("[App] Route unlocked - map clicks will work normally again");
     if (currentLocation) {
       setStartPoint(currentLocation);
       setStartText("My current location");
@@ -436,6 +473,8 @@ export default function App() {
               onMapClick={handleMapClick}
               onCustomLocationDragEnd={handleCustomLocationDragEnd}
               onRecenter={handleRecenter}
+              isRouteLocked={isRouteLocked}
+              registerLegendCollapse={registerLegendCollapse}
             />
           </Suspense>
         </div>
