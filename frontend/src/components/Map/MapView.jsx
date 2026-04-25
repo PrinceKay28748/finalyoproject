@@ -19,7 +19,7 @@ import "./MapView.css";
 // Import from a centralized source
 import { ROUTE_COLORS } from "../../function/utils/colors";
 
-// SmartFitBounds component (unchanged from your original)
+// SmartFitBounds component
 function SmartFitBounds({ startPoint, destPoint, visible }) {
   const map = useMap();
   
@@ -85,7 +85,6 @@ export default function MapView({
   startText,
   destText,
   markersVisible,
-  // New props for 4-route system
   primaryRoute,
   alternativeRoutes = [],
   allRoutes = null,
@@ -105,17 +104,14 @@ export default function MapView({
   onMapClick,
   onCustomLocationDragEnd,
   onRecenter,
-  // NEW: Props from App.jsx
   isRouteLocked = false,
   registerLegendCollapse,
 }) {
   const showDestinationMarker = !!destPoint;
   const displayStartPoint = useCustomLocation && customStartPoint ? customStartPoint : startPoint;
   
-  // Create ref for Legend component
   const legendRef = useRef(null);
 
-  // Register the legend collapse function with parent (safe version)
   useEffect(() => {
     if (registerLegendCollapse && legendRef.current) {
       registerLegendCollapse(() => legendRef.current?.collapse());
@@ -127,27 +123,14 @@ export default function MapView({
     };
   }, [registerLegendCollapse]);
 
-  // Helper to get the map instance
   const getMap = () => {
     const container = document.querySelector('.leaflet-container');
     return container?._leaflet_map;
   };
 
-  // Check if primary route is available
   const hasValidRoute = primaryRoute && primaryRoute.coordinates && primaryRoute.coordinates.length > 0;
 
-  // Debug: log routes rendering
-  useEffect(() => {
-    if (markersVisible) {
-      console.log("[MapView] Routes rendering:", {
-        hasValidRoute,
-        primaryRoute: primaryRoute ? `✓ ${primaryRoute.totalDistanceKm?.toFixed(2)}km (${primaryRoute.profile})` : "✗",
-        alternativeRoutes: alternativeRoutes?.length || 0,
-        alternatives: alternativeRoutes?.map(a => `${a.profile}(${a.route?.totalDistanceKm?.toFixed(2)}km)`) || [],
-        activeProfile
-      });
-    }
-  }, [markersVisible, hasValidRoute, primaryRoute, alternativeRoutes, activeProfile]);
+  // REMOVED: The spammy debug log
 
   return (
     <div className="map-wrap">
@@ -171,20 +154,17 @@ export default function MapView({
         />
         <MapClickHandler onMapClick={onMapClick} />
         
-        {/* GPS location dot with direction and speed */}
         <GpsLocationMarker
           location={currentLocation}
           accuracy={accuracy}
         />
         
-        {/* Draggable custom location marker */}
         <CustomLocationMarker
           location={customStartPoint}
           onDragEnd={onCustomLocationDragEnd}
           visible={useCustomLocation && !!customStartPoint}
         />
 
-        {/* ===== 4-ROUTE RENDERING WITH PROGRESS TRACKING ===== */}
         {markersVisible && hasValidRoute && (
           <RouteLayer
             route={primaryRoute}
@@ -195,7 +175,6 @@ export default function MapView({
           />
         )}
 
-        {/* Alternative routes — only show when navigation not active (no progress tracking on alternatives) */}
         {markersVisible && alternativeRoutes.length > 0 && !hasValidRoute && (
           <>
             {alternativeRoutes.map((alt, index) => {
@@ -220,10 +199,8 @@ export default function MapView({
           </>
         )}
 
-        {/* Fallback: show simple route if RouteLayer not used */}
         {markersVisible && hasValidRoute && (
           <>
-            {/* Alternative routes (faded) */}
             {alternativeRoutes.map((alt, index) => {
               const routeCoords = alt.route?.coordinates;
               if (!routeCoords || routeCoords.length === 0) return null;
@@ -246,7 +223,6 @@ export default function MapView({
           </>
         )}
 
-        {/* Markers */}
         <RouteMarkers
           startPoint={null}
           destPoint={destPoint}
@@ -262,7 +238,6 @@ export default function MapView({
         />
       </MapContainer>
 
-      {/* Custom zoom controls - right side */}
       <div className="map-zoom-controls">
         <button 
           className="map-zoom-btn map-zoom-in" 
@@ -288,7 +263,6 @@ export default function MapView({
         </button>
       </div>
 
-      {/* Recenter button - left side */}
       <button
         className="map-recenter-btn"
         onClick={onRecenter}
@@ -298,7 +272,6 @@ export default function MapView({
         🎯
       </button>
 
-      {/* Rerouting indicator - subtle, non-blocking */}
       {isRerouting && (
         <div className="rerouting-indicator">
           <div className="rerouting-spinner-small" />
@@ -306,7 +279,6 @@ export default function MapView({
         </div>
       )}
 
-      {/* Loading indicator */}
       {markersVisible && isRouting && !hasValidRoute && (
         <div className="route-loading">
           <div className="route-loading-spinner" />
@@ -314,7 +286,6 @@ export default function MapView({
         </div>
       )}
 
-      {/* Legend component with ref */}
       <Legend
         ref={legendRef}
         startText={useCustomLocation && customStartPoint ? customStartPoint.name || "Custom location" : startText}
@@ -330,7 +301,6 @@ export default function MapView({
         onExpandedChange={onLegendExpandedChange}
       />
 
-      {/* Tap hint */}
       {waitingForStart && (
         <div className="map-tap-hint map-tap-hint--start">
           📍 Tap to set start point
