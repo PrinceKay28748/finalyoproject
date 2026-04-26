@@ -1,8 +1,34 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { geocode } from "../../services/geocoding";
+import { geocode, searchLocal } from "../../services/geocoding";
 import { saveRecentSearch, getRecentSearches, clearRecentSearches } from "../../services/recentSearches";
 import "./SearchBox.css";
+
+// Type icon map — emoji + label per location category
+const TYPE_META = {
+  hall:          { icon: "🏠", label: "Hall" },
+  academic:      { icon: "🎓", label: "Academic" },
+  library:       { icon: "📚", label: "Library" },
+  gate:          { icon: "🚧", label: "Gate" },
+  health:        { icon: "🏥", label: "Health" },
+  admin:         { icon: "🏛️", label: "Admin" },
+  service:       { icon: "🔧", label: "Service" },
+  food:          { icon: "🍽️", label: "Food" },
+  sport:         { icon: "⚽", label: "Sport" },
+  worship:       { icon: "⛪", label: "Worship" },
+  research:      { icon: "🔬", label: "Research" },
+  landmark:      { icon: "📍", label: "Landmark" },
+  road:          { icon: "🛣️", label: "Road" },
+  commercial:    { icon: "🏪", label: "Commercial" },
+  accommodation: { icon: "🏨", label: "Stay" },
+  school:        { icon: "🏫", label: "School" },
+  place:         { icon: "📍", label: "Place" },
+};
+
+function getTypeMeta(type, source) {
+  if (source === "nominatim") return { icon: "🌍", label: "Place" };
+  return TYPE_META[type] || TYPE_META.place;
+}
 
 export default function PortalSearchBox({
   placeholder,
@@ -20,81 +46,115 @@ export default function PortalSearchBox({
   const [recentSearches, setRecentSearches] = useState([]);
   const [showAllRecent, setShowAllRecent] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
-  const debounceRef = useRef(null);
+
   const inputRef = useRef(null);
   const dropdownRef = useRef(null);
+  const debounceRef = useRef(null);
+  // useRef — not state — so debounce closures always read the current controller
+  const abortRef = useRef(null);
 
-  // Load recent searches
+  // ── Recent searches ──────────────────────────────────────────────────────────
   useEffect(() => {
     setRecentSearches(getRecentSearches());
-    
-    const handleUpdate = () => {
-      setRecentSearches(getRecentSearches());
-    };
-    window.addEventListener("recentSearchesUpdated", handleUpdate);
-    return () => window.removeEventListener("recentSearchesUpdated", handleUpdate);
+    const sync = () => setRecentSearches(getRecentSearches());
+    window.addEventListener("recentSearchesUpdated", sync);
+    return () => window.removeEventListener("recentSearchesUpdated", sync);
   }, []);
 
-  // Update dropdown position
-  const updatePosition = () => {
+  // ── Dropdown positioning ─────────────────────────────────────────────────────
+  const updatePosition = useCallback(() => {
     if (inputRef.current) {
       const rect = inputRef.current.getBoundingClientRect();
       setDropdownPosition({
         top: rect.bottom + window.scrollY + 8,
         left: rect.left + window.scrollX,
-        width: rect.width
+        width: rect.width,
       });
     }
-  };
+  }, []);
 
   useEffect(() => {
-    if (showDropdown) {
-      updatePosition();
-      window.addEventListener("scroll", updatePosition);
-      window.addEventListener("resize", updatePosition);
-    }
+    if (!showDropdown) return;
+    updatePosition();
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
     return () => {
-      window.removeEventListener("scroll", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
       window.removeEventListener("resize", updatePosition);
     };
-  }, [showDropdown]);
+  }, [showDropdown, updatePosition]);
 
-  const handleInputClick = () => {
-    setShowDropdown(true);
-    if (onFocus) onFocus();
-  };
+  // ── Cancel pending work ──────────────────────────────────────────────────────
+  const cancelPending = useCallback(() => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+  }, []);
 
+  useEffect(() => () => cancelPending(), [cancelPending]);
+
+  // ── Input change ─────────────────────────────────────────────────────────────
   const handleChange = (e) => {
     const val = e.target.value;
     onChange(val);
-    clearTimeout(debounceRef.current);
+    setShowDropdown(true);
+    cancelPending();
 
-    if (val.length < 1) {
-      setShowDropdown(true);
+    if (val.length < 2) {
       setSuggestions([]);
+      setLoading(false);
       return;
     }
 
-    setLoading(true);
+    // Local search — instant, zero network
+    const localResults = searchLocal(val);
+    setSuggestions(localResults);
+
+    // Strong local match — skip Nominatim entirely
+    if (localResults.length >= 3) {
+      setLoading(false);
+      return;
+    }
+
+    // Weak local match — show what we have, then top up from Nominatim in background
+    if (localResults.length === 0) setLoading(true);
+
     debounceRef.current = setTimeout(async () => {
+      const controller = new AbortController();
+      abortRef.current = controller;
+
       try {
-        const results = await geocode(val);
-        setSuggestions(results);
-        setShowDropdown(true);
-      } catch (error) {
-        setSuggestions([]);
+        const apiResults = await geocode(val, controller.signal);
+
+        // null = aborted by a newer keystroke — leave current suggestions untouched
+        if (apiResults === null) return;
+
+        const localNames = new Set(localResults.map((r) => r.name.toLowerCase()));
+        const fresh = apiResults.filter((r) => !localNames.has(r.name.toLowerCase()));
+        setSuggestions([...localResults, ...fresh].slice(0, 7));
+      } catch {
+        // silent — abort errors are handled inside geocode()
       } finally {
         setLoading(false);
+        abortRef.current = null;
       }
-    }, 350);
+    }, 500);
   };
 
+  // ── Select ───────────────────────────────────────────────────────────────────
   const handleSelect = (loc) => {
     onChange(loc.name);
     onSelect(loc);
     saveRecentSearch(loc);
     setRecentSearches(getRecentSearches());
+    setSuggestions([]);
     setShowDropdown(false);
+    cancelPending();
   };
 
   const handleClearAll = () => {
@@ -103,11 +163,18 @@ export default function PortalSearchBox({
     setShowAllRecent(false);
   };
 
-  // Close when clicking outside
+  const handleInputClick = () => {
+    setShowDropdown(true);
+    onFocus?.();
+  };
+
+  // ── Close on outside click ───────────────────────────────────────────────────
   useEffect(() => {
     const handler = (e) => {
-      if (inputRef.current && !inputRef.current.contains(e.target) &&
-          dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+      if (
+        inputRef.current && !inputRef.current.contains(e.target) &&
+        dropdownRef.current && !dropdownRef.current.contains(e.target)
+      ) {
         setShowDropdown(false);
       }
     };
@@ -117,28 +184,21 @@ export default function PortalSearchBox({
 
   const visibleRecent = showAllRecent ? recentSearches : recentSearches.slice(0, 5);
   const hasMoreRecent = recentSearches.length > 5;
+  const showRecents = value.length < 1 && recentSearches.length > 0;
+  const showSuggestions = suggestions.length > 0;
+  const showEmpty = !loading && !showSuggestions && value.length >= 3 && !showCurrentLocationOption;
 
-  // CSS classes for theming instead of inline styles
-  const dropdownClasses = `search-dropdown ${showDropdown ? "search-dropdown--visible" : ""}`;
+  const dropdownVisible =
+    showDropdown &&
+    (showCurrentLocationOption || showRecents || showSuggestions || loading || showEmpty);
 
   return (
-    <div className="portal-search-wrapper" style={{ position: "relative", width: "100%" }}>
-      {/* Input wrapper */}
-      <div className="portal-search-input-wrapper" style={{ position: "relative", width: "100%" }}>
+    <div className="portal-search-wrapper">
+      {/* Input */}
+      <div className="portal-search-input-wrapper">
         <div
           className="portal-search-dot"
-          style={{
-            position: "absolute",
-            left: "14px",
-            top: "50%",
-            transform: "translateY(-50%)",
-            width: "8px",
-            height: "8px",
-            borderRadius: "50%",
-            background: accentColor,
-            boxShadow: `0 0 6px ${accentColor}`,
-            zIndex: 1
-          }}
+          style={{ background: accentColor, boxShadow: `0 0 6px ${accentColor}` }}
         />
         <input
           ref={inputRef}
@@ -147,45 +207,20 @@ export default function PortalSearchBox({
           value={value}
           onChange={handleChange}
           onClick={handleInputClick}
+          onFocus={handleInputClick}
           className="portal-search-input"
-          style={{
-            width: "100%",
-            padding: "13px 44px 13px 32px",
-            borderRadius: "14px",
-            border: "1.5px solid var(--border)",
-            background: "var(--input-bg)",
-            color: "var(--text)",
-            fontSize: "14px",
-            fontFamily: "Outfit, sans-serif",
-            outline: "none",
-            boxSizing: "border-box",
-            backdropFilter: "blur(8px)",
-            transition: "border 0.2s, box-shadow 0.2s"
-          }}
-          onMouseEnter={(e) => (e.target.style.borderColor = accentColor)}
-          onMouseLeave={(e) => (e.target.style.borderColor = "")}
+          style={{ "--accent-color": accentColor }}
         />
         {loading && (
           <div
             className="portal-search-spinner"
-            style={{
-              position: "absolute",
-              right: "14px",
-              top: "50%",
-              transform: "translateY(-50%)",
-              width: "14px",
-              height: "14px",
-              border: `2px solid ${accentColor}`,
-              borderTopColor: "transparent",
-              borderRadius: "50%",
-              animation: "ugspin 0.7s linear infinite"
-            }}
+            style={{ borderColor: `${accentColor}40`, borderTopColor: accentColor }}
           />
         )}
       </div>
 
-      {/* Dropdown rendered at body level via Portal */}
-      {showDropdown && createPortal(
+      {/* Dropdown via portal — renders at body level to escape stacking contexts */}
+      {dropdownVisible && createPortal(
         <div
           ref={dropdownRef}
           className="portal-search-dropdown"
@@ -194,36 +229,35 @@ export default function PortalSearchBox({
             top: dropdownPosition.top,
             left: dropdownPosition.left,
             width: dropdownPosition.width,
-            background: "var(--drop-bg)",
-            border: "1px solid var(--border)",
-            borderRadius: "14px",
-            boxShadow: "0 12px 40px rgba(0, 0, 0, 0.12)",
             zIndex: 999999,
-            maxHeight: "320px",
-            overflowY: "auto",
-            overflowX: "hidden"
           }}
         >
+          {/* Current location */}
+          {showCurrentLocationOption && (
+            <div
+              className="search-dropdown-cl"
+              onMouseDown={(e) => { e.preventDefault(); onUseCurrentLocation(); setShowDropdown(false); }}
+            >
+              <div className="search-dropdown-cl-dot" />
+              Use my current location
+            </div>
+          )}
+
           {/* Recent searches */}
-          {value.length < 1 && recentSearches.length > 0 && (
+          {showRecents && (
             <>
               <div className="search-section-header">
                 <span>Recent</span>
-                <button className="search-clear-btn" onClick={handleClearAll}>
-                  Clear all
-                </button>
+                <button className="search-clear-btn" onClick={handleClearAll}>Clear all</button>
               </div>
               {visibleRecent.map((item, i) => (
                 <div
                   key={i}
                   className="search-dropdown-item"
-                  onClick={() => handleSelect({ name: item.name, lat: item.lat, lng: item.lng })}
+                  onMouseDown={(e) => { e.preventDefault(); handleSelect({ name: item.name, lat: item.lat, lng: item.lng }); }}
                 >
-                  <svg width="10" height="14" viewBox="0 0 12 16" fill="none">
-                    <path d="M6 0C2.686 0 0 2.686 0 6c0 4.5 6 10 6 10s6-5.5 6-10c0-3.314-2.686-6-6-6z" fill="#6b7280"/>
-                    <circle cx="6" cy="6" r="2" fill="white"/>
-                  </svg>
-                  <span>{item.name}</span>
+                  <span className="search-dropdown-type-icon">🕐</span>
+                  <span className="search-dropdown-name">{item.name}</span>
                 </div>
               ))}
               {hasMoreRecent && (
@@ -235,43 +269,51 @@ export default function PortalSearchBox({
             </>
           )}
 
-          {/* Current location option */}
-          {showCurrentLocationOption && (
-            <div
-              className="search-dropdown-cl"
-              onClick={() => { onUseCurrentLocation(); setShowDropdown(false); }}
-            >
-              <div className="search-dropdown-cl-dot" />
-              Use my current location
+          {/* Loading */}
+          {loading && !showSuggestions && (
+            <div className="search-dropdown-empty search-dropdown-loading">
+              <div
+                className="search-dropdown-spinner"
+                style={{ borderColor: `${accentColor}40`, borderTopColor: accentColor }}
+              />
+              Searching…
             </div>
           )}
 
-          {/* Loading */}
-          {loading && <div className="search-dropdown-empty">Searching...</div>}
-
           {/* Suggestions */}
-          {!loading && suggestions.length > 0 && (
+          {showSuggestions && (
             <>
-              {value.length >= 1 && <div className="search-section-header">Suggestions</div>}
-              {suggestions.map((loc, i) => (
-                <div
-                  key={i}
-                  className="search-dropdown-item"
-                  onClick={() => handleSelect(loc)}
-                >
-                  <svg width="10" height="14" viewBox="0 0 12 16" fill="none">
-                    <path d="M6 0C2.686 0 0 2.686 0 6c0 4.5 6 10 6 10s6-5.5 6-10c0-3.314-2.686-6-6-6z" fill={accentColor}/>
-                    <circle cx="6" cy="6" r="2" fill="white"/>
-                  </svg>
-                  <span>{loc.name}</span>
-                  {loc.dist > 0.5 && <span className="search-dropdown-dist">{loc.dist.toFixed(1)}km</span>}
-                </div>
-              ))}
+              <div className="search-section-header">
+                <span>Suggestions</span>
+                {loading && (
+                  <div
+                    className="search-section-spinner"
+                    style={{ borderColor: `${accentColor}40`, borderTopColor: accentColor }}
+                  />
+                )}
+              </div>
+              {suggestions.map((loc, i) => {
+                const meta = getTypeMeta(loc.type, loc.source);
+                return (
+                  <div
+                    key={`${loc.name}-${i}`}
+                    className="search-dropdown-item"
+                    onMouseDown={(e) => { e.preventDefault(); handleSelect(loc); }}
+                  >
+                    <span className="search-dropdown-type-icon" title={meta.label}>{meta.icon}</span>
+                    <span className="search-dropdown-name">{loc.name}</span>
+                    <span className="search-dropdown-tag">{meta.label}</span>
+                    {loc.dist > 0 && (
+                      <span className="search-dropdown-dist">{loc.dist.toFixed(1)} km</span>
+                    )}
+                  </div>
+                );
+              })}
             </>
           )}
 
           {/* No results */}
-          {!loading && suggestions.length === 0 && value.length >= 1 && !showCurrentLocationOption && (
+          {showEmpty && (
             <div className="search-dropdown-empty">No results — try a different name</div>
           )}
         </div>,
