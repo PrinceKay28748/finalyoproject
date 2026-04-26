@@ -71,7 +71,7 @@ export default function SearchBox({
     cancelPendingRequest();
     
     // If empty, show recent searches only
-    if (val.length < 2) {
+    if (val.length < 3) {
       setSuggestions([]);
       setLoading(false);
       setIsTyping(false);
@@ -99,7 +99,7 @@ export default function SearchBox({
       return;
     }
     
-    // Set longer debounce for better UX - 1000ms gives user time to type
+    // Set debounce to 300ms for fast but not overwhelming suggestions
     debounceRef.current = setTimeout(async () => {
       // Check if this is still the latest request (prevents stale responses)
       if (requestId !== lastRequestId) {
@@ -110,7 +110,7 @@ export default function SearchBox({
       }
       
       // Don't search if query is too short
-      if (val.length < 2) {
+      if (val.length < 3) {
         setSuggestions([]);
         setLoading(false);
         setIsTyping(false);
@@ -154,7 +154,7 @@ export default function SearchBox({
           setIsTyping(false);
         }
       }
-    }, 1000);
+    }, 300);
   };
 
   const handleSelect = (loc) => {
@@ -350,7 +350,7 @@ export default function SearchBox({
           )}
 
           {/* No results */}
-          {!loading && suggestions.length === 0 && value.length >= 2 && !showCurrentLocationOption && (
+          {!loading && suggestions.length === 0 && value.length >= 3 && !showCurrentLocationOption && (
             <div style={{ padding: "12px 16px", fontSize: "13px", color: "var(--sub)" }}>
               No results — try a different name
             </div>
