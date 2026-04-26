@@ -1,24 +1,30 @@
-.search-wrap {
+/* components/Search/SearchBox.css */
+
+/* ── Root wrapper ────────────────────────────────────────────────────────────── */
+.searchbox-root {
   position: relative;
   width: 100%;
 }
 
-.search-inner {
+/* ── Input wrapper ──────────────────────────────────────────────────────────── */
+.searchbox-input-wrap {
   position: relative;
-  display: flex;
-  align-items: center;
+  width: 100%;
 }
 
-.search-dot {
+.searchbox-accent-dot {
   position: absolute;
   left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
   width: 8px;
   height: 8px;
   border-radius: 50%;
+  z-index: 1;
   pointer-events: none;
 }
 
-.search-input {
+.searchbox-input {
   width: 100%;
   padding: 13px 44px 13px 32px;
   border-radius: 14px;
@@ -26,269 +32,298 @@
   background: var(--input-bg);
   color: var(--text);
   font-size: 14px;
-  font-family: "Outfit", sans-serif;
+  font-family: Outfit, sans-serif;
   outline: none;
   box-sizing: border-box;
   backdrop-filter: blur(8px);
-  transition: border 0.2s, box-shadow 0.2s;
+  -webkit-backdrop-filter: blur(8px);
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.search-input:focus {
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+.searchbox-input:focus {
+  border-color: var(--accent, #2563eb);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
 }
 
-.search-spinner {
+.searchbox-input:hover:not(:focus) {
+  border-color: var(--sub);
+}
+
+/* Spinner inside input (top-right) */
+.searchbox-spinner {
   position: absolute;
   right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
   width: 14px;
   height: 14px;
+  border: 2px solid transparent;
   border-radius: 50%;
-  border-top-color: transparent;
-  animation: ugspin 0.7s linear infinite;
+  animation: sb-spin 0.7s linear infinite;
+  pointer-events: none;
+  flex-shrink: 0;
 }
 
-/* Portal Search Dropdown Styles - solid backgrounds */
-.portal-search-dropdown {
-  background: #ffffff !important;
-  border: 1px solid #e5e7eb !important;
-  border-radius: 14px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-  overflow: hidden;
-  font-family: "Outfit", sans-serif;
+/* ── Dropdown ───────────────────────────────────────────────────────────────── */
+.searchbox-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: var(--drop-bg, var(--panel));
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.14);
+  z-index: 999999;
+  max-height: 340px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
 }
 
-/* Dark mode portal dropdown */
-.ug-root.dark .portal-search-dropdown {
-  background: #1f2937 !important;
-  border-color: #374151 !important;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
-  font-family: "Outfit", sans-serif;
-}
-
-/* Custom scrollbar for dropdown */
-.portal-search-dropdown::-webkit-scrollbar {
+.searchbox-dropdown::-webkit-scrollbar {
   width: 4px;
 }
-
-.portal-search-dropdown::-webkit-scrollbar-track {
+.searchbox-dropdown::-webkit-scrollbar-track {
   background: transparent;
 }
-
-.portal-search-dropdown::-webkit-scrollbar-thumb {
-  background: #d1d5db;
+.searchbox-dropdown::-webkit-scrollbar-thumb {
+  background: var(--border);
   border-radius: 4px;
 }
 
-.ug-root.dark .portal-search-dropdown::-webkit-scrollbar-thumb {
-  background: #4b5563;
+/* ── Current location row ───────────────────────────────────────────────────── */
+.searchbox-curr-loc {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--cl-option, rgba(37, 99, 235, 0.06));
+  border: none;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 600;
+  color: #2563eb;
+  cursor: pointer;
+  text-align: left;
+  font-family: Outfit, sans-serif;
+  transition: background 0.15s;
 }
 
-/* Dropdown sections */
-.portal-search-dropdown .search-section-header {
+.searchbox-curr-loc:hover {
+  background: rgba(37, 99, 235, 0.1);
+}
+
+.curr-loc-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #2563eb;
+  box-shadow: 0 0 6px #2563eb;
+  flex-shrink: 0;
+}
+
+/* ── Section header ─────────────────────────────────────────────────────────── */
+.searchbox-section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
+  padding: 8px 14px 6px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #6b7280;
-  border-bottom: 1px solid #e5e7eb;
-  background: #ffffff;
-  font-family: "Outfit", sans-serif;
+  color: var(--sub);
+  border-bottom: 1px solid var(--border);
 }
 
-.ug-root.dark .portal-search-dropdown .search-section-header {
-  color: #9ca3af;
-  border-bottom-color: #374151;
-  background: #1f2937;
-  font-family: "Outfit", sans-serif;
-}
-
-.portal-search-dropdown .search-clear-btn {
+.searchbox-clear-btn {
   background: none;
   border: none;
   font-size: 11px;
   color: #ef4444;
   cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 12px;
-  transition: background 0.2s;
-  font-family: "Outfit", sans-serif;
+  padding: 0;
+  font-family: Outfit, sans-serif;
+  font-weight: 600;
+  transition: opacity 0.15s;
 }
 
-.portal-search-dropdown .search-clear-btn:hover {
-  background: rgba(239, 68, 68, 0.1);
+.searchbox-clear-btn:hover {
+  opacity: 0.75;
 }
 
-.portal-search-dropdown .search-dropdown-item {
-  padding: 11px 16px;
-  cursor: pointer;
-  font-size: 13px;
-  font-family: "Outfit", sans-serif;
-  color: #111827;
+/* ── Each result row ────────────────────────────────────────────────────────── */
+.searchbox-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  border-bottom: 1px solid #e5e7eb;
-  transition: background 0.15s;
-  background: #ffffff;
+  width: 100%;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  text-align: left;
+  font-family: Outfit, sans-serif;
+  transition: background 0.12s;
 }
 
-.ug-root.dark .portal-search-dropdown .search-dropdown-item {
-  color: #f3f4f6;
-  border-bottom-color: #374151;
-  background: #1f2937;
-  font-family: "Outfit", sans-serif;
-}
-
-.portal-search-dropdown .search-dropdown-item:last-child {
+.searchbox-row:last-child {
   border-bottom: none;
 }
 
-.portal-search-dropdown .search-dropdown-item:hover {
-  background: #f3f4f6;
+.searchbox-row:hover {
+  background: var(--hover-row);
 }
 
-.ug-root.dark .portal-search-dropdown .search-dropdown-item:hover {
-  background: #374151;
+.searchbox-row:active {
+  background: var(--hover-row);
+  opacity: 0.85;
 }
 
-.portal-search-dropdown .search-dropdown-dist {
-  margin-left: auto;
-  font-size: 11px;
-  opacity: 0.5;
+.searchbox-row-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
-  color: #6b7280;
-  font-family: "Outfit", sans-serif;
 }
 
-.ug-root.dark .portal-search-dropdown .search-dropdown-dist {
-  color: #9ca3af;
-  font-family: "Outfit", sans-serif;
-}
-
-.portal-search-dropdown .search-dropdown-showmore {
-  padding: 8px 12px;
-  font-size: 12px;
-  color: #3b82f6;
-  cursor: pointer;
+.searchbox-row-emoji {
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+  width: 20px;
   text-align: center;
-  border-top: 1px solid #e5e7eb;
-  transition: background 0.2s;
-  background: #ffffff;
-  font-family: "Outfit", sans-serif;
 }
 
-.ug-root.dark .portal-search-dropdown .search-dropdown-showmore {
-  color: #60a5fa;
-  border-top-color: #374151;
-  background: #1f2937;
-  font-family: "Outfit", sans-serif;
+.searchbox-row-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
-.portal-search-dropdown .search-dropdown-showmore:hover {
-  background: #f3f4f6;
+.searchbox-row-tag {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--sub);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 2px 7px;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
-.ug-root.dark .portal-search-dropdown .search-dropdown-showmore:hover {
-  background: #374151;
+.searchbox-row-dist {
+  font-size: 11px;
+  color: var(--sub);
+  flex-shrink: 0;
+  opacity: 0.7;
 }
 
-.portal-search-dropdown .search-dropdown-divider {
-  height: 1px;
-  background: #e5e7eb;
-  margin: 6px 0;
-}
-
-.ug-root.dark .portal-search-dropdown .search-dropdown-divider {
-  background: #374151;
-}
-
-.portal-search-dropdown .search-dropdown-cl {
-  padding: 12px 16px;
+/* ── Show more / less ───────────────────────────────────────────────────────── */
+.searchbox-show-more {
+  display: block;
+  width: 100%;
+  padding: 8px 14px;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  color: #2563eb;
+  text-align: center;
   cursor: pointer;
+  font-family: Outfit, sans-serif;
+  transition: background 0.12s;
+}
+
+.searchbox-show-more:hover {
+  background: var(--hover-row);
+}
+
+/* ── Loading row (when no local results yet) ────────────────────────────────── */
+.searchbox-loading-row {
   display: flex;
   align-items: center;
   gap: 10px;
+  padding: 12px 16px;
   font-size: 13px;
-  font-family: "Outfit", sans-serif;
-  color: #3b82f6;
-  font-weight: 600;
-  background: #eff6ff;
-  transition: background 0.15s;
-  border-bottom: 1px solid #e5e7eb;
+  color: var(--sub);
+  font-family: Outfit, sans-serif;
 }
 
-.ug-root.dark .portal-search-dropdown .search-dropdown-cl {
-  color: #60a5fa;
-  background: #1e3a5f;
-  border-bottom-color: #374151;
-  font-family: "Outfit", sans-serif;
-}
-
-.portal-search-dropdown .search-dropdown-cl:hover {
-  background: #dbeafe;
-}
-
-.ug-root.dark .portal-search-dropdown .search-dropdown-cl:hover {
-  background: #1e4b6e;
-}
-
-.portal-search-dropdown .search-dropdown-cl-dot {
-  width: 10px;
-  height: 10px;
+/* Inline spinner (smaller, sits next to "Suggestions" header) */
+.searchbox-spinner-inline {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid transparent;
   border-radius: 50%;
-  background: #3b82f6;
-  box-shadow: 0 0 6px #3b82f6;
+  animation: sb-spin 0.7s linear infinite;
   flex-shrink: 0;
 }
 
-.portal-search-dropdown .search-dropdown-empty {
-  padding: 12px 16px;
+/* Tiny spinner in section header */
+.searchbox-spinner-xs {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid transparent;
+  border-radius: 50%;
+  animation: sb-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+/* ── Empty state ────────────────────────────────────────────────────────────── */
+.searchbox-empty {
+  padding: 14px 16px;
   font-size: 13px;
-  color: #6b7280;
-  font-family: "Outfit", sans-serif;
+  color: var(--sub);
   text-align: center;
-  background: #ffffff;
+  font-family: Outfit, sans-serif;
 }
 
-.ug-root.dark .portal-search-dropdown .search-dropdown-empty {
+/* ── Spin keyframe ──────────────────────────────────────────────────────────── */
+@keyframes sb-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Dark mode adjustments */
+.ug-root.dark .searchbox-input {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #f3f4f6;
+}
+
+.ug-root.dark .searchbox-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.ug-root.dark .searchbox-dropdown {
+  background: rgba(18, 18, 28, 0.98);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.ug-root.dark .searchbox-row-name {
+  color: #f3f4f6;
+}
+
+.ug-root.dark .searchbox-row-tag {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
   color: #9ca3af;
-  background: #1f2937;
-  font-family: "Outfit", sans-serif;
 }
 
-/* Search skeleton loading animation */
-.search-skeleton {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  margin-top: 8px;
-  background: var(--drop-bg);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 12px 16px;
-  z-index: 999998;
-  pointer-events: none;
-}
-
-.search-skeleton-line {
-  height: 14px;
-  background: linear-gradient(90deg, var(--border) 25%, var(--hover-bg) 50%, var(--border) 75%);
-  background-size: 200% 100%;
-  border-radius: 7px;
-  margin-bottom: 10px;
-  animation: skeleton-loading 1.5s infinite;
-}
-
-.search-skeleton-line:last-child {
-  margin-bottom: 0;
-}
-
-@keyframes skeleton-loading {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+.ug-root.dark .searchbox-row:hover {
+  background: rgba(255, 255, 255, 0.05);
 }

@@ -1,7 +1,44 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { geocode } from "../../services/geocoding";
+import { geocode, searchLocal } from "../../services/geocoding";
 import { saveRecentSearch, getRecentSearches, clearRecentSearches } from "../../services/recentSearches";
 import "./SearchBox.css";
+
+// ── Type icons ────────────────────────────────────────────────────────────────
+const TYPE_META = {
+  hall:          { icon: "🏠", label: "Hall" },
+  academic:      { icon: "🎓", label: "Academic" },
+  library:       { icon: "📚", label: "Library" },
+  gate:          { icon: "🚧", label: "Gate" },
+  health:        { icon: "🏥", label: "Health" },
+  admin:         { icon: "🏛️", label: "Admin" },
+  service:       { icon: "🔧", label: "Service" },
+  food:          { icon: "🍽️", label: "Food" },
+  sport:         { icon: "⚽", label: "Sport" },
+  worship:       { icon: "⛪", label: "Worship" },
+  research:      { icon: "🔬", label: "Research" },
+  landmark:      { icon: "📍", label: "Landmark" },
+  road:          { icon: "🛣️", label: "Road" },
+  commercial:    { icon: "🏪", label: "Commercial" },
+  accommodation: { icon: "🏨", label: "Stay" },
+  school:        { icon: "🏫", label: "School" },
+  place:         { icon: "📍", label: "Place" },
+  nominatim:     { icon: "🌍", label: "Place" },
+};
+
+function getTypeMeta(type, source) {
+  if (source === "nominatim" && !TYPE_META[type]) return TYPE_META.nominatim;
+  return TYPE_META[type] || TYPE_META.place;
+}
+
+// Pin SVG used for recent searches
+function PinIcon({ color = "#6b7280" }) {
+  return (
+    <svg width="10" height="14" viewBox="0 0 12 16" fill="none">
+      <path d="M6 0C2.686 0 0 2.686 0 6c0 4.5 6 10 6 10s6-5.5 6-10c0-3.314-2.686-6-6-6z" fill={color} />
+      <circle cx="6" cy="6" r="2" fill="white" />
+    </svg>
+  );
+}
 
 export default function SearchBox({
   placeholder,
@@ -18,155 +55,100 @@ export default function SearchBox({
   const [showDropdown, setShowDropdown] = useState(false);
   const [recentSearches, setRecentSearches] = useState([]);
   const [showAllRecent, setShowAllRecent] = useState(false);
-  const [isTyping, setIsTyping] = useState(false);
-  const [lastRequestId, setLastRequestId] = useState(0);
-  
-  const debounceRef = useRef(null);
+
   const inputRef = useRef(null);
   const dropdownRef = useRef(null);
-  const abortControllerRef = useRef(null);
-  const lastQueryRef = useRef("");
-  const cacheRef = useRef(new Map());
+  const debounceRef = useRef(null);
+  // useRef for abort controller — not state, so closures always see the latest value
+  const abortRef = useRef(null);
 
-  // Load recent searches
+  // ── Recent searches ─────────────────────────────────────────────────────────
   useEffect(() => {
     setRecentSearches(getRecentSearches());
-    
-    const handleUpdate = () => {
-      setRecentSearches(getRecentSearches());
-    };
-    window.addEventListener("recentSearchesUpdated", handleUpdate);
-    return () => window.removeEventListener("recentSearchesUpdated", handleUpdate);
+    const sync = () => setRecentSearches(getRecentSearches());
+    window.addEventListener("recentSearchesUpdated", sync);
+    return () => window.removeEventListener("recentSearchesUpdated", sync);
   }, []);
 
-  // Cancel pending requests
-  const cancelPendingRequest = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
+  // ── Cancel pending Nominatim request ────────────────────────────────────────
+  const cancelPending = useCallback(() => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
     }
-  }, []);
-
-  // Clear debounce timeout
-  const clearDebounce = useCallback(() => {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
       debounceRef.current = null;
     }
   }, []);
 
-  const handleInputClick = () => {
-    setShowDropdown(true);
-    if (onFocus) onFocus();
-  };
-
+  // ── Input change handler ─────────────────────────────────────────────────────
   const handleChange = (e) => {
     const val = e.target.value;
     onChange(val);
-    
-    // Clear previous debounce
-    clearDebounce();
-    
-    // Cancel any pending API request
-    cancelPendingRequest();
-    
-    // If empty, show recent searches only
-    if (val.length < 3) {
+    setShowDropdown(true);
+
+    // Cancel any in-flight Nominatim request and pending debounce
+    cancelPending();
+
+    if (val.length < 2) {
       setSuggestions([]);
       setLoading(false);
-      setIsTyping(false);
-      setShowDropdown(true);
-      lastQueryRef.current = "";
       return;
     }
-    
-    // Generate unique request ID for this typing session
-    const requestId = Date.now();
-    setLastRequestId(requestId);
-    
-    // Show loading state
-    setIsTyping(true);
-    setLoading(true);
-    setShowDropdown(true);
-    
-    // Check cache first (results for same query)
-    if (cacheRef.current.has(val)) {
-      console.log(`[Search] Cache hit for "${val}"`);
-      setSuggestions(cacheRef.current.get(val));
+
+    // Local search fires immediately — no debounce, no API, no flicker
+    const localResults = searchLocal(val);
+    setSuggestions(localResults);
+
+    // If local results are strong (3+), don't bother Nominatim at all
+    if (localResults.length >= 3) {
       setLoading(false);
-      setIsTyping(false);
-      lastQueryRef.current = val;
       return;
     }
-    
-    // Set debounce to 300ms for fast but not overwhelming suggestions
+
+    // For weak or empty local results, show what we have and queue Nominatim
+    // as a background top-up. Loading indicator only shows if local gave nothing.
+    if (localResults.length === 0) {
+      setLoading(true);
+    }
+
     debounceRef.current = setTimeout(async () => {
-      // Check if this is still the latest request (prevents stale responses)
-      if (requestId !== lastRequestId) {
-        console.log(`[Search] Skipping stale request ${requestId}`);
-        setLoading(false);
-        setIsTyping(false);
-        return;
-      }
-      
-      // Don't search if query is too short
-      if (val.length < 3) {
-        setSuggestions([]);
-        setLoading(false);
-        setIsTyping(false);
-        return;
-      }
-      
-      // Skip if same as last query (prevents duplicate requests)
-      if (lastQueryRef.current === val) {
-        setLoading(false);
-        setIsTyping(false);
-        return;
-      }
-      
-      lastQueryRef.current = val;
-      
+      // Create a fresh AbortController for this specific request
+      const controller = new AbortController();
+      abortRef.current = controller;
+
       try {
-        console.log(`[Search] Fetching results for "${val}"`);
-        const results = await geocode(val);
-        
-        // Only update if this is still the latest request
-        if (requestId === lastRequestId) {
-          // Cache results
-          cacheRef.current.set(val, results);
-          
-          // Limit cache size to 50 items
-          if (cacheRef.current.size > 50) {
-            const firstKey = cacheRef.current.keys().next().value;
-            cacheRef.current.delete(firstKey);
-          }
-          
-          setSuggestions(results);
-        }
-      } catch (error) {
-        console.error("[Search] Error:", error);
-        if (requestId === lastRequestId) {
-          setSuggestions([]);
-        }
+        const apiResults = await geocode(val, controller.signal);
+
+        // null means the request was aborted — don't update anything
+        if (apiResults === null) return;
+
+        // Merge: put local results first, then Nominatim results that aren't duplicates
+        const localNames = new Set(localResults.map((r) => r.name.toLowerCase()));
+        const fresh = apiResults.filter(
+          (r) => !localNames.has(r.name.toLowerCase())
+        );
+
+        setSuggestions([...localResults, ...fresh].slice(0, 7));
+      } catch {
+        // Swallow — AbortError handled inside geocode(), other errors are silent
       } finally {
-        if (requestId === lastRequestId) {
-          setLoading(false);
-          setIsTyping(false);
-        }
+        setLoading(false);
+        abortRef.current = null;
       }
-    }, 300);
+    }, 500); // 500ms — fast enough to feel live, slow enough to avoid 429s
   };
 
+  // ── Select a suggestion ──────────────────────────────────────────────────────
   const handleSelect = (loc) => {
     onChange(loc.name);
     onSelect(loc);
     saveRecentSearch(loc);
     setRecentSearches(getRecentSearches());
+    setSuggestions([]);
     setShowDropdown(false);
-    
-    // Clear pending requests
-    clearDebounce();
-    cancelPendingRequest();
+    cancelPending();
   };
 
   const handleClearAll = () => {
@@ -175,11 +157,18 @@ export default function SearchBox({
     setShowAllRecent(false);
   };
 
-  // Close when clicking outside
+  const handleInputClick = () => {
+    setShowDropdown(true);
+    onFocus?.();
+  };
+
+  // ── Close on outside click ───────────────────────────────────────────────────
   useEffect(() => {
     const handler = (e) => {
-      if (inputRef.current && !inputRef.current.contains(e.target) &&
-          dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+      if (
+        inputRef.current && !inputRef.current.contains(e.target) &&
+        dropdownRef.current && !dropdownRef.current.contains(e.target)
+      ) {
         setShowDropdown(false);
       }
     };
@@ -187,35 +176,26 @@ export default function SearchBox({
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      clearDebounce();
-      cancelPendingRequest();
-    };
-  }, [clearDebounce, cancelPendingRequest]);
+  // ── Cleanup on unmount ───────────────────────────────────────────────────────
+  useEffect(() => () => cancelPending(), [cancelPending]);
 
   const visibleRecent = showAllRecent ? recentSearches : recentSearches.slice(0, 5);
   const hasMoreRecent = recentSearches.length > 5;
 
+  // What to show in the dropdown
+  const showRecents = value.length < 1 && recentSearches.length > 0;
+  const showSuggestions = suggestions.length > 0;
+  const showEmpty = !loading && !showSuggestions && value.length >= 3 && !showCurrentLocationOption;
+
+  const dropdownVisible =
+    showDropdown &&
+    (showCurrentLocationOption || showRecents || showSuggestions || loading || showEmpty);
+
   return (
-    <div style={{ position: "relative", width: "100%" }}>
-      {/* Input wrapper */}
-      <div style={{ position: "relative", width: "100%" }}>
-        <div
-          style={{
-            position: "absolute",
-            left: "14px",
-            top: "50%",
-            transform: "translateY(-50%)",
-            width: "8px",
-            height: "8px",
-            borderRadius: "50%",
-            background: accentColor,
-            boxShadow: `0 0 6px ${accentColor}`,
-            zIndex: 1
-          }}
-        />
+    <div className="searchbox-root">
+      {/* Input */}
+      <div className="searchbox-input-wrap">
+        <span className="searchbox-accent-dot" style={{ background: accentColor, boxShadow: `0 0 6px ${accentColor}` }} />
         <input
           ref={inputRef}
           type="text"
@@ -223,137 +203,94 @@ export default function SearchBox({
           value={value}
           onChange={handleChange}
           onClick={handleInputClick}
-          style={{
-            width: "100%",
-            padding: "13px 44px 13px 32px",
-            borderRadius: "14px",
-            border: "1.5px solid var(--border)",
-            background: "var(--input-bg)",
-            color: "var(--text)",
-            fontSize: "14px",
-            fontFamily: "Outfit, sans-serif",
-            outline: "none",
-            boxSizing: "border-box",
-            backdropFilter: "blur(8px)",
-            transition: "border 0.2s, box-shadow 0.2s"
-          }}
-          onMouseEnter={(e) => (e.target.style.borderColor = accentColor)}
-          onMouseLeave={(e) => (e.target.style.borderColor = "")}
+          className="searchbox-input"
+          onFocus={handleInputClick}
         />
         {loading && (
-          <div
-            style={{
-              position: "absolute",
-              right: "14px",
-              top: "50%",
-              transform: "translateY(-50%)",
-              width: "14px",
-              height: "14px",
-              border: `2px solid ${accentColor}`,
-              borderTopColor: "transparent",
-              borderRadius: "50%",
-              animation: "ugspin 0.7s linear infinite"
-            }}
-          />
+          <span className="searchbox-spinner" style={{ borderColor: `${accentColor}40`, borderTopColor: accentColor }} />
         )}
       </div>
 
       {/* Dropdown */}
-      {showDropdown && (
-        <div
-          ref={dropdownRef}
-          style={{
-            position: "absolute",
-            top: "100%",
-            left: 0,
-            right: 0,
-            marginTop: "8px",
-            background: "var(--drop-bg)",
-            border: "1px solid var(--border)",
-            borderRadius: "14px",
-            boxShadow: "0 12px 40px rgba(0, 0, 0, 0.12)",
-            zIndex: 999999,
-            maxHeight: "320px",
-            overflowY: "auto"
-          }}
-        >
+      {dropdownVisible && (
+        <div ref={dropdownRef} className="searchbox-dropdown">
+
+          {/* Current location */}
+          {showCurrentLocationOption && (
+            <button
+              className="searchbox-curr-loc"
+              onMouseDown={(e) => { e.preventDefault(); onUseCurrentLocation(); setShowDropdown(false); }}
+            >
+              <span className="curr-loc-dot" />
+              Use my current location
+            </button>
+          )}
+
           {/* Recent searches */}
-          {value.length < 1 && recentSearches.length > 0 && (
-            <>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", borderBottom: "1px solid var(--border)" }}>
+          {showRecents && (
+            <div className="searchbox-section">
+              <div className="searchbox-section-header">
                 <span>Recent</span>
-                <button onClick={handleClearAll} style={{ background: "none", border: "none", fontSize: "11px", color: "#ef4444", cursor: "pointer" }}>Clear all</button>
+                <button className="searchbox-clear-btn" onClick={handleClearAll}>Clear all</button>
               </div>
               {visibleRecent.map((item, i) => (
-                <div
+                <button
                   key={i}
-                  onClick={() => handleSelect({ name: item.name, lat: item.lat, lng: item.lng })}
-                  style={{ padding: "11px 16px", cursor: "pointer", fontSize: "13px", color: "var(--text)", display: "flex", alignItems: "center", gap: "10px", borderBottom: "1px solid var(--border)" }}
-                  onMouseEnter={(e) => (e.target.style.background = "var(--hover-row)")}
-                  onMouseLeave={(e) => (e.target.style.background = "transparent")}
+                  className="searchbox-row"
+                  onMouseDown={(e) => { e.preventDefault(); handleSelect({ name: item.name, lat: item.lat, lng: item.lng }); }}
                 >
-                  <svg width="10" height="14" viewBox="0 0 12 16" fill="none"><path d="M6 0C2.686 0 0 2.686 0 6c0 4.5 6 10 6 10s6-5.5 6-10c0-3.314-2.686-6-6-6z" fill="#6b7280"/><circle cx="6" cy="6" r="2" fill="white"/></svg>
-                  <span>{item.name}</span>
-                </div>
+                  <span className="searchbox-row-icon"><PinIcon color="#6b7280" /></span>
+                  <span className="searchbox-row-name">{item.name}</span>
+                </button>
               ))}
               {hasMoreRecent && (
-                <div onClick={() => setShowAllRecent(!showAllRecent)} style={{ padding: "8px 12px", fontSize: "12px", color: "#2563eb", textAlign: "center", cursor: "pointer", borderTop: "1px solid var(--border)" }}>
+                <button className="searchbox-show-more" onClick={() => setShowAllRecent(!showAllRecent)}>
                   {showAllRecent ? "Show less" : `Show ${recentSearches.length - 5} more`}
-                </div>
+                </button>
               )}
-              <div style={{ height: "1px", background: "var(--border)", margin: "6px 0" }} />
-            </>
-          )}
-
-          {/* Current location option */}
-          {showCurrentLocationOption && (
-            <div
-              onClick={() => { onUseCurrentLocation(); setShowDropdown(false); }}
-              style={{ padding: "12px 16px", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", fontWeight: 600, color: "#2563eb", background: "var(--cl-option)" }}
-            >
-              <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#2563eb", boxShadow: "0 0 6px #2563eb" }} />
-              Use my current location
             </div>
           )}
 
-          {/* Loading indicator with message */}
-          {loading && (
-            <div style={{ padding: "12px 16px", fontSize: "13px", color: "var(--sub)", display: "flex", alignItems: "center", gap: "10px" }}>
-              <div style={{ width: "14px", height: "14px", border: "2px solid var(--border)", borderTopColor: accentColor, borderRadius: "50%", animation: "ugspin 0.7s linear infinite" }} />
-              Searching...
+          {/* Loading skeleton */}
+          {loading && !showSuggestions && (
+            <div className="searchbox-loading-row">
+              <span className="searchbox-spinner-inline" style={{ borderColor: `${accentColor}40`, borderTopColor: accentColor }} />
+              <span>Searching…</span>
             </div>
           )}
 
-          {/* Suggestions - show even while typing (no flashing) */}
-          {!loading && suggestions.length > 0 && (
-            <>
-              <div style={{ padding: "8px 12px", fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", borderBottom: "1px solid var(--border)" }}>
-                {isTyping ? "Suggestions (keep typing for more)" : "Suggestions"}
+          {/* Suggestions */}
+          {showSuggestions && (
+            <div className="searchbox-section">
+              <div className="searchbox-section-header">
+                <span>Suggestions</span>
+                {loading && (
+                  <span className="searchbox-spinner-xs" style={{ borderColor: `${accentColor}40`, borderTopColor: accentColor }} />
+                )}
               </div>
-              {suggestions.slice(0, 7).map((loc, i) => (
-                <div
-                  key={`${loc.name}-${i}`}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    handleSelect(loc);
-                  }}
-                  style={{ padding: "11px 16px", cursor: "pointer", fontSize: "13px", color: "var(--text)", display: "flex", alignItems: "center", gap: "10px", borderBottom: "1px solid var(--border)" }}
-                  onMouseEnter={(e) => (e.target.style.background = "var(--hover-row)")}
-                  onMouseLeave={(e) => (e.target.style.background = "transparent")}
-                >
-                  <svg width="10" height="14" viewBox="0 0 12 16" fill="none"><path d="M6 0C2.686 0 0 2.686 0 6c0 4.5 6 10 6 10s6-5.5 6-10c0-3.314-2.686-6-6-6z" fill={accentColor}/><circle cx="6" cy="6" r="2" fill="white"/></svg>
-                  <span>{loc.name}</span>
-                  {loc.dist > 0.5 && <span style={{ marginLeft: "auto", fontSize: "11px", opacity: 0.5 }}>{loc.dist.toFixed(1)}km</span>}
-                </div>
-              ))}
-            </>
+              {suggestions.map((loc, i) => {
+                const meta = getTypeMeta(loc.type, loc.source);
+                return (
+                  <button
+                    key={`${loc.name}-${i}`}
+                    className="searchbox-row"
+                    onMouseDown={(e) => { e.preventDefault(); handleSelect(loc); }}
+                  >
+                    <span className="searchbox-row-emoji" title={meta.label}>{meta.icon}</span>
+                    <span className="searchbox-row-name">{loc.name}</span>
+                    <span className="searchbox-row-tag">{meta.label}</span>
+                    {loc.dist > 0 && (
+                      <span className="searchbox-row-dist">{loc.dist.toFixed(1)} km</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           )}
 
           {/* No results */}
-          {!loading && suggestions.length === 0 && value.length >= 3 && !showCurrentLocationOption && (
-            <div style={{ padding: "12px 16px", fontSize: "13px", color: "var(--sub)" }}>
-              No results — try a different name
-            </div>
+          {showEmpty && (
+            <div className="searchbox-empty">No results — try a different name</div>
           )}
         </div>
       )}
