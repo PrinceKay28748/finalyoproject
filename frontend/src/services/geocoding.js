@@ -1,14 +1,11 @@
 // services/geocoding.js
-// Uses backend proxy to avoid CORS issues
+// Simplified version - calls Nominatim directly
 
 import { UG_CENTER } from "../function/utils/bounds";
 import { distanceKm } from "../function/utils/distance";
-import { API_URL } from '../config';
 
-// Use backend proxy in production, direct in development (Vite proxy handles it)
-const NOMINATIM_BASE = import.meta.env.DEV
-  ? '/api/nominatim'
-  : `${API_URL}/api/nominatim`;
+// Direct Nominatim URL (no proxy)
+const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
 
 // Simple cache
 const cache = new Map();
@@ -30,13 +27,14 @@ export async function geocode(query) {
     const { lat, lng } = UG_CENTER;
     const cleanQuery = encodeURIComponent(query.trim());
     
-    // Use backend proxy URL
-    const url = `${NOMINATIM_BASE}/search?q=${cleanQuery}&format=json&limit=8&countrycodes=gh&addressdetails=1&lat=${lat}&lon=${lng}`;
+    // Single request to Nominatim
+    const url = `${NOMINATIM_BASE}/search?q=${cleanQuery}&format=json&limit=8&countrycodes=gh&addressdetails=1`;
     
     console.log(`[geocode] Fetching: ${url}`);
     
     const response = await fetch(url, {
       headers: {
+        'User-Agent': 'UGNavigator/1.0 (https://ugnavigator.onrender.com)',
         'Accept': 'application/json'
       }
     });
@@ -81,9 +79,9 @@ export async function geocode(query) {
 export async function reverseGeocode(lat, lng) {
   try {
     const url = `${NOMINATIM_BASE}/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`;
-    
     const response = await fetch(url, {
       headers: {
+        'User-Agent': 'UGNavigator/1.0 (https://ugnavigator.onrender.com)',
         'Accept': 'application/json'
       }
     });
