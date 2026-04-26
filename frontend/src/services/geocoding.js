@@ -1,16 +1,56 @@
 // services/geocoding.js
-// Uses backend proxy + local campus locations first (name-only, no coordinates)
+// Handles geocoding with Nominatim proxy and in-memory cache
 
 import { UG_CENTER } from "../function/utils/bounds";
 import { distanceKm } from "../function/utils/distance";
 import { API_URL } from '../config';
-import ugLocations from "../data/ug-locations.json";
 
 const NOMINATIM_BASE = import.meta.env.DEV
   ? '/api/nominatim'
   : `${API_URL}/api/nominatim`;
 
-const cache = new Map();
+// Cache for search results
+const searchCache = new Map();
+
+// Cache for resolved coordinates
+const coordinateCache = new Map();
+
+// Campus locations for local search (names only, no coordinates)
+const CAMPUS_LOCATIONS = [
+  "Balme Library",
+  "Jones Quartey Building (JQB)",
+  "JQB",
+  "Mensah Sarbah Hall",
+  "Akuafo Hall",
+  "Commonwealth Hall",
+  "Volta Hall",
+  "Legon Hall",
+  "UG Stadium",
+  "School of Engineering",
+  "School of Law",
+  "University of Ghana Business School",
+  "UGBS",
+  "Department of Mathematics",
+  "Department of Computer Science",
+  "Department of Economics",
+  "Department of Psychology",
+  "UG Post Office",
+  "UG Medical Centre",
+  "Night Market",
+  "Onyaa Road",
+  "Nsia Road",
+  "Akuafo Road",
+  "E.A. Boateng Road",
+  "Ivan Addae Mensah Intersection",
+  "University of Ghana Basic School",
+  "Legon Presec",
+  "Legon Mosque",
+  "Legon Chapel",
+  "Jim Hall",
+  "Central Cafeteria",
+  "UG Guest Centre",
+  "University Bookshop"
+];
 
 // Fuzzy match helper
 function matchesQuery(query, text) {
@@ -20,32 +60,77 @@ function matchesQuery(query, text) {
   return t.includes(q) || q.includes(t);
 }
 
-// Search local UG locations - NAME ONLY (no coordinates)
-// Return just the name, let Nominatim provide the actual coordinates
-function searchLocalLocations(query) {
+// Search local campus names
+function searchLocalCampus(query) {
   if (!query || query.trim().length < 2) return [];
   
   const cleanQuery = query.trim().toLowerCase();
   
-  const matches = ugLocations.locations
-    .filter(loc => {
-      if (matchesQuery(cleanQuery, loc.name)) return true;
-      if (loc.keywords && loc.keywords.some(kw => matchesQuery(cleanQuery, kw))) return true;
-      return false;
-    })
-    .map(loc => ({
-      name: loc.name,
-      type: loc.type,
-      source: "local",
-      // No lat/lng - will be filled by Nominatim when selected
+  const matches = CAMPUS_LOCATIONS
+    .filter(name => matchesQuery(cleanQuery, name))
+    .map(name => ({
+      name: name,
+      source: "local"
     }))
     .slice(0, 5);
   
   if (matches.length > 0) {
-    console.log(`[geocode] Local name match: ${matches.length} results for "${query}"`);
+    console.log(`[geocode] Local match: ${matches.length} results for "${query}"`);
   }
   
   return matches;
+}
+
+// Resolve a local location name to coordinates
+export async function resolveLocalLocation(locationName) {
+  // Check cache first
+  if (coordinateCache.has(locationName)) {
+    console.log(`[resolve] Cache hit: ${locationName}`);
+    return coordinateCache.get(locationName);
+  }
+  
+  try {
+    const cleanName = encodeURIComponent(locationName);
+    const { lat, lng } = UG_CENTER;
+    const url = `${NOMINATIM_BASE}/search?q=${cleanName}&format=json&limit=1&countrycodes=gh&addressdetails=1&lat=${lat}&lon=${lng}`;
+    
+    console.log(`[resolve] Fetching coordinates for: ${locationName}`);
+    
+    const response = await fetch(url, {
+      headers: { 'Accept': 'application/json' }
+    });
+    
+    if (!response.ok) {
+      console.error(`[resolve] HTTP ${response.status}`);
+      return null;
+    }
+    
+    const results = await response.json();
+    
+    if (!results || results.length === 0) {
+      return null;
+    }
+    
+    const resolved = {
+      name: locationName,
+      lat: parseFloat(results[0].lat),
+      lng: parseFloat(results[0].lon),
+      source: "resolved"
+    };
+    
+    coordinateCache.set(locationName, resolved);
+    
+    // Limit cache size
+    if (coordinateCache.size > 200) {
+      const firstKey = coordinateCache.keys().next().value;
+      coordinateCache.delete(firstKey);
+    }
+    
+    return resolved;
+  } catch (error) {
+    console.error("[resolve] Error:", error);
+    return null;
+  }
 }
 
 export async function geocode(query) {
@@ -55,30 +140,30 @@ export async function geocode(query) {
 
   const normalizedQuery = query.trim().toLowerCase();
   
-  // Check cache
-  if (cache.has(normalizedQuery)) {
+  // Check search cache
+  if (searchCache.has(normalizedQuery)) {
     console.log(`[geocode] Cache hit: "${normalizedQuery}"`);
-    return cache.get(normalizedQuery);
+    return searchCache.get(normalizedQuery);
   }
   
-  // FIRST: Search local UG locations by name only
-  const localResults = searchLocalLocations(query);
+  // FIRST: Search local campus names (no API call)
+  const localResults = searchLocalCampus(query);
   
-  // If we have ANY local matches, return them immediately (NO API CALL)
+  // If we have local matches, return them immediately
   if (localResults.length > 0) {
-    console.log(`[geocode] Returning ${localResults.length} local results, skipping Nominatim`);
-    cache.set(normalizedQuery, localResults);
+    console.log(`[geocode] Returning ${localResults.length} local results`);
+    searchCache.set(normalizedQuery, localResults);
     return localResults;
   }
 
-  // SECOND: Only hit Nominatim if no local matches found
+  // SECOND: Hit Nominatim API
   try {
     const { lat, lng } = UG_CENTER;
     const cleanQuery = encodeURIComponent(query.trim());
     
     const url = `${NOMINATIM_BASE}/search?q=${cleanQuery}&format=json&limit=5&countrycodes=gh&addressdetails=1&lat=${lat}&lon=${lng}`;
     
-    console.log(`[geocode] No local match, fetching from Nominatim`);
+    console.log(`[geocode] Fetching from Nominatim`);
     
     const response = await fetch(url, {
       headers: { 'Accept': 'application/json' }
@@ -106,11 +191,12 @@ export async function geocode(query) {
       .sort((a, b) => a.dist - b.dist)
       .slice(0, 5);
     
-    cache.set(normalizedQuery, formatted);
+    searchCache.set(normalizedQuery, formatted);
     
-    if (cache.size > 100) {
-      const firstKey = cache.keys().next().value;
-      cache.delete(firstKey);
+    // Limit cache size
+    if (searchCache.size > 100) {
+      const firstKey = searchCache.keys().next().value;
+      searchCache.delete(firstKey);
     }
     
     return formatted;
