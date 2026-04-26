@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { geocode, resolveLocalLocation } from "../../services/geocoding";
+import { geocode } from "../../services/geocoding";
 import { saveRecentSearch, getRecentSearches, clearRecentSearches } from "../../services/recentSearches";
 import "./SearchBox.css";
 
@@ -20,7 +20,6 @@ export default function SearchBox({
   const [showAllRecent, setShowAllRecent] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [lastRequestId, setLastRequestId] = useState(0);
-  const [resolvingLocation, setResolvingLocation] = useState(false);
   
   const debounceRef = useRef(null);
   const inputRef = useRef(null);
@@ -29,6 +28,7 @@ export default function SearchBox({
   const lastQueryRef = useRef("");
   const cacheRef = useRef(new Map());
 
+  // Load recent searches
   useEffect(() => {
     setRecentSearches(getRecentSearches());
     
@@ -39,6 +39,7 @@ export default function SearchBox({
     return () => window.removeEventListener("recentSearchesUpdated", handleUpdate);
   }, []);
 
+  // Cancel pending requests
   const cancelPendingRequest = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -46,6 +47,7 @@ export default function SearchBox({
     }
   }, []);
 
+  // Clear debounce timeout
   const clearDebounce = useCallback(() => {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
@@ -62,9 +64,13 @@ export default function SearchBox({
     const val = e.target.value;
     onChange(val);
     
+    // Clear previous debounce
     clearDebounce();
+    
+    // Cancel any pending API request
     cancelPendingRequest();
     
+    // If empty, show recent searches only
     if (val.length < 3) {
       setSuggestions([]);
       setLoading(false);
@@ -74,13 +80,16 @@ export default function SearchBox({
       return;
     }
     
+    // Generate unique request ID for this typing session
     const requestId = Date.now();
     setLastRequestId(requestId);
     
+    // Show loading state
     setIsTyping(true);
     setLoading(true);
     setShowDropdown(true);
     
+    // Check cache first (results for same query)
     if (cacheRef.current.has(val)) {
       console.log(`[Search] Cache hit for "${val}"`);
       setSuggestions(cacheRef.current.get(val));
@@ -90,13 +99,17 @@ export default function SearchBox({
       return;
     }
     
+    // Set debounce to 300ms for fast but not overwhelming suggestions
     debounceRef.current = setTimeout(async () => {
+      // Check if this is still the latest request (prevents stale responses)
       if (requestId !== lastRequestId) {
+        console.log(`[Search] Skipping stale request ${requestId}`);
         setLoading(false);
         setIsTyping(false);
         return;
       }
       
+      // Don't search if query is too short
       if (val.length < 3) {
         setSuggestions([]);
         setLoading(false);
@@ -104,6 +117,7 @@ export default function SearchBox({
         return;
       }
       
+      // Skip if same as last query (prevents duplicate requests)
       if (lastQueryRef.current === val) {
         setLoading(false);
         setIsTyping(false);
@@ -113,11 +127,15 @@ export default function SearchBox({
       lastQueryRef.current = val;
       
       try {
+        console.log(`[Search] Fetching results for "${val}"`);
         const results = await geocode(val);
         
+        // Only update if this is still the latest request
         if (requestId === lastRequestId) {
+          // Cache results
           cacheRef.current.set(val, results);
           
+          // Limit cache size to 50 items
           if (cacheRef.current.size > 50) {
             const firstKey = cacheRef.current.keys().next().value;
             cacheRef.current.delete(firstKey);
@@ -139,40 +157,14 @@ export default function SearchBox({
     }, 300);
   };
 
-  const handleSelect = async (loc) => {
-    // If local result without coordinates, resolve it
-    if (loc.source === "local" && (!loc.lat || !loc.lng)) {
-      setResolvingLocation(true);
-      setShowDropdown(false);
-      
-      try {
-        const resolved = await resolveLocalLocation(loc.name);
-        if (resolved && resolved.lat && resolved.lng) {
-          onChange(resolved.name);
-          onSelect(resolved);
-          saveRecentSearch(resolved);
-        } else {
-          console.error("[Search] Failed to resolve location:", loc.name);
-          onChange(loc.name);
-          onSelect(loc);
-          saveRecentSearch(loc);
-        }
-      } catch (err) {
-        console.error("[Search] Error resolving location:", err);
-        onChange(loc.name);
-        onSelect(loc);
-        saveRecentSearch(loc);
-      } finally {
-        setResolvingLocation(false);
-      }
-    } else {
-      onChange(loc.name);
-      onSelect(loc);
-      saveRecentSearch(loc);
-    }
-    
+  const handleSelect = (loc) => {
+    onChange(loc.name);
+    onSelect(loc);
+    saveRecentSearch(loc);
     setRecentSearches(getRecentSearches());
     setShowDropdown(false);
+    
+    // Clear pending requests
     clearDebounce();
     cancelPendingRequest();
   };
@@ -183,6 +175,7 @@ export default function SearchBox({
     setShowAllRecent(false);
   };
 
+  // Close when clicking outside
   useEffect(() => {
     const handler = (e) => {
       if (inputRef.current && !inputRef.current.contains(e.target) &&
@@ -194,6 +187,7 @@ export default function SearchBox({
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       clearDebounce();
@@ -204,17 +198,9 @@ export default function SearchBox({
   const visibleRecent = showAllRecent ? recentSearches : recentSearches.slice(0, 5);
   const hasMoreRecent = recentSearches.length > 5;
 
-  const getLocationIcon = (loc) => {
-    if (loc.source === "local") return "📍";
-    if (loc.name.toLowerCase().includes("hall")) return "🏛️";
-    if (loc.name.toLowerCase().includes("library")) return "📚";
-    if (loc.name.toLowerCase().includes("road")) return "🛣️";
-    if (loc.name.toLowerCase().includes("market")) return "🛒";
-    return "📍";
-  };
-
   return (
     <div style={{ position: "relative", width: "100%" }}>
+      {/* Input wrapper */}
       <div style={{ position: "relative", width: "100%" }}>
         <div
           style={{
@@ -254,7 +240,7 @@ export default function SearchBox({
           onMouseEnter={(e) => (e.target.style.borderColor = accentColor)}
           onMouseLeave={(e) => (e.target.style.borderColor = "")}
         />
-        {(loading || resolvingLocation) && (
+        {loading && (
           <div
             style={{
               position: "absolute",
@@ -272,6 +258,7 @@ export default function SearchBox({
         )}
       </div>
 
+      {/* Dropdown */}
       {showDropdown && (
         <div
           ref={dropdownRef}
@@ -290,6 +277,7 @@ export default function SearchBox({
             overflowY: "auto"
           }}
         >
+          {/* Recent searches */}
           {value.length < 1 && recentSearches.length > 0 && (
             <>
               <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", borderBottom: "1px solid var(--border)" }}>
@@ -304,7 +292,7 @@ export default function SearchBox({
                   onMouseEnter={(e) => (e.target.style.background = "var(--hover-row)")}
                   onMouseLeave={(e) => (e.target.style.background = "transparent")}
                 >
-                  <span style={{ fontSize: "14px" }}>🕘</span>
+                  <svg width="10" height="14" viewBox="0 0 12 16" fill="none"><path d="M6 0C2.686 0 0 2.686 0 6c0 4.5 6 10 6 10s6-5.5 6-10c0-3.314-2.686-6-6-6z" fill="#6b7280"/><circle cx="6" cy="6" r="2" fill="white"/></svg>
                   <span>{item.name}</span>
                 </div>
               ))}
@@ -317,6 +305,7 @@ export default function SearchBox({
             </>
           )}
 
+          {/* Current location option */}
           {showCurrentLocationOption && (
             <div
               onClick={() => { onUseCurrentLocation(); setShowDropdown(false); }}
@@ -327,6 +316,7 @@ export default function SearchBox({
             </div>
           )}
 
+          {/* Loading indicator with message */}
           {loading && (
             <div style={{ padding: "12px 16px", fontSize: "13px", color: "var(--sub)", display: "flex", alignItems: "center", gap: "10px" }}>
               <div style={{ width: "14px", height: "14px", border: "2px solid var(--border)", borderTopColor: accentColor, borderRadius: "50%", animation: "ugspin 0.7s linear infinite" }} />
@@ -334,10 +324,11 @@ export default function SearchBox({
             </div>
           )}
 
-          {!loading && !resolvingLocation && suggestions.length > 0 && (
+          {/* Suggestions - show even while typing (no flashing) */}
+          {!loading && suggestions.length > 0 && (
             <>
               <div style={{ padding: "8px 12px", fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", borderBottom: "1px solid var(--border)" }}>
-                {isTyping ? "Suggestions" : "Suggestions"}
+                {isTyping ? "Suggestions (keep typing for more)" : "Suggestions"}
               </div>
               {suggestions.slice(0, 7).map((loc, i) => (
                 <div
@@ -350,38 +341,20 @@ export default function SearchBox({
                   onMouseEnter={(e) => (e.target.style.background = "var(--hover-row)")}
                   onMouseLeave={(e) => (e.target.style.background = "transparent")}
                 >
-                  <span style={{ fontSize: "14px" }}>{getLocationIcon(loc)}</span>
-                  <span style={{ flex: 1 }}>{loc.name}</span>
-                  {loc.source === "local" && <span style={{ fontSize: "10px", opacity: 0.5, background: "#e2e8f0", padding: "2px 6px", borderRadius: "12px" }}>Campus</span>}
-                  {loc.dist > 0.5 && loc.source !== "local" && <span style={{ fontSize: "11px", opacity: 0.5 }}>{loc.dist.toFixed(1)}km</span>}
+                  <svg width="10" height="14" viewBox="0 0 12 16" fill="none"><path d="M6 0C2.686 0 0 2.686 0 6c0 4.5 6 10 6 10s6-5.5 6-10c0-3.314-2.686-6-6-6z" fill={accentColor}/><circle cx="6" cy="6" r="2" fill="white"/></svg>
+                  <span>{loc.name}</span>
+                  {loc.dist > 0.5 && <span style={{ marginLeft: "auto", fontSize: "11px", opacity: 0.5 }}>{loc.dist.toFixed(1)}km</span>}
                 </div>
               ))}
             </>
           )}
 
-          {!loading && !resolvingLocation && suggestions.length === 0 && value.length >= 3 && !showCurrentLocationOption && (
+          {/* No results */}
+          {!loading && suggestions.length === 0 && value.length >= 3 && !showCurrentLocationOption && (
             <div style={{ padding: "12px 16px", fontSize: "13px", color: "var(--sub)" }}>
               No results — try a different name
             </div>
           )}
-        </div>
-      )}
-      
-      {resolvingLocation && (
-        <div style={{
-          position: "fixed",
-          bottom: 20,
-          left: "50%",
-          transform: "translateX(-50%)",
-          background: "rgba(0,0,0,0.8)",
-          color: "white",
-          padding: "8px 16px",
-          borderRadius: "40px",
-          fontSize: "12px",
-          zIndex: 10000,
-          pointerEvents: "none"
-        }}>
-          Getting location...
         </div>
       )}
     </div>
