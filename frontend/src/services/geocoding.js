@@ -5,7 +5,7 @@ import { UG_CENTER } from "../function/utils/bounds";
 import { distanceKm } from "../function/utils/distance";
 import { API_URL } from '../config';
 
-// Use backend proxy in production, Vite proxy in development
+// Use backend proxy in production, direct in development (Vite proxy handles it)
 const NOMINATIM_BASE = import.meta.env.DEV
   ? '/api/nominatim'
   : `${API_URL}/api/nominatim`;
@@ -30,12 +30,8 @@ export async function geocode(query) {
     const { lat, lng } = UG_CENTER;
     const cleanQuery = encodeURIComponent(query.trim());
     
-    // Build URL with parameters
-    let url = `${NOMINATIM_BASE}/search?q=${cleanQuery}&limit=8&countrycodes=gh&addressdetails=1`;
-    
-    // Add viewbox for better local results (UG campus area)
-    const viewbox = `${lng-0.05},${lat-0.05},${lng+0.05},${lat+0.05}`;
-    url += `&viewbox=${viewbox}&bounded=0`;
+    // Use backend proxy URL
+    const url = `${NOMINATIM_BASE}/search?q=${cleanQuery}&format=json&limit=8&countrycodes=gh&addressdetails=1&lat=${lat}&lon=${lng}`;
     
     console.log(`[geocode] Fetching: ${url}`);
     
@@ -84,7 +80,7 @@ export async function geocode(query) {
 
 export async function reverseGeocode(lat, lng) {
   try {
-    const url = `${NOMINATIM_BASE}/reverse?lat=${lat}&lon=${lng}&addressdetails=1`;
+    const url = `${NOMINATIM_BASE}/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`;
     
     const response = await fetch(url, {
       headers: {
