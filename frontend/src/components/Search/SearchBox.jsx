@@ -355,7 +355,7 @@ export default function SearchBox({
               No results — try a different name
             </div>
           )}
-        </div>ava
+        </div>
       )}
     </div>
   );
