@@ -1,11 +1,14 @@
 // services/geocoding.js
-// Simplified version - calls Nominatim directly
+// Uses backend proxy to avoid CORS issues
 
 import { UG_CENTER } from "../function/utils/bounds";
 import { distanceKm } from "../function/utils/distance";
+import { API_URL } from '../config';
 
-// Direct Nominatim URL (no proxy)
-const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
+// Use backend proxy in production, Vite proxy in development
+const NOMINATIM_BASE = import.meta.env.DEV
+  ? '/api/nominatim'
+  : `${API_URL}/api/nominatim`;
 
 // Simple cache
 const cache = new Map();
@@ -27,14 +30,17 @@ export async function geocode(query) {
     const { lat, lng } = UG_CENTER;
     const cleanQuery = encodeURIComponent(query.trim());
     
-    // Single request to Nominatim
-    const url = `${NOMINATIM_BASE}/search?q=${cleanQuery}&format=json&limit=8&countrycodes=gh&addressdetails=1`;
+    // Build URL with parameters
+    let url = `${NOMINATIM_BASE}/search?q=${cleanQuery}&limit=8&countrycodes=gh&addressdetails=1`;
+    
+    // Add viewbox for better local results (UG campus area)
+    const viewbox = `${lng-0.05},${lat-0.05},${lng+0.05},${lat+0.05}`;
+    url += `&viewbox=${viewbox}&bounded=0`;
     
     console.log(`[geocode] Fetching: ${url}`);
     
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'UGNavigator/1.0 (https://ugnavigator.onrender.com)',
         'Accept': 'application/json'
       }
     });
@@ -78,10 +84,10 @@ export async function geocode(query) {
 
 export async function reverseGeocode(lat, lng) {
   try {
-    const url = `${NOMINATIM_BASE}/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`;
+    const url = `${NOMINATIM_BASE}/reverse?lat=${lat}&lon=${lng}&addressdetails=1`;
+    
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'UGNavigator/1.0 (https://ugnavigator.onrender.com)',
         'Accept': 'application/json'
       }
     });
