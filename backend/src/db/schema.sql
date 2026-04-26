@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS route_logs (
 CREATE INDEX IF NOT EXISTS idx_route_logs_user_id ON route_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_route_logs_created_at ON route_logs(created_at);
 
--- ============================================git 
+-- ============================================git
 -- USER ACTIVITY TABLE (for real-time tracking)
 -- ============================================
 CREATE TABLE IF NOT EXISTS user_activity (
