@@ -70,17 +70,63 @@ html, body, #root {
   contain: layout style;
 }
 
-/* ─── Root layout (FIXED) ────────────────────────────────────────────────────*/
+/* ─── Root layout ────────────────────────────────────────────────────────────*/
 .ug-root {
   width: 100%;
-  height: 100dvh; /* ✅ FIX: dynamic viewport height */
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   font-family: "Outfit", sans-serif;
   overflow: hidden;
   background: var(--bg);
-  padding-top: env(safe-area-inset-top); /* ✅ FIX: safe area */
+  padding-top: env(safe-area-inset-top);
   box-sizing: border-box;
+}
+
+/* ─── Dark / light mode transition ──────────────────────────────────────────
+   Smooth 200ms colour crossfade when toggling dark mode.
+   Only colour properties are transitioned — transform/opacity animations
+   (GPS pulse, spinners, route line) are explicitly excluded below.
+────────────────────────────────────────────────────────────────────────────*/
+.ug-root,
+.ug-root *,
+.ug-root *::before,
+.ug-root *::after {
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+/* Elements that must NOT inherit the colour transition —
+   they have their own animation or transform-based transition */
+.ug-location-dot::after,
+.map-loader-spinner,
+.nav-spinner,
+.searchbox-spinner,
+.searchbox-spinner-inline,
+.searchbox-spinner-xs,
+.leaflet-tile,
+.leaflet-tile-container,
+.leaflet-container {
+  transition: none !important;
+}
+
+/* Restore the transitions these specific elements actually need */
+.legend-sheet {
+  transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1) !important;
+}
+
+.searchbox-input {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.nav-panel,
+.nav-directions-btn,
+.nav-mode-btn,
+.nav-logout-btn,
+.nav-reset-btn {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
 }
 
 /* ─── CSS variables — light mode ─────────────────────────────────────────────*/
