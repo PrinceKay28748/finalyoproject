@@ -1,14 +1,59 @@
 // services/geocoding.js
-// Simplified version - calls Nominatim directly
+// Uses backend proxy + local campus locations first for zero API calls on common searches
 
 import { UG_CENTER } from "../function/utils/bounds";
 import { distanceKm } from "../function/utils/distance";
+import { API_URL } from '../config';
+import ugLocations from "../data/ug-locations.json";
 
-// Direct Nominatim URL (no proxy)
-const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
+// Use backend proxy in production, Vite proxy in development
+const NOMINATIM_BASE = import.meta.env.DEV
+  ? '/api/nominatim'
+  : `${API_URL}/api/nominatim`;
 
-// Simple cache
+// Cache for search results
 const cache = new Map();
+
+// Fuzzy match helper - checks if query matches name or keywords
+function matchesQuery(query, text) {
+  if (!text) return false;
+  const q = query.toLowerCase();
+  const t = text.toLowerCase();
+  return t.includes(q) || q.includes(t);
+}
+
+// Search local UG locations first (0 API calls)
+function searchLocalLocations(query) {
+  if (!query || query.trim().length < 2) return [];
+  
+  const cleanQuery = query.trim().toLowerCase();
+  const { lat, lng } = UG_CENTER;
+  
+  const matches = ugLocations.locations
+    .filter(loc => {
+      // Check name match
+      if (matchesQuery(cleanQuery, loc.name)) return true;
+      // Check keywords match
+      if (loc.keywords && loc.keywords.some(kw => matchesQuery(cleanQuery, kw))) return true;
+      return false;
+    })
+    .map(loc => ({
+      name: loc.name,
+      lat: loc.lat,
+      lng: loc.lng,
+      dist: distanceKm(lat, lng, loc.lat, loc.lng),
+      type: loc.type,
+      source: "local"
+    }))
+    .sort((a, b) => a.dist - b.dist)
+    .slice(0, 5);
+  
+  if (matches.length > 0) {
+    console.log(`[geocode] Local match: ${matches.length} results for "${query}"`);
+  }
+  
+  return matches;
+}
 
 export async function geocode(query) {
   if (!query || query.trim().length < 2) {
@@ -17,37 +62,44 @@ export async function geocode(query) {
 
   const normalizedQuery = query.trim().toLowerCase();
   
-  // Check cache
+  // Check cache first
   if (cache.has(normalizedQuery)) {
     console.log(`[geocode] Cache hit: "${normalizedQuery}"`);
     return cache.get(normalizedQuery);
   }
+  
+  // FIRST: Search local UG locations (0 API calls)
+  const localResults = searchLocalLocations(query);
+  
+  // If we have good local matches (2+), return them immediately
+  if (localResults.length >= 2) {
+    cache.set(normalizedQuery, localResults);
+    return localResults;
+  }
 
+  // SECOND: If no/few local matches, hit Nominatim API
   try {
     const { lat, lng } = UG_CENTER;
     const cleanQuery = encodeURIComponent(query.trim());
     
-    // Single request to Nominatim
-    const url = `${NOMINATIM_BASE}/search?q=${cleanQuery}&format=json&limit=8&countrycodes=gh&addressdetails=1`;
+    const url = `${NOMINATIM_BASE}/search?q=${cleanQuery}&format=json&limit=8&countrycodes=gh&addressdetails=1&lat=${lat}&lon=${lng}`;
     
-    console.log(`[geocode] Fetching: ${url}`);
+    console.log(`[geocode] Fetching from Nominatim: ${url}`);
     
     const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'UGNavigator/1.0 (https://ugnavigator.onrender.com)',
-        'Accept': 'application/json'
-      }
+      headers: { 'Accept': 'application/json' }
     });
 
     if (!response.ok) {
       console.error(`[geocode] HTTP ${response.status}`);
-      return [];
+      // Fallback to local results even if few
+      return localResults;
     }
 
     const results = await response.json();
     
     if (!results || results.length === 0) {
-      return [];
+      return localResults;
     }
 
     const formatted = results
@@ -56,12 +108,15 @@ export async function geocode(query) {
         lat: parseFloat(item.lat),
         lng: parseFloat(item.lon),
         dist: distanceKm(lat, lng, parseFloat(item.lat), parseFloat(item.lon)),
+        source: "nominatim"
       }))
       .sort((a, b) => a.dist - b.dist)
       .slice(0, 5);
     
-    // Cache results
-    cache.set(normalizedQuery, formatted);
+    // Combine local results first, then Nominatim results
+    const combined = [...localResults, ...formatted].slice(0, 5);
+    
+    cache.set(normalizedQuery, combined);
     
     // Limit cache size
     if (cache.size > 100) {
@@ -69,21 +124,19 @@ export async function geocode(query) {
       cache.delete(firstKey);
     }
     
-    return formatted;
+    return combined;
   } catch (error) {
     console.error("[geocode] Error:", error);
-    return [];
+    return localResults;
   }
 }
 
 export async function reverseGeocode(lat, lng) {
   try {
     const url = `${NOMINATIM_BASE}/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`;
+    
     const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'UGNavigator/1.0 (https://ugnavigator.onrender.com)',
-        'Accept': 'application/json'
-      }
+      headers: { 'Accept': 'application/json' }
     });
     
     if (!response.ok) {
