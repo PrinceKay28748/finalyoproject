@@ -1,6 +1,6 @@
 {
   "name": "UG Navigator",
-  "short_name": "UG Nav",
+  "short_name": "UG Navigator",
   "description": "Context-aware campus navigation for University of Ghana",
   "start_url": "/",
   "display": "standalone",
