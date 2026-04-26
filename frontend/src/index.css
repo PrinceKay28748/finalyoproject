@@ -73,13 +73,13 @@ html, body, #root {
 /* ─── Root layout (FIXED) ────────────────────────────────────────────────────*/
 .ug-root {
   width: 100%;
-  height: 100dvh; /* ✅ FIX: dynamic viewport height */
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   font-family: "Outfit", sans-serif;
   overflow: hidden;
   background: var(--bg);
-  padding-top: env(safe-area-inset-top); /* ✅ FIX: safe area */
+  padding-top: env(safe-area-inset-top);
   box-sizing: border-box;
 }
 
@@ -179,4 +179,80 @@ html, body, #root {
   border-top-color: #2563eb;
   border-radius: 50%;
   animation: ugspin 0.8s linear infinite;
+}
+
+/* ============================================
+   DARK MODE TRANSITION (200ms smooth fade)
+   ============================================ */
+
+/* Global transition for all themeable elements */
+.ug-root,
+.ug-root *,
+.ug-root *::before,
+.ug-root *::after {
+  transition: background-color 0.2s ease,
+              border-color 0.2s ease,
+              color 0.2s ease,
+              fill 0.2s ease,
+              stroke 0.2s ease,
+              box-shadow 0.2s ease,
+              background 0.2s ease;
+}
+
+/* Exclude animated elements from transition to prevent choppiness */
+.ug-root .nav-spinner,
+.ug-root .button-spinner-split,
+.ug-root .route-loading-spinner,
+.ug-root .rerouting-spinner-small,
+.ug-root .map-loader-spinner,
+.ug-root .ug-location-dot::after {
+  transition: none;
+}
+
+/* Exclude Leaflet tiles from transition for map performance */
+.leaflet-tile {
+  transition: none !important;
+}
+
+/* Smooth panel transitions */
+.nav-panel,
+.legend-sheet,
+.auth-card,
+.auth-form-panel {
+  transition: background-color 0.2s ease,
+              border-color 0.2s ease,
+              box-shadow 0.2s ease,
+              transform 0.3s ease;
+}
+
+/* Exclude dragging state */
+.legend-sheet.dragging {
+  transition: none !important;
+}
+
+/* Smooth button transitions */
+button,
+.nav-mode-btn,
+.nav-logout-btn,
+.auth-button-split,
+.auth-secondary-split,
+.legend-profile-btn,
+.map-zoom-btn,
+.map-recenter-btn {
+  transition: background-color 0.2s ease,
+              border-color 0.2s ease,
+              color 0.2s ease,
+              transform 0.15s ease,
+              opacity 0.2s ease;
+}
+
+/* Smooth input transitions */
+input,
+.search-wrap input,
+.form-group-split input,
+.input-wrapper input {
+  transition: background-color 0.2s ease,
+              border-color 0.2s ease,
+              color 0.2s ease,
+              box-shadow 0.2s ease;
 }

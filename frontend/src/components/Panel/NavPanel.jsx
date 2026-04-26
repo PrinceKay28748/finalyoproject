@@ -32,7 +32,6 @@ export default function NavPanel({
   locationError,
   darkMode,
   onToggleDarkMode,
-  // NEW PROP: Allow parent to control expansion
   isExpanded: externalIsExpanded,
   onExpandRequest,
 }) {
@@ -90,7 +89,7 @@ export default function NavPanel({
             ? "Now set your start point"
             : "Tap the map or search to set locations";
 
-  // Compact view after route is set
+  // Compact view after route is set (unchanged)
   if (hasRoute && startText && destText) {
     return (
       <div className="nav-panel nav-panel--compact">
@@ -184,7 +183,7 @@ export default function NavPanel({
     );
   }
 
-  // Expanded / collapsed view
+  // Expanded view with FROM secondary, TO dominant
   return (
     <div
       className={`nav-panel ${isExpanded ? "nav-panel--expanded" : "nav-panel--collapsed"}`}
@@ -266,42 +265,60 @@ export default function NavPanel({
 
       {isExpanded && (
         <div className="nav-expanded-content">
-          <div className="nav-input-section">
-            <div className="nav-input-label">
+          {/* FROM section - secondary, smaller */}
+          <div className="nav-input-section nav-input-section--from">
+            <div className="nav-input-label nav-input-label--from">
               <span className="nav-input-icon" aria-hidden="true">
                 📍
               </span>
               <span className="nav-input-label-text from-label">From</span>
             </div>
-            <PortalSearchBox
-              placeholder="Your location"
-              value={startText}
-              onChange={onStartTextChange}
-              onSelect={onStartSelect}
-              onUseCurrentLocation={onUseCurrentLocation}
-              showCurrentLocationOption={hasCurrentLocation}
-              accentColor="#2563eb"
-              onFocus={handleSearchFocus}
-            />
+            <div className="nav-from-wrapper">
+              <PortalSearchBox
+                placeholder="Your location"
+                value={startText}
+                onChange={onStartTextChange}
+                onSelect={onStartSelect}
+                onUseCurrentLocation={onUseCurrentLocation}
+                showCurrentLocationOption={hasCurrentLocation}
+                accentColor="#2563eb"
+                onFocus={handleSearchFocus}
+              />
+            </div>
           </div>
 
-          <div className="nav-input-section">
-            <div className="nav-input-label">
+          {/* Swap button - smaller, inline */}
+          <div className="nav-swap-wrapper">
+            <button
+              className="nav-swap-btn"
+              onClick={onSwap}
+              title="Swap start and destination"
+              aria-label="Swap start and destination"
+            >
+              <IconSwap className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* TO section - dominant, larger */}
+          <div className="nav-input-section nav-input-section--to">
+            <div className="nav-input-label nav-input-label--to">
               <span className="nav-input-icon" aria-hidden="true">
                 📍
               </span>
               <span className="nav-input-label-text to-label">To</span>
             </div>
-            <PortalSearchBox
-              placeholder="Where to?"
-              value={destText}
-              onChange={onDestTextChange}
-              onSelect={onDestSelect}
-              onUseCurrentLocation={() => {}}
-              showCurrentLocationOption={false}
-              accentColor="#22c55e"
-              onFocus={handleSearchFocus}
-            />
+            <div className="nav-to-wrapper">
+              <PortalSearchBox
+                placeholder="Where to?"
+                value={destText}
+                onChange={onDestTextChange}
+                onSelect={onDestSelect}
+                onUseCurrentLocation={() => {}}
+                showCurrentLocationOption={false}
+                accentColor="#22c55e"
+                onFocus={handleSearchFocus}
+              />
+            </div>
           </div>
 
           <div className="nav-action-row">
