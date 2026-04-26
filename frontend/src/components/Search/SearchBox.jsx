@@ -3,6 +3,39 @@ import { geocode } from "../../services/geocoding";
 import { saveRecentSearch, getRecentSearches, clearRecentSearches } from "../../services/recentSearches";
 import "./SearchBox.css";
 
+// Simple SVG icons for suggestion types
+const SuggestionIcon = ({ type }) => {
+  const iconProps = { width: 16, height: 16, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" };
+  
+  if (type === "hall") {
+    return <svg {...iconProps}><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>;
+  }
+  if (type === "academic") {
+    return <svg {...iconProps}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>;
+  }
+  if (type === "road") {
+    return <svg {...iconProps}><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2v20" /></svg>;
+  }
+  if (type === "food") {
+    return <svg {...iconProps}><path d="M18 8c0 5-6 5-6 5s-6 0-6-5c0-2 2-3 4-3 0 0 2 0 2-2 0 2 2 2 2 2 2 0 4 1 4 3z" /><line x1="12" y1="17" x2="12" y2="22" /><line x1="9" y1="20" x2="15" y2="20" /></svg>;
+  }
+  if (type === "medical") {
+    return <svg {...iconProps}><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" /></svg>;
+  }
+  return <svg {...iconProps}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>;
+};
+
+// Detect suggestion type from name
+function getSuggestionType(name) {
+  const lower = name.toLowerCase();
+  if (lower.includes("hall")) return "hall";
+  if (lower.includes("library") || lower.includes("school") || lower.includes("department")) return "academic";
+  if (lower.includes("road") || lower.includes("street") || lower.includes("link")) return "road";
+  if (lower.includes("market") || lower.includes("canteen") || lower.includes("cafe")) return "food";
+  if (lower.includes("medical") || lower.includes("clinic") || lower.includes("hospital")) return "medical";
+  return "default";
+}
+
 export default function SearchBox({
   placeholder,
   value,
@@ -28,18 +61,13 @@ export default function SearchBox({
   const lastQueryRef = useRef("");
   const cacheRef = useRef(new Map());
 
-  // Load recent searches
   useEffect(() => {
     setRecentSearches(getRecentSearches());
-    
-    const handleUpdate = () => {
-      setRecentSearches(getRecentSearches());
-    };
+    const handleUpdate = () => setRecentSearches(getRecentSearches());
     window.addEventListener("recentSearchesUpdated", handleUpdate);
     return () => window.removeEventListener("recentSearchesUpdated", handleUpdate);
   }, []);
 
-  // Cancel pending requests
   const cancelPendingRequest = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -47,7 +75,6 @@ export default function SearchBox({
     }
   }, []);
 
-  // Clear debounce timeout
   const clearDebounce = useCallback(() => {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
@@ -63,14 +90,9 @@ export default function SearchBox({
   const handleChange = (e) => {
     const val = e.target.value;
     onChange(val);
-    
-    // Clear previous debounce
     clearDebounce();
-    
-    // Cancel any pending API request
     cancelPendingRequest();
     
-    // If empty, show recent searches only
     if (val.length < 3) {
       setSuggestions([]);
       setLoading(false);
@@ -80,18 +102,13 @@ export default function SearchBox({
       return;
     }
     
-    // Generate unique request ID for this typing session
     const requestId = Date.now();
     setLastRequestId(requestId);
-    
-    // Show loading state
     setIsTyping(true);
     setLoading(true);
     setShowDropdown(true);
     
-    // Check cache first (results for same query)
     if (cacheRef.current.has(val)) {
-      console.log(`[Search] Cache hit for "${val}"`);
       setSuggestions(cacheRef.current.get(val));
       setLoading(false);
       setIsTyping(false);
@@ -99,25 +116,18 @@ export default function SearchBox({
       return;
     }
     
-    // Set debounce to 300ms for fast but not overwhelming suggestions
     debounceRef.current = setTimeout(async () => {
-      // Check if this is still the latest request (prevents stale responses)
       if (requestId !== lastRequestId) {
-        console.log(`[Search] Skipping stale request ${requestId}`);
         setLoading(false);
         setIsTyping(false);
         return;
       }
-      
-      // Don't search if query is too short
       if (val.length < 3) {
         setSuggestions([]);
         setLoading(false);
         setIsTyping(false);
         return;
       }
-      
-      // Skip if same as last query (prevents duplicate requests)
       if (lastQueryRef.current === val) {
         setLoading(false);
         setIsTyping(false);
@@ -127,27 +137,17 @@ export default function SearchBox({
       lastQueryRef.current = val;
       
       try {
-        console.log(`[Search] Fetching results for "${val}"`);
         const results = await geocode(val);
-        
-        // Only update if this is still the latest request
         if (requestId === lastRequestId) {
-          // Cache results
           cacheRef.current.set(val, results);
-          
-          // Limit cache size to 50 items
           if (cacheRef.current.size > 50) {
             const firstKey = cacheRef.current.keys().next().value;
             cacheRef.current.delete(firstKey);
           }
-          
           setSuggestions(results);
         }
       } catch (error) {
-        console.error("[Search] Error:", error);
-        if (requestId === lastRequestId) {
-          setSuggestions([]);
-        }
+        if (requestId === lastRequestId) setSuggestions([]);
       } finally {
         if (requestId === lastRequestId) {
           setLoading(false);
@@ -163,8 +163,6 @@ export default function SearchBox({
     saveRecentSearch(loc);
     setRecentSearches(getRecentSearches());
     setShowDropdown(false);
-    
-    // Clear pending requests
     clearDebounce();
     cancelPendingRequest();
   };
@@ -175,7 +173,6 @@ export default function SearchBox({
     setShowAllRecent(false);
   };
 
-  // Close when clicking outside
   useEffect(() => {
     const handler = (e) => {
       if (inputRef.current && !inputRef.current.contains(e.target) &&
@@ -187,7 +184,6 @@ export default function SearchBox({
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       clearDebounce();
@@ -200,7 +196,15 @@ export default function SearchBox({
 
   return (
     <div style={{ position: "relative", width: "100%" }}>
-      {/* Input wrapper */}
+      {/* Loading skeleton shown while searching */}
+      {loading && (
+        <div className="search-skeleton">
+          <div className="search-skeleton-line" style={{ width: "85%" }} />
+          <div className="search-skeleton-line" style={{ width: "70%" }} />
+          <div className="search-skeleton-line" style={{ width: "90%" }} />
+        </div>
+      )}
+
       <div style={{ position: "relative", width: "100%" }}>
         <div
           style={{
@@ -258,7 +262,6 @@ export default function SearchBox({
         )}
       </div>
 
-      {/* Dropdown */}
       {showDropdown && (
         <div
           ref={dropdownRef}
@@ -277,7 +280,6 @@ export default function SearchBox({
             overflowY: "auto"
           }}
         >
-          {/* Recent searches */}
           {value.length < 1 && recentSearches.length > 0 && (
             <>
               <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", borderBottom: "1px solid var(--border)" }}>
@@ -292,7 +294,9 @@ export default function SearchBox({
                   onMouseEnter={(e) => (e.target.style.background = "var(--hover-row)")}
                   onMouseLeave={(e) => (e.target.style.background = "transparent")}
                 >
-                  <svg width="10" height="14" viewBox="0 0 12 16" fill="none"><path d="M6 0C2.686 0 0 2.686 0 6c0 4.5 6 10 6 10s6-5.5 6-10c0-3.314-2.686-6-6-6z" fill="#6b7280"/><circle cx="6" cy="6" r="2" fill="white"/></svg>
+                  <div style={{ width: "20px", display: "flex", justifyContent: "center" }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+                  </div>
                   <span>{item.name}</span>
                 </div>
               ))}
@@ -305,7 +309,6 @@ export default function SearchBox({
             </>
           )}
 
-          {/* Current location option */}
           {showCurrentLocationOption && (
             <div
               onClick={() => { onUseCurrentLocation(); setShowDropdown(false); }}
@@ -316,7 +319,6 @@ export default function SearchBox({
             </div>
           )}
 
-          {/* Loading indicator with message */}
           {loading && (
             <div style={{ padding: "12px 16px", fontSize: "13px", color: "var(--sub)", display: "flex", alignItems: "center", gap: "10px" }}>
               <div style={{ width: "14px", height: "14px", border: "2px solid var(--border)", borderTopColor: accentColor, borderRadius: "50%", animation: "ugspin 0.7s linear infinite" }} />
@@ -324,32 +326,35 @@ export default function SearchBox({
             </div>
           )}
 
-          {/* Suggestions - show even while typing (no flashing) */}
           {!loading && suggestions.length > 0 && (
             <>
               <div style={{ padding: "8px 12px", fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", borderBottom: "1px solid var(--border)" }}>
                 {isTyping ? "Suggestions (keep typing for more)" : "Suggestions"}
               </div>
-              {suggestions.slice(0, 7).map((loc, i) => (
-                <div
-                  key={`${loc.name}-${i}`}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    handleSelect(loc);
-                  }}
-                  style={{ padding: "11px 16px", cursor: "pointer", fontSize: "13px", color: "var(--text)", display: "flex", alignItems: "center", gap: "10px", borderBottom: "1px solid var(--border)" }}
-                  onMouseEnter={(e) => (e.target.style.background = "var(--hover-row)")}
-                  onMouseLeave={(e) => (e.target.style.background = "transparent")}
-                >
-                  <svg width="10" height="14" viewBox="0 0 12 16" fill="none"><path d="M6 0C2.686 0 0 2.686 0 6c0 4.5 6 10 6 10s6-5.5 6-10c0-3.314-2.686-6-6-6z" fill={accentColor}/><circle cx="6" cy="6" r="2" fill="white"/></svg>
-                  <span>{loc.name}</span>
-                  {loc.dist > 0.5 && <span style={{ marginLeft: "auto", fontSize: "11px", opacity: 0.5 }}>{loc.dist.toFixed(1)}km</span>}
-                </div>
-              ))}
+              {suggestions.slice(0, 7).map((loc, i) => {
+                const type = getSuggestionType(loc.name);
+                return (
+                  <div
+                    key={`${loc.name}-${i}`}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      handleSelect(loc);
+                    }}
+                    style={{ padding: "11px 16px", cursor: "pointer", fontSize: "13px", color: "var(--text)", display: "flex", alignItems: "center", gap: "10px", borderBottom: "1px solid var(--border)" }}
+                    onMouseEnter={(e) => (e.target.style.background = "var(--hover-row)")}
+                    onMouseLeave={(e) => (e.target.style.background = "transparent")}
+                  >
+                    <div style={{ width: "20px", display: "flex", justifyContent: "center", color: accentColor }}>
+                      <SuggestionIcon type={type} />
+                    </div>
+                    <span style={{ flex: 1 }}>{loc.name}</span>
+                    {loc.dist > 0.5 && <span style={{ fontSize: "11px", opacity: 0.5 }}>{loc.dist.toFixed(1)}km</span>}
+                  </div>
+                );
+              })}
             </>
           )}
 
-          {/* No results */}
           {!loading && suggestions.length === 0 && value.length >= 3 && !showCurrentLocationOption && (
             <div style={{ padding: "12px 16px", fontSize: "13px", color: "var(--sub)" }}>
               No results — try a different name

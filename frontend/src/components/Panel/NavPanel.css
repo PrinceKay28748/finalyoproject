@@ -638,3 +638,132 @@
     height: 18px;
   }
 }
+
+/* ============================================
+   FROM/TO HIERARCHY IMPROVEMENTS
+   ============================================ */
+
+/* FROM section - secondary, smaller, less prominent */
+.nav-input-section--from {
+  opacity: 0.85;
+  margin-bottom: 4px;
+}
+
+.nav-input-label--from {
+  opacity: 0.7;
+}
+
+.nav-from-wrapper {
+  flex: 1;
+}
+
+.nav-from-wrapper .search-wrap input {
+  font-size: 13px;
+  padding: 10px 40px 10px 32px;
+}
+
+/* Swap button - compact, inline */
+.nav-swap-wrapper {
+  display: flex;
+  justify-content: center;
+  margin: 4px 0 8px 0;
+}
+
+.nav-swap-btn {
+  width: 32px;
+  height: 32px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 40px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  color: var(--text-secondary);
+}
+
+.nav-swap-btn:hover {
+  background: var(--hover-bg);
+  transform: scale(1.05);
+}
+
+/* TO section - dominant, larger, more prominent */
+.nav-input-section--to {
+  margin-bottom: 16px;
+}
+
+.nav-input-label--to {
+  font-weight: 600;
+}
+
+.nav-to-wrapper {
+  flex: 1;
+}
+
+.nav-to-wrapper .search-wrap input {
+  font-size: 16px;
+  font-weight: 500;
+  padding: 14px 44px 14px 32px;
+}
+
+/* Dark mode adjustments for new elements */
+.ug-root.dark .nav-swap-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #e5e7eb;
+}
+
+.ug-root.dark .nav-swap-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* ============================================
+   DARK MODE TRANSITION (200ms fade)
+   ============================================ */
+
+/* Global dark mode transition for all themeable elements */
+.ug-root,
+.ug-root *,
+.ug-root *::before,
+.ug-root *::after {
+  transition: background-color 0.2s ease,
+              border-color 0.2s ease,
+              color 0.2s ease,
+              fill 0.2s ease,
+              stroke 0.2s ease,
+              box-shadow 0.2s ease;
+}
+
+/* Exclude elements that shouldn't transition (spinners, animations) */
+.ug-root .nav-spinner,
+.ug-root .button-spinner-split,
+.ug-root .route-loading-spinner,
+.ug-root .rerouting-spinner-small {
+  transition: none;
+}
+
+/* Map tiles transition (fade) */
+.leaflet-tile {
+  transition: opacity 0.2s ease;
+}
+
+/* Smooth transition for the panel */
+.nav-panel {
+  transition: background-color 0.2s ease,
+              border-color 0.2s ease,
+              box-shadow 0.2s ease,
+              transform 0.3s ease;
+}
+
+/* Smooth transition for cards and containers */
+.legend-sheet {
+  transition: background-color 0.2s ease,
+              border-color 0.2s ease,
+              transform 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+}
+
+/* Exclude dragging state from transitions */
+.legend-sheet.dragging {
+  transition: none !important;
+}

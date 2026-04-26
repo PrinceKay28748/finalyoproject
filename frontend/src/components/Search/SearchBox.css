@@ -259,3 +259,36 @@
   background: #1f2937;
   font-family: "Outfit", sans-serif;
 }
+
+/* Search skeleton loading animation */
+.search-skeleton {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 8px;
+  background: var(--drop-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 16px;
+  z-index: 999998;
+  pointer-events: none;
+}
+
+.search-skeleton-line {
+  height: 14px;
+  background: linear-gradient(90deg, var(--border) 25%, var(--hover-bg) 50%, var(--border) 75%);
+  background-size: 200% 100%;
+  border-radius: 7px;
+  margin-bottom: 10px;
+  animation: skeleton-loading 1.5s infinite;
+}
+
+.search-skeleton-line:last-child {
+  margin-bottom: 0;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
