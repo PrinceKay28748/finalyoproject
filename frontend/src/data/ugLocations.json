@@ -256,7 +256,7 @@
       "faculty of law",
       "law"
     ],
-    "lat": 5.6528545,
+    "lat": 5.6528544,
     "lng": -0.1815177,
     "type": "academic"
   },
@@ -708,7 +708,7 @@
       "dean of students",
       "student services"
     ],
-    "lat": 5.6513197,
+    "lat": 5.6513196,
     "lng": -0.187604,
     "type": "admin"
   },
@@ -732,8 +732,8 @@
       "main road",
       "legon road"
     ],
-    "lat": 5.6465979,
-    "lng": -0.188004,
+    "lat": 5.6618149,
+    "lng": -0.1664195,
     "type": "road"
   },
   {
@@ -845,8 +845,8 @@
       "foreign students",
       "intl hostel"
     ],
-    "lat": 5.6415498,
-    "lng": -0.1860022,
+    "lat": 5.6397718,
+    "lng": -0.1850601,
     "type": "hall"
   },
   {
@@ -914,8 +914,8 @@
       "madina road",
       "east road"
     ],
-    "lat": 5.6860535,
-    "lng": -0.1597937,
+    "lat": 5.6618149,
+    "lng": -0.1664195,
     "type": "road"
   }
 ]
