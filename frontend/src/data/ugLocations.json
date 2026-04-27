@@ -25,42 +25,6 @@
     "type": "landmark"
   },
   {
-    "name": "Main Gate",
-    "aliases": [
-      "main gate",
-      "main entrance",
-      "gate 1",
-      "front gate",
-      "entrance gate"
-    ],
-    "lat": 5.6506846,
-    "lng": -0.1811448,
-    "type": "gate"
-  },
-  {
-    "name": "North Gate",
-    "aliases": [
-      "north gate",
-      "gate north"
-    ],
-    "lat": 5.6735227,
-    "lng": -0.1820749,
-    "type": "gate"
-  },
-  {
-    "name": "Stadium Gate",
-    "aliases": [
-      "stadium gate",
-      "okponglo gate",
-      "okponglo",
-      "stadium entrance",
-      "gate 2"
-    ],
-    "lat": 5.6377339,
-    "lng": -0.1773751,
-    "type": "gate"
-  },
-  {
     "name": "Link Gate",
     "aliases": [
       "link gate",
@@ -86,7 +50,11 @@
     "name": "Legon Hall",
     "aliases": [
       "legon hall",
-      "legon res"
+      "legon res",
+      "Legon Hall Annex A",
+      "Legon Hall Annex B",
+      "Legon Hall Annex C",
+      "Legon Hall Annex D"
     ],
     "lat": 5.6493174,
     "lng": -0.1884401,
@@ -97,7 +65,11 @@
     "aliases": [
       "akuafo",
       "akuafo hall",
-      "akuafo res"
+      "akuafo res",
+      "Akuafo Hall Annex A",
+      "Akuafo Hall Annex B",
+      "Akuafo Hall Annex C",
+      "Akuafo Hall Annex D"
     ],
     "lat": 5.6474452,
     "lng": -0.1855815,
@@ -109,7 +81,11 @@
       "mensah sarbah",
       "sarbah",
       "ms hall",
-      "msh"
+      "msh",
+      "Mensah Sarbah Hall Annex A",
+      "Mensah Sarbah Hall Annex B",
+      "Mensah Sarbah Hall Annex C",
+      "Mensah Sarbah Hall Annex D"
     ],
     "lat": 5.6459401,
     "lng": -0.187069,
@@ -128,18 +104,6 @@
     "type": "hall"
   },
   {
-    "name": "Pent Hall",
-    "aliases": [
-      "pent",
-      "pentagon",
-      "pent hall",
-      "pentecost"
-    ],
-    "lat": 5.6581399,
-    "lng": -0.1814748,
-    "type": "hall"
-  },
-  {
     "name": "Jubilee Hall",
     "aliases": [
       "jubilee",
@@ -150,19 +114,6 @@
     ],
     "lat": 5.6404273,
     "lng": -0.1859565,
-    "type": "hall"
-  },
-  {
-    "name": "Alex Quaison-Sackey Hall",
-    "aliases": [
-      "aqs",
-      "quaison sackey",
-      "alex hall",
-      "diaspora",
-      "aqs hall"
-    ],
-    "lat": 5.6379957,
-    "lng": -0.1856489,
     "type": "hall"
   },
   {
@@ -197,16 +148,6 @@
     ],
     "lat": 5.6368392,
     "lng": -0.1854012,
-    "type": "hall"
-  },
-  {
-    "name": "Liman Hall",
-    "aliases": [
-      "liman",
-      "liman hall"
-    ],
-    "lat": 5.6313314,
-    "lng": -0.1579912,
     "type": "hall"
   },
   {
@@ -245,46 +186,6 @@
     ],
     "lat": 5.637016,
     "lng": -0.1829065,
-    "type": "academic"
-  },
-  {
-    "name": "Faculty of Law",
-    "aliases": [
-      "law faculty",
-      "law school",
-      "ug law",
-      "faculty of law",
-      "law"
-    ],
-    "lat": 5.6528544,
-    "lng": -0.1815177,
-    "type": "academic"
-  },
-  {
-    "name": "UG Business School",
-    "aliases": [
-      "ug business school",
-      "ugbs",
-      "business school",
-      "management school",
-      "business"
-    ],
-    "lat": 5.6527159,
-    "lng": -0.1879763,
-    "type": "academic"
-  },
-  {
-    "name": "Department of Computer Science",
-    "aliases": [
-      "computer science",
-      "cs department",
-      "ug cs",
-      "dcit",
-      "comp sci",
-      "computer eng"
-    ],
-    "lat": 5.6544436,
-    "lng": -0.1837462,
     "type": "academic"
   },
   {
@@ -332,38 +233,6 @@
     "type": "academic"
   },
   {
-    "name": "Department of Political Science",
-    "aliases": [
-      "political science",
-      "polsci",
-      "politics"
-    ],
-    "lat": 5.6548594,
-    "lng": -0.1864064,
-    "type": "academic"
-  },
-  {
-    "name": "Department of Psychology",
-    "aliases": [
-      "psychology",
-      "psych",
-      "psych department"
-    ],
-    "lat": 5.6550778,
-    "lng": -0.1867541,
-    "type": "academic"
-  },
-  {
-    "name": "Department of Sociology",
-    "aliases": [
-      "sociology",
-      "sociology dept"
-    ],
-    "lat": 5.6501002,
-    "lng": -0.1901238,
-    "type": "academic"
-  },
-  {
     "name": "Department of Geography",
     "aliases": [
       "geography",
@@ -372,39 +241,6 @@
     ],
     "lat": 5.650975,
     "lng": -0.1832998,
-    "type": "academic"
-  },
-  {
-    "name": "Department of History",
-    "aliases": [
-      "history",
-      "history department",
-      "history dept"
-    ],
-    "lat": 5.650354,
-    "lng": -0.1897013,
-    "type": "academic"
-  },
-  {
-    "name": "Department of Languages",
-    "aliases": [
-      "languages",
-      "modern languages",
-      "french dept",
-      "linguistics"
-    ],
-    "lat": 5.6582302,
-    "lng": -0.1704529,
-    "type": "academic"
-  },
-  {
-    "name": "Institute of African Studies",
-    "aliases": [
-      "ias",
-      "african studies"
-    ],
-    "lat": 5.6511141,
-    "lng": -0.1818736,
     "type": "academic"
   },
   {
@@ -418,18 +254,6 @@
     ],
     "lat": 5.6555768,
     "lng": -0.1828086,
-    "type": "academic"
-  },
-  {
-    "name": "Faculty of Agriculture",
-    "aliases": [
-      "agriculture",
-      "agric",
-      "agric faculty",
-      "agric dept"
-    ],
-    "lat": 5.6496061,
-    "lng": -0.183472,
     "type": "academic"
   },
   {
@@ -496,42 +320,6 @@
     "type": "sport"
   },
   {
-    "name": "Swimming Pool",
-    "aliases": [
-      "pool",
-      "swimming pool",
-      "ug pool",
-      "swim"
-    ],
-    "lat": 5.6397368,
-    "lng": -0.1824198,
-    "type": "sport"
-  },
-  {
-    "name": "Tennis Courts",
-    "aliases": [
-      "tennis",
-      "tennis court",
-      "tennis courts"
-    ],
-    "lat": 5.6739525,
-    "lng": -0.0866317,
-    "type": "sport"
-  },
-  {
-    "name": "UG Chapel",
-    "aliases": [
-      "chapel",
-      "ug chapel",
-      "university chapel",
-      "church",
-      "legon chapel"
-    ],
-    "lat": 5.6500788,
-    "lng": -0.1926101,
-    "type": "worship"
-  },
-  {
     "name": "Central Mosque",
     "aliases": [
       "mosque",
@@ -542,44 +330,6 @@
     "lat": 5.6420355,
     "lng": -0.1642928,
     "type": "worship"
-  },
-  {
-    "name": "Legon Botanical Gardens",
-    "aliases": [
-      "botanical garden",
-      "botanical gardens",
-      "ug garden",
-      "gardens",
-      "botanic"
-    ],
-    "lat": 5.6615333,
-    "lng": -0.186257,
-    "type": "landmark"
-  },
-  {
-    "name": "Vice Chancellor's Lodge",
-    "aliases": [
-      "vc bungalow",
-      "vice chancellor",
-      "vc lodge",
-      "vc"
-    ],
-    "lat": 5.6504245,
-    "lng": -0.196754,
-    "type": "admin"
-  },
-  {
-    "name": "University Administration Block",
-    "aliases": [
-      "admin block",
-      "admin building",
-      "ug admin",
-      "administration",
-      "admin"
-    ],
-    "lat": 5.6586632,
-    "lng": -0.1620416,
-    "type": "admin"
   },
   {
     "name": "Registry",
@@ -676,18 +426,6 @@
     "type": "food"
   },
   {
-    "name": "Pent Canteen",
-    "aliases": [
-      "pent canteen",
-      "canteen pent",
-      "pent chop",
-      "pent food"
-    ],
-    "lat": 5.656204,
-    "lng": -0.180673,
-    "type": "food"
-  },
-  {
     "name": "ICT Centre",
     "aliases": [
       "ict centre",
@@ -699,18 +437,6 @@
     "lat": 5.6453995,
     "lng": -0.1873197,
     "type": "service"
-  },
-  {
-    "name": "Student Affairs",
-    "aliases": [
-      "student affairs",
-      "dsa",
-      "dean of students",
-      "student services"
-    ],
-    "lat": 5.6513196,
-    "lng": -0.187604,
-    "type": "admin"
   },
   {
     "name": "Pharmacy",
@@ -732,8 +458,8 @@
       "main road",
       "legon road"
     ],
-    "lat": 5.6618149,
-    "lng": -0.1664195,
+    "lat": 7.3514087,
+    "lng": -2.3835362,
     "type": "road"
   },
   {
@@ -747,72 +473,13 @@
     "type": "road"
   },
   {
-    "name": "Okponglo Junction",
-    "aliases": [
-      "okponglo",
-      "okponglo junction",
-      "okponglo roundabout"
-    ],
-    "lat": 5.6394944,
-    "lng": -0.1780997,
-    "type": "landmark"
-  },
-  {
-    "name": "UG Guest Centre",
-    "aliases": [
-      "guest centre",
-      "ug guest",
-      "guest house",
-      "university guest",
-      "lodge"
-    ],
-    "lat": 5.6448915,
-    "lng": -0.1899594,
-    "type": "accommodation"
-  },
-  {
-    "name": "Department of Botany",
-    "aliases": [
-      "botany",
-      "plant biology",
-      "plant science",
-      "botany dept"
-    ],
-    "lat": 5.6546292,
-    "lng": -0.1834313,
-    "type": "academic"
-  },
-  {
-    "name": "Department of Zoology",
-    "aliases": [
-      "zoology",
-      "animal biology",
-      "zoology dept"
-    ],
-    "lat": 5.6537135,
-    "lng": -0.1877829,
-    "type": "academic"
-  },
-  {
-    "name": "School of Dentistry",
-    "aliases": [
-      "dentistry",
-      "dental school",
-      "dental clinic",
-      "dental"
-    ],
-    "lat": 5.6371864,
-    "lng": -0.1646513,
-    "type": "health"
-  },
-  {
     "name": "East Legon",
     "aliases": [
       "east legon",
       "east legon junction"
     ],
-    "lat": 5.6471876,
-    "lng": -0.1842782,
+    "lat": 5.6518437,
+    "lng": -0.1781098,
     "type": "landmark"
   },
   {
@@ -850,54 +517,6 @@
     "type": "hall"
   },
   {
-    "name": "University Primary School",
-    "aliases": [
-      "basic school",
-      "ug basic",
-      "university primary",
-      "primary school",
-      "ug school"
-    ],
-    "lat": 5.642644,
-    "lng": -0.1877771,
-    "type": "school"
-  },
-  {
-    "name": "Department of Information Studies",
-    "aliases": [
-      "information studies",
-      "dis",
-      "library school",
-      "info studies"
-    ],
-    "lat": 5.6552376,
-    "lng": -0.1870639,
-    "type": "academic"
-  },
-  {
-    "name": "Department of Communication Studies",
-    "aliases": [
-      "communication studies",
-      "comm studies",
-      "journalism",
-      "media"
-    ],
-    "lat": 5.6517512,
-    "lng": -0.1812907,
-    "type": "academic"
-  },
-  {
-    "name": "Department of Social Work",
-    "aliases": [
-      "social work",
-      "social welfare",
-      "dsw"
-    ],
-    "lat": 5.6549354,
-    "lng": -0.1876085,
-    "type": "academic"
-  },
-  {
     "name": "Mensah Sarbah Road",
     "aliases": [
       "sarbah road",
@@ -917,5 +536,125 @@
     "lat": 5.6618149,
     "lng": -0.1664195,
     "type": "road"
+  },
+  {
+    "name": "Akuafo Hall Annex B",
+    "lat": 5.646952,
+    "lng": -0.185669,
+    "type": "hall",
+    "aliases": [
+      "akuafo annex b",
+      "akuafo b"
+    ]
+  },
+  {
+    "name": "Akuafo Hall Annex A",
+    "lat": 5.647966,
+    "lng": -0.185692,
+    "type": "hall",
+    "aliases": [
+      "akuafo annex a",
+      "akuafo a"
+    ]
+  },
+  {
+    "name": "Akuafo Hall Annex C",
+    "lat": 5.647427,
+    "lng": -0.185215,
+    "type": "hall",
+    "aliases": [
+      "akuafo annex c",
+      "akuafo c"
+    ]
+  },
+  {
+    "name": "Akuafo Hall Annex D",
+    "lat": 5.647384,
+    "lng": -0.185925,
+    "type": "hall",
+    "aliases": [
+      "akuafo annex d",
+      "akuafo d"
+    ]
+  },
+  {
+    "name": "Mensah Sarbah Hall Annex A",
+    "lat": 5.645927,
+    "lng": -0.185475,
+    "type": "hall",
+    "aliases": [
+      "sarbah annex a",
+      "mensah sarbah a"
+    ]
+  },
+  {
+    "name": "Mensah Sarbah Hall Annex B",
+    "lat": 5.644899,
+    "lng": -0.185469,
+    "type": "hall",
+    "aliases": [
+      "sarbah annex b",
+      "mensah sarbah b"
+    ]
+  },
+  {
+    "name": "Mensah Sarbah Hall Annex C",
+    "lat": 5.64538,
+    "lng": -0.185257,
+    "type": "hall",
+    "aliases": [
+      "sarbah annex c",
+      "mensah sarbah c"
+    ]
+  },
+  {
+    "name": "Mensah Sarbah Hall Annex D",
+    "lat": 5.645393,
+    "lng": -0.1857,
+    "type": "hall",
+    "aliases": [
+      "sarbah annex d",
+      "mensah sarbah d"
+    ]
+  },
+  {
+    "name": "Legon Hall Annex A",
+    "lat": 5.64794,
+    "lng": -0.188412,
+    "type": "hall",
+    "aliases": [
+      "legon annex a",
+      "legon a"
+    ]
+  },
+  {
+    "name": "Legon Hall Annex B",
+    "lat": 5.646979,
+    "lng": -0.188492,
+    "type": "hall",
+    "aliases": [
+      "legon annex b",
+      "legon b"
+    ]
+  },
+  {
+    "name": "Legon Hall Annex C",
+    "lat": 5.647403,
+    "lng": -0.188911,
+    "type": "hall",
+    "aliases": [
+      "legon annex c",
+      "legon c"
+    ]
+  },
+  {
+    "name": "Legon Hall Annex D",
+    "lat": 5.647384,
+    "lng": -0.185925,
+    "type": "hall",
+    "aliases": [
+      "legon annex d",
+      "legon d"
+    ]
   }
 ]
