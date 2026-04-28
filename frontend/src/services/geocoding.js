@@ -4,16 +4,10 @@ import { distanceKm } from "../function/utils/distance";
 import { API_URL } from "../config";
 import ugLocations from "../data/ugLocations.json";
 
-const NOMINATIM_BASE = import.meta.env.DEV
-  ? "/api/nominatim"
-  : `${API_URL}/api/nominatim`;
+// Cache for API results
+const apiCache = new Map();
 
-// Module-level Nominatim cache — single source of truth, survives re-renders
-const nominatimCache = new Map();
-
-// ── Local fuzzy search ────────────────────────────────────────────────────────
-// Scores how well a location entry matches the query string.
-// Returns 0 if no match at all.
+// Local fuzzy search
 function scoreLocalMatch(location, query) {
   const q = query.toLowerCase().trim();
   const name = location.name.toLowerCase();
@@ -27,7 +21,6 @@ function scoreLocalMatch(location, query) {
   if (name.includes(q)) return 60;
   if (aliases.some((a) => a.includes(q))) return 50;
 
-  // Multi-word token matching — each word of the query must appear somewhere
   const tokens = q.split(" ").filter((t) => t.length >= 2);
   if (tokens.length > 1) {
     const hits = tokens.filter(
@@ -40,7 +33,6 @@ function scoreLocalMatch(location, query) {
   return 0;
 }
 
-// Returns matching UG campus locations without any API call.
 export function searchLocal(query) {
   if (!query || query.trim().length < 2) return [];
 
@@ -59,79 +51,113 @@ export function searchLocal(query) {
     }));
 }
 
-// ── Nominatim fallback ────────────────────────────────────────────────────────
-// Only called when local search returns nothing useful.
-// Accepts an AbortSignal so the caller can cancel stale requests cleanly.
+// Main geocode function - uses LocationIQ first, falls back to Nominatim
 export async function geocode(query, signal) {
   if (!query || query.trim().length < 3) return [];
 
-  const key = query.trim().toLowerCase();
-
-  if (nominatimCache.has(key)) {
-    return nominatimCache.get(key);
+  // Check local first
+  const localResults = searchLocal(query);
+  if (localResults.length >= 2) {
+    return localResults;
   }
 
+  const cacheKey = query.trim().toLowerCase();
+  
+  // Check API cache
+  if (apiCache.has(cacheKey)) {
+    console.log(`[geocode] Cache hit: ${cacheKey}`);
+    return apiCache.get(cacheKey);
+  }
+
+  // Try LocationIQ first (3 req/sec limit)
+  try {
+    const url = `${API_URL}/api/locationiq/search?q=${encodeURIComponent(query.trim())}`;
+    console.log(`[geocode] Trying LocationIQ: ${query}`);
+    
+    const response = await fetch(url, { signal });
+    
+    if (response.ok) {
+      const data = await response.json();
+      
+      if (data && data.length > 0) {
+        const formatted = data.map((item) => ({
+          name: item.display_name.split(",")[0] || item.display_name,
+          lat: parseFloat(item.lat),
+          lng: parseFloat(item.lon),
+          source: "locationiq",
+        }));
+        
+        apiCache.set(cacheKey, formatted);
+        return formatted;
+      }
+    }
+  } catch (err) {
+    if (err.name === "AbortError") return null;
+    console.log("[geocode] LocationIQ failed, trying Nominatim");
+  }
+
+  // Fallback to Nominatim if LocationIQ fails
   try {
     const { lat, lng } = UG_CENTER;
-    const url =
-      `${NOMINATIM_BASE}/search` +
-      `?q=${encodeURIComponent(query.trim())}` +
-      `&format=json&limit=8&countrycodes=gh&addressdetails=1` +
-      `&lat=${lat}&lon=${lng}`;
-
-    const response = await fetch(url, {
-      headers: { Accept: "application/json" },
-      signal,
-    });
-
-    if (!response.ok) return [];
-
-    const raw = await response.json();
-    if (!raw || raw.length === 0) return [];
-
-    const formatted = raw
-      .map((item) => ({
-        name: item.display_name?.split(",")[0] || item.display_name,
-        lat: parseFloat(item.lat),
-        lng: parseFloat(item.lon),
-        type: item.type || "place",
-        dist: distanceKm(lat, lng, parseFloat(item.lat), parseFloat(item.lon)),
-        source: "nominatim",
-      }))
-      .sort((a, b) => a.dist - b.dist)
-      .slice(0, 5);
-
-    nominatimCache.set(key, formatted);
-
-    if (nominatimCache.size > 100) {
-      nominatimCache.delete(nominatimCache.keys().next().value);
-    }
-
+    const url = `${API_URL}/api/nominatim/search?q=${encodeURIComponent(query.trim())}&format=json&limit=8&countrycodes=gh&addressdetails=1&lat=${lat}&lon=${lng}`;
+    
+    console.log(`[geocode] Falling back to Nominatim: ${query}`);
+    const response = await fetch(url, { signal });
+    
+    if (!response.ok) return localResults;
+    
+    const data = await response.json();
+    if (!data || data.length === 0) return localResults;
+    
+    const formatted = data.map((item) => ({
+      name: item.display_name.split(",")[0] || item.display_name,
+      lat: parseFloat(item.lat),
+      lng: parseFloat(item.lon),
+      source: "nominatim",
+    }));
+    
+    apiCache.set(cacheKey, formatted);
     return formatted;
   } catch (err) {
-    // AbortError is intentional — a newer query cancelled this one
     if (err.name === "AbortError") return null;
     console.error("[geocode] Error:", err);
-    return [];
+    return localResults;
   }
 }
 
-// ── Reverse geocoding ─────────────────────────────────────────────────────────
+// Reverse geocoding
 export async function reverseGeocode(lat, lng) {
   try {
-    const url = `${NOMINATIM_BASE}/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`;
-    const response = await fetch(url, { headers: { Accept: "application/json" } });
-
+    // Try LocationIQ first
+    const locationIQUrl = `${API_URL}/api/locationiq/reverse?lat=${lat}&lon=${lng}&format=json`;
+    const locationIQResponse = await fetch(locationIQUrl);
+    
+    if (locationIQResponse.ok) {
+      const data = await locationIQResponse.json();
+      if (data.address?.building) return data.address.building;
+      if (data.address?.road) return data.address.road;
+      if (data.address?.footway) return data.address.footway;
+      if (data.display_name) return data.display_name.split(",")[0];
+    }
+  } catch (err) {
+    console.log("[reverseGeocode] LocationIQ failed, trying Nominatim");
+  }
+  
+  // Fallback to Nominatim
+  try {
+    const url = `${API_URL}/api/nominatim/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`;
+    const response = await fetch(url);
+    
     if (!response.ok) return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-
+    
     const data = await response.json();
     if (!data?.display_name) return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-
+    
     if (data.address?.building) return data.address.building;
     if (data.address?.road) return data.address.road;
     if (data.address?.footway) return data.address.footway;
     return data.display_name.split(",")[0] || "Selected point";
-  } catch {
+  } catch (err) {
     return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
   }
 }
