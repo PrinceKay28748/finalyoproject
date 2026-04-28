@@ -154,7 +154,7 @@
   background: #1f2937;
 }
 
-/* Tiny spinner in section header while Nominatim tops up in background */
+/* Tiny spinner in section header */
 .search-section-spinner {
   width: 10px;
   height: 10px;
@@ -224,14 +224,34 @@
   text-align: center;
 }
 
-/* ─── Location name ──────────────────────────────────────────────────────────*/
-.search-dropdown-name {
+/* ─── Location info container (name + address) ───────────────────────────────*/
+.search-dropdown-info {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* ─── Location name ──────────────────────────────────────────────────────────*/
+.search-dropdown-name {
+  font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-weight: 500;
+}
+
+/* ─── Location address (for API results) ─────────────────────────────────────*/
+.search-dropdown-address {
+  font-size: 10px;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ug-root.dark .search-dropdown-address {
+  color: #9ca3af;
 }
 
 /* ─── Type tag pill ──────────────────────────────────────────────────────────*/
