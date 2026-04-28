@@ -18,100 +18,6 @@ const app = express();
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
 
-// ─── Nominatim Rate Limit Queue ─────────────────────────────────────────────
-// Ensures we never send more than 1 request per second to Nominatim
-const nominatimQueue = [];
-let nominatimProcessing = false;
-let lastNominatimRequest = 0;
-const NOMINATIM_RATE_LIMIT_MS = 1000; // 1 request per second
-
-// Cache for Nominatim responses (10 minute TTL)
-const nominatimCache = new Map();
-const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
-
-function getCacheKey(url) {
-  return url;
-}
-
-function isCacheValid(cached) {
-  return cached && (Date.now() - cached.timestamp) < CACHE_TTL_MS;
-}
-
-async function processNominatimQueue() {
-  if (nominatimProcessing || nominatimQueue.length === 0) return;
-  
-  nominatimProcessing = true;
-  
-  const now = Date.now();
-  const timeSinceLast = now - lastNominatimRequest;
-  const waitTime = Math.max(0, NOMINATIM_RATE_LIMIT_MS - timeSinceLast);
-  
-  if (waitTime > 0) {
-    await new Promise(resolve => setTimeout(resolve, waitTime));
-  }
-  
-  const { url, resolve, reject } = nominatimQueue.shift();
-  
-  // Check cache first
-  const cacheKey = getCacheKey(url);
-  const cached = nominatimCache.get(cacheKey);
-  if (cached && isCacheValid(cached)) {
-    console.log('[Nominatim Proxy] Cache hit for:', url.substring(0, 100));
-    lastNominatimRequest = Date.now();
-    nominatimProcessing = false;
-    resolve(cached.data);
-    processNominatimQueue();
-    return;
-  }
-  
-  try {
-    lastNominatimRequest = Date.now();
-    console.log('[Nominatim Proxy] Requesting:', url.substring(0, 120));
-    
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'UGNavigator/1.0 (https://ugnavigator.onrender.com)',
-        'Accept': 'application/json',
-        'Accept-Language': 'en',
-        'Referer': 'https://ugnavigator.onrender.com'
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-    
-    const data = await response.json();
-    
-    // Store in cache
-    nominatimCache.set(cacheKey, {
-      data: data,
-      timestamp: Date.now()
-    });
-    
-    // Limit cache size
-    if (nominatimCache.size > 200) {
-      const firstKey = nominatimCache.keys().next().value;
-      nominatimCache.delete(firstKey);
-    }
-    
-    resolve(data);
-  } catch (err) {
-    console.error('[Nominatim Proxy] Error:', err.message);
-    reject(err);
-  } finally {
-    nominatimProcessing = false;
-    processNominatimQueue();
-  }
-}
-
-function queueNominatimRequest(url) {
-  return new Promise((resolve, reject) => {
-    nominatimQueue.push({ url, resolve, reject });
-    processNominatimQueue();
-  });
-}
-
 // ─── Helper to check if email belongs to admin ─────────────────────────────
 const isAdminEmail = async (email) => {
     if (!email) return false;
@@ -198,10 +104,10 @@ app.get('/health', async (req, res) => {
 });
 
 // ============================================
-// NOMINATIM PROXY - With Rate Limit Queue
+// NOMINATIM PROXY - Simple rate limiter
 // ============================================
-// Proxies /api/nominatim/search and /api/nominatim/reverse to Nominatim
-// Queues requests to respect 1 request/second limit
+let lastNominatimRequest = 0;
+
 app.get('/api/nominatim/:path(*)', async (req, res) => {
     try {
         const params = new URLSearchParams(req.query);
@@ -211,24 +117,54 @@ app.get('/api/nominatim/:path(*)', async (req, res) => {
             params.set('format', 'json');
         }
         
-        // Ensure we get address details
+        // Ensure we get address details for reverse geocoding
         if (req.params.path.includes('reverse') && !params.has('addressdetails')) {
             params.set('addressdetails', '1');
         }
         
         const url = `https://nominatim.openstreetmap.org/${req.params.path}?${params.toString()}`;
         
-        const data = await queueNominatimRequest(url);
+        // Rate limiting: ensure 1 request per second
+        const now = Date.now();
+        const timeSinceLast = now - lastNominatimRequest;
+        if (timeSinceLast < 1000) {
+            const waitTime = 1000 - timeSinceLast;
+            console.log(`[Nominatim] Rate limit wait: ${waitTime}ms`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
         
-        if (data && data.error) {
-            console.error('[Nominatim Proxy] Nominatim error:', data.error);
-            return res.status(400).json({ error: data.error });
+        lastNominatimRequest = Date.now();
+        console.log('[Nominatim] Fetching:', url.substring(0, 120));
+        
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'UGNavigator/1.0 (https://ugnavigator.onrender.com)',
+                'Accept': 'application/json',
+                'Accept-Language': 'en'
+            }
+        });
+        
+        const text = await response.text();
+        
+        if (!response.ok) {
+            console.error('[Nominatim] HTTP error:', response.status, text.substring(0, 200));
+            return res.status(response.status).json({ 
+                error: `Nominatim returned ${response.status}` 
+            });
+        }
+        
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            console.error('[Nominatim] Invalid JSON response:', text.substring(0, 200));
+            return res.status(500).json({ error: 'Invalid response from geocoding service' });
         }
         
         res.json(data);
     } catch (err) {
-        console.error('[Nominatim Proxy] Error:', err.message);
-        res.status(500).json({ error: 'Nominatim request failed', details: err.message });
+        console.error('[Nominatim] Error:', err.message);
+        res.status(500).json({ error: 'Geocoding failed', details: err.message });
     }
 });
 
