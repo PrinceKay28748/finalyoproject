@@ -18,59 +18,41 @@ const app = express();
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
 
-// ─── Nominatim Request Queue ────────────────────────────────────────────────
-// This ensures we never send more than 1 request per second to Nominatim
-let lastRequestTime = 0;
-const requestQueue = [];
-let isProcessing = false;
+// ─── LocationIQ Rate Limit Queue (3 requests per second) ────────────────────
+let lastLocationIQRequest = 0;
+const locationIQQueue = [];
+let processingLocationIQ = false;
 
-async function processNominatimQueue() {
-  if (isProcessing || requestQueue.length === 0) return;
+async function processLocationIQQueue() {
+  if (processingLocationIQ || locationIQQueue.length === 0) return;
   
-  isProcessing = true;
+  processingLocationIQ = true;
   
   const now = Date.now();
-  const timeSinceLast = now - lastRequestTime;
-  if (timeSinceLast < 1000) {
-    const waitTime = 1000 - timeSinceLast;
-    console.log(`[Nominatim Queue] Waiting ${waitTime}ms before next request`);
+  const timeSinceLast = now - lastLocationIQRequest;
+  if (timeSinceLast < 334) {
+    const waitTime = 334 - timeSinceLast;
     await new Promise(resolve => setTimeout(resolve, waitTime));
   }
   
-  const { url, res, params, path } = requestQueue.shift();
+  const { url, res } = locationIQQueue.shift();
   
   try {
-    lastRequestTime = Date.now();
-    console.log('[Nominatim Queue] Fetching:', url.substring(0, 100));
+    lastLocationIQRequest = Date.now();
+    const response = await fetch(url);
+    const data = await response.json();
     
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'UGNavigator/1.0 (https://ugnavigator.onrender.com)',
-        'Accept': 'application/json',
-        'Accept-Language': 'en'
-      }
-    });
-    
-    const text = await response.text();
-    
-    if (!response.ok) {
-      console.error('[Nominatim Queue] HTTP error:', response.status);
-      res.status(response.status).json({ error: `Nominatim returned ${response.status}` });
+    if (data.error) {
+      res.status(400).json({ error: data.error });
     } else {
-      try {
-        const data = JSON.parse(text);
-        res.json(data);
-      } catch (e) {
-        console.error('[Nominatim Queue] Invalid JSON');
-        res.status(500).json({ error: 'Invalid response from geocoding service' });
-      }
+      res.json(data);
     }
   } catch (err) {
-    console.error('[Nominatim Queue] Error:', err.message);
-    res.status(500).json({ error: 'Geocoding failed', details: err.message });
+    console.error('[LocationIQ] Error:', err.message);
+    res.status(500).json({ error: 'Geocoding failed' });
   } finally {
-    isProcessing = false;
-    processNominatimQueue();
+    processingLocationIQ = false;
+    processLocationIQQueue();
   }
 }
 
@@ -160,31 +142,33 @@ app.get('/health', async (req, res) => {
 });
 
 // ============================================
-// NOMINATIM PROXY - With Request Queue
+// LOCATIONIQ PROXY
 // ============================================
-app.get('/api/nominatim/:path(*)', (req, res) => {
+app.get('/api/locationiq/search', (req, res) => {
+    const query = req.query.q;
+    if (!query) {
+        return res.status(400).json({ error: 'Missing query parameter' });
+    }
+    
+    const url = `https://us1.locationiq.com/v1/search.php?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=gh&key=${process.env.LOCATIONIQ_API_KEY}`;
+    locationIQQueue.push({ url, res });
+    processLocationIQQueue();
+});
+
+app.get('/api/locationiq/reverse', async (req, res) => {
+    const { lat, lon } = req.query;
+    if (!lat || !lon) {
+        return res.status(400).json({ error: 'Missing lat or lon' });
+    }
+    
     try {
-        const params = new URLSearchParams(req.query);
-        
-        // Force JSON format
-        if (!params.has('format')) {
-            params.set('format', 'json');
-        }
-        
-        // Ensure we get address details for reverse geocoding
-        if (req.params.path.includes('reverse') && !params.has('addressdetails')) {
-            params.set('addressdetails', '1');
-        }
-        
-        const url = `https://nominatim.openstreetmap.org/${req.params.path}?${params.toString()}`;
-        
-        // Add request to queue (processes 1 per second)
-        requestQueue.push({ url, res, params, path: req.params.path });
-        processNominatimQueue();
-        
+        const url = `https://us1.locationiq.com/v1/reverse.php?lat=${lat}&lon=${lon}&format=json&key=${process.env.LOCATIONIQ_API_KEY}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        res.json(data);
     } catch (err) {
-        console.error('[Nominatim Proxy] Error:', err.message);
-        res.status(500).json({ error: 'Geocoding failed', details: err.message });
+        console.error('[LocationIQ Reverse] Error:', err.message);
+        res.status(500).json({ error: 'Reverse geocoding failed' });
     }
 });
 
@@ -224,7 +208,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 ║    • DELETE /auth/me         - Delete account              ║
 ║    • GET    /health          - Health check                ║
 ║    • GET    /admin/*         - Admin dashboard            ║
-║    • GET    /api/nominatim/* - Nominatim proxy (queued)   ║
+║    • GET    /api/locationiq/* - LocationIQ proxy          ║
 ║                                                            ║
 ╚════════════════════════════════════════════════════════════╝
   `);

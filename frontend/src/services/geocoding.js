@@ -51,7 +51,7 @@ export function searchLocal(query) {
     }));
 }
 
-// Main geocode function - uses LocationIQ first, falls back to Nominatim
+// Main geocode function - LocationIQ only
 export async function geocode(query, signal) {
   if (!query || query.trim().length < 3) return [];
 
@@ -63,100 +63,62 @@ export async function geocode(query, signal) {
 
   const cacheKey = query.trim().toLowerCase();
   
-  // Check API cache
   if (apiCache.has(cacheKey)) {
-    console.log(`[geocode] Cache hit: ${cacheKey}`);
     return apiCache.get(cacheKey);
   }
 
-  // Try LocationIQ first (3 req/sec limit)
   try {
     const url = `${API_URL}/api/locationiq/search?q=${encodeURIComponent(query.trim())}`;
-    console.log(`[geocode] Trying LocationIQ: ${query}`);
-    
     const response = await fetch(url, { signal });
     
-    if (response.ok) {
-      const data = await response.json();
-      
-      if (data && data.length > 0) {
-        const formatted = data.map((item) => ({
-          name: item.display_name.split(",")[0] || item.display_name,
-          lat: parseFloat(item.lat),
-          lng: parseFloat(item.lon),
-          source: "locationiq",
-        }));
-        
-        apiCache.set(cacheKey, formatted);
-        return formatted;
-      }
+    if (!response.ok) {
+      return localResults;
     }
-  } catch (err) {
-    if (err.name === "AbortError") return null;
-    console.log("[geocode] LocationIQ failed, trying Nominatim");
-  }
-
-  // Fallback to Nominatim if LocationIQ fails
-  try {
-    const { lat, lng } = UG_CENTER;
-    const url = `${API_URL}/api/nominatim/search?q=${encodeURIComponent(query.trim())}&format=json&limit=8&countrycodes=gh&addressdetails=1&lat=${lat}&lon=${lng}`;
-    
-    console.log(`[geocode] Falling back to Nominatim: ${query}`);
-    const response = await fetch(url, { signal });
-    
-    if (!response.ok) return localResults;
     
     const data = await response.json();
-    if (!data || data.length === 0) return localResults;
+    
+    if (!data || data.length === 0) {
+      return localResults;
+    }
     
     const formatted = data.map((item) => ({
       name: item.display_name.split(",")[0] || item.display_name,
       lat: parseFloat(item.lat),
       lng: parseFloat(item.lon),
-      source: "nominatim",
+      source: "locationiq",
     }));
     
     apiCache.set(cacheKey, formatted);
+    
+    if (apiCache.size > 200) {
+      const firstKey = apiCache.keys().next().value;
+      apiCache.delete(firstKey);
+    }
+    
     return formatted;
   } catch (err) {
     if (err.name === "AbortError") return null;
-    console.error("[geocode] Error:", err);
     return localResults;
   }
 }
 
-// Reverse geocoding
+// Reverse geocoding - LocationIQ only
 export async function reverseGeocode(lat, lng) {
   try {
-    // Try LocationIQ first
-    const locationIQUrl = `${API_URL}/api/locationiq/reverse?lat=${lat}&lon=${lng}&format=json`;
-    const locationIQResponse = await fetch(locationIQUrl);
-    
-    if (locationIQResponse.ok) {
-      const data = await locationIQResponse.json();
-      if (data.address?.building) return data.address.building;
-      if (data.address?.road) return data.address.road;
-      if (data.address?.footway) return data.address.footway;
-      if (data.display_name) return data.display_name.split(",")[0];
-    }
-  } catch (err) {
-    console.log("[reverseGeocode] LocationIQ failed, trying Nominatim");
-  }
-  
-  // Fallback to Nominatim
-  try {
-    const url = `${API_URL}/api/nominatim/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`;
+    const url = `${API_URL}/api/locationiq/reverse?lat=${lat}&lon=${lng}&format=json`;
     const response = await fetch(url);
     
-    if (!response.ok) return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    if (!response.ok) {
+      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    }
     
     const data = await response.json();
-    if (!data?.display_name) return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
     
     if (data.address?.building) return data.address.building;
     if (data.address?.road) return data.address.road;
     if (data.address?.footway) return data.address.footway;
-    return data.display_name.split(",")[0] || "Selected point";
+    
+    return data.display_name?.split(",")[0] || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
   } catch (err) {
     return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
   }
