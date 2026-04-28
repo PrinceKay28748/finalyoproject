@@ -18,6 +18,62 @@ const app = express();
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
 
+// ─── Nominatim Request Queue ────────────────────────────────────────────────
+// This ensures we never send more than 1 request per second to Nominatim
+let lastRequestTime = 0;
+const requestQueue = [];
+let isProcessing = false;
+
+async function processNominatimQueue() {
+  if (isProcessing || requestQueue.length === 0) return;
+  
+  isProcessing = true;
+  
+  const now = Date.now();
+  const timeSinceLast = now - lastRequestTime;
+  if (timeSinceLast < 1000) {
+    const waitTime = 1000 - timeSinceLast;
+    console.log(`[Nominatim Queue] Waiting ${waitTime}ms before next request`);
+    await new Promise(resolve => setTimeout(resolve, waitTime));
+  }
+  
+  const { url, res, params, path } = requestQueue.shift();
+  
+  try {
+    lastRequestTime = Date.now();
+    console.log('[Nominatim Queue] Fetching:', url.substring(0, 100));
+    
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'UGNavigator/1.0 (https://ugnavigator.onrender.com)',
+        'Accept': 'application/json',
+        'Accept-Language': 'en'
+      }
+    });
+    
+    const text = await response.text();
+    
+    if (!response.ok) {
+      console.error('[Nominatim Queue] HTTP error:', response.status);
+      res.status(response.status).json({ error: `Nominatim returned ${response.status}` });
+    } else {
+      try {
+        const data = JSON.parse(text);
+        res.json(data);
+      } catch (e) {
+        console.error('[Nominatim Queue] Invalid JSON');
+        res.status(500).json({ error: 'Invalid response from geocoding service' });
+      }
+    }
+  } catch (err) {
+    console.error('[Nominatim Queue] Error:', err.message);
+    res.status(500).json({ error: 'Geocoding failed', details: err.message });
+  } finally {
+    isProcessing = false;
+    processNominatimQueue();
+  }
+}
+
 // ─── Helper to check if email belongs to admin ─────────────────────────────
 const isAdminEmail = async (email) => {
     if (!email) return false;
@@ -104,11 +160,9 @@ app.get('/health', async (req, res) => {
 });
 
 // ============================================
-// NOMINATIM PROXY - Simple rate limiter
+// NOMINATIM PROXY - With Request Queue
 // ============================================
-let lastNominatimRequest = 0;
-
-app.get('/api/nominatim/:path(*)', async (req, res) => {
+app.get('/api/nominatim/:path(*)', (req, res) => {
     try {
         const params = new URLSearchParams(req.query);
         
@@ -124,46 +178,12 @@ app.get('/api/nominatim/:path(*)', async (req, res) => {
         
         const url = `https://nominatim.openstreetmap.org/${req.params.path}?${params.toString()}`;
         
-        // Rate limiting: ensure 1 request per second
-        const now = Date.now();
-        const timeSinceLast = now - lastNominatimRequest;
-        if (timeSinceLast < 1000) {
-            const waitTime = 1000 - timeSinceLast;
-            console.log(`[Nominatim] Rate limit wait: ${waitTime}ms`);
-            await new Promise(resolve => setTimeout(resolve, waitTime));
-        }
+        // Add request to queue (processes 1 per second)
+        requestQueue.push({ url, res, params, path: req.params.path });
+        processNominatimQueue();
         
-        lastNominatimRequest = Date.now();
-        console.log('[Nominatim] Fetching:', url.substring(0, 120));
-        
-        const response = await fetch(url, {
-            headers: {
-                'User-Agent': 'UGNavigator/1.0 (https://ugnavigator.onrender.com)',
-                'Accept': 'application/json',
-                'Accept-Language': 'en'
-            }
-        });
-        
-        const text = await response.text();
-        
-        if (!response.ok) {
-            console.error('[Nominatim] HTTP error:', response.status, text.substring(0, 200));
-            return res.status(response.status).json({ 
-                error: `Nominatim returned ${response.status}` 
-            });
-        }
-        
-        let data;
-        try {
-            data = JSON.parse(text);
-        } catch (e) {
-            console.error('[Nominatim] Invalid JSON response:', text.substring(0, 200));
-            return res.status(500).json({ error: 'Invalid response from geocoding service' });
-        }
-        
-        res.json(data);
     } catch (err) {
-        console.error('[Nominatim] Error:', err.message);
+        console.error('[Nominatim Proxy] Error:', err.message);
         res.status(500).json({ error: 'Geocoding failed', details: err.message });
     }
 });
@@ -204,7 +224,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 ║    • DELETE /auth/me         - Delete account              ║
 ║    • GET    /health          - Health check                ║
 ║    • GET    /admin/*         - Admin dashboard            ║
-║    • GET    /api/nominatim/* - Nominatim proxy (rate limited) ║
+║    • GET    /api/nominatim/* - Nominatim proxy (queued)   ║
 ║                                                            ║
 ╚════════════════════════════════════════════════════════════╝
   `);
