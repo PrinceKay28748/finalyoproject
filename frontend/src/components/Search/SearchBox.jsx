@@ -22,11 +22,11 @@ const TYPE_META = {
   accommodation: { icon: "🏨", label: "Stay" },
   school:        { icon: "🏫", label: "School" },
   place:         { icon: "📍", label: "Place" },
-  nominatim:     { icon: "🌍", label: "Place" },
+  locationiq:    { icon: "🌍", label: "Place" },
 };
 
 function getTypeMeta(type, source) {
-  if (source === "nominatim" && !TYPE_META[type]) return TYPE_META.nominatim;
+  if (source === "locationiq") return TYPE_META.locationiq;
   return TYPE_META[type] || TYPE_META.place;
 }
 
@@ -69,7 +69,7 @@ export default function SearchBox({
     return () => window.removeEventListener("recentSearchesUpdated", sync);
   }, []);
 
-  // ── Cancel pending Nominatim request ────────────────────────────────────────
+  // ── Cancel pending request ────────────────────────────────────────
   const cancelPending = useCallback(() => {
     if (abortRef.current) {
       abortRef.current.abort();
@@ -89,7 +89,6 @@ export default function SearchBox({
 
     cancelPending();
 
-    // CHANGED: min length from 2 to 4 characters
     if (val.length < 4) {
       setSuggestions([]);
       setLoading(false);
@@ -108,7 +107,6 @@ export default function SearchBox({
       setLoading(true);
     }
 
-    // CHANGED: debounce from 500ms to 1000ms (1 second)
     debounceRef.current = setTimeout(async () => {
       const controller = new AbortController();
       abortRef.current = controller;
@@ -130,7 +128,7 @@ export default function SearchBox({
         setLoading(false);
         abortRef.current = null;
       }
-    }, 1000); // WAS: 500, NOW: 1000
+    }, 1000);
   };
 
   // ── Select a suggestion ──────────────────────────────────────────────────────
@@ -182,6 +180,13 @@ export default function SearchBox({
   const dropdownVisible =
     showDropdown &&
     (showCurrentLocationOption || showRecents || showSuggestions || loading || showEmpty);
+
+  // Helper to get short address from full address
+  const getShortAddress = (fullAddress) => {
+    if (!fullAddress) return null;
+    const parts = fullAddress.split(',').slice(1, 3);
+    return parts.join(',').trim();
+  };
 
   return (
     <div className="searchbox-root">
@@ -262,6 +267,8 @@ export default function SearchBox({
               </div>
               {suggestions.map((loc, i) => {
                 const meta = getTypeMeta(loc.type, loc.source);
+                const shortAddress = loc.fullAddress ? getShortAddress(loc.fullAddress) : null;
+                
                 return (
                   <button
                     key={`${loc.name}-${i}`}
@@ -269,9 +276,13 @@ export default function SearchBox({
                     onMouseDown={(e) => { e.preventDefault(); handleSelect(loc); }}
                   >
                     <span className="searchbox-row-emoji" title={meta.label}>{meta.icon}</span>
-                    <span className="searchbox-row-name">{loc.name}</span>
-                    <span className="searchbox-row-tag">{meta.label}</span>
-                    {loc.dist > 0 && (
+                    <div className="searchbox-row-info">
+                      <span className="searchbox-row-name">{loc.name}</span>
+                      {shortAddress && loc.source === "locationiq" && (
+                        <span className="searchbox-row-address">{shortAddress}</span>
+                      )}
+                    </div>
+                    {loc.dist > 0 && loc.source !== "locationiq" && (
                       <span className="searchbox-row-dist">{loc.dist.toFixed(1)} km</span>
                     )}
                   </button>
