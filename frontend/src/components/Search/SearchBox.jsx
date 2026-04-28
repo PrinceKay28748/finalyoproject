@@ -59,7 +59,6 @@ export default function SearchBox({
   const inputRef = useRef(null);
   const dropdownRef = useRef(null);
   const debounceRef = useRef(null);
-  // useRef for abort controller — not state, so closures always see the latest value
   const abortRef = useRef(null);
 
   // ── Recent searches ─────────────────────────────────────────────────────────
@@ -88,43 +87,37 @@ export default function SearchBox({
     onChange(val);
     setShowDropdown(true);
 
-    // Cancel any in-flight Nominatim request and pending debounce
     cancelPending();
 
-    if (val.length < 2) {
+    // CHANGED: min length from 2 to 4 characters
+    if (val.length < 4) {
       setSuggestions([]);
       setLoading(false);
       return;
     }
 
-    // Local search fires immediately — no debounce, no API, no flicker
     const localResults = searchLocal(val);
     setSuggestions(localResults);
 
-    // If local results are strong (3+), don't bother Nominatim at all
     if (localResults.length >= 3) {
       setLoading(false);
       return;
     }
 
-    // For weak or empty local results, show what we have and queue Nominatim
-    // as a background top-up. Loading indicator only shows if local gave nothing.
     if (localResults.length === 0) {
       setLoading(true);
     }
 
+    // CHANGED: debounce from 500ms to 1000ms (1 second)
     debounceRef.current = setTimeout(async () => {
-      // Create a fresh AbortController for this specific request
       const controller = new AbortController();
       abortRef.current = controller;
 
       try {
         const apiResults = await geocode(val, controller.signal);
 
-        // null means the request was aborted — don't update anything
         if (apiResults === null) return;
 
-        // Merge: put local results first, then Nominatim results that aren't duplicates
         const localNames = new Set(localResults.map((r) => r.name.toLowerCase()));
         const fresh = apiResults.filter(
           (r) => !localNames.has(r.name.toLowerCase())
@@ -132,12 +125,12 @@ export default function SearchBox({
 
         setSuggestions([...localResults, ...fresh].slice(0, 7));
       } catch {
-        // Swallow — AbortError handled inside geocode(), other errors are silent
+        // Swallow
       } finally {
         setLoading(false);
         abortRef.current = null;
       }
-    }, 500); // 500ms — fast enough to feel live, slow enough to avoid 429s
+    }, 1000); // WAS: 500, NOW: 1000
   };
 
   // ── Select a suggestion ──────────────────────────────────────────────────────
@@ -182,10 +175,9 @@ export default function SearchBox({
   const visibleRecent = showAllRecent ? recentSearches : recentSearches.slice(0, 5);
   const hasMoreRecent = recentSearches.length > 5;
 
-  // What to show in the dropdown
   const showRecents = value.length < 1 && recentSearches.length > 0;
   const showSuggestions = suggestions.length > 0;
-  const showEmpty = !loading && !showSuggestions && value.length >= 3 && !showCurrentLocationOption;
+  const showEmpty = !loading && !showSuggestions && value.length >= 4 && !showCurrentLocationOption;
 
   const dropdownVisible =
     showDropdown &&
