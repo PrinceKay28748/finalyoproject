@@ -1,62 +1,62 @@
 // utils/MinHeap.js
-// Binary min-heap used as a priority queue in Dijkstra's algorithm
-// Replaces the O(n) linear scan with O(log n) insert and extract
-// This is the standard optimization for Dijkstra on large graphs
+// Min-heap for A* priority queue - stores objects with priority field
 
 export class MinHeap {
   constructor() {
-    this.heap = []; // array-based binary heap
+    this.heap = [];
   }
 
-  // Returns number of elements in the heap
   get size() {
     return this.heap.length;
   }
 
-  // Inserts a new node with a given priority (distance)
-  push(nodeId, priority) {
-    this.heap.push({ nodeId, priority });
+  // Push an object with a priority value
+  push(value, priority) {
+    this.heap.push({ value, priority });
     this._bubbleUp(this.heap.length - 1);
   }
 
-  // Removes and returns the node with the lowest priority
+  // Pop and return the object with lowest priority
   pop() {
-    const top  = this.heap[0];
+    if (this.heap.length === 0) return null;
+    
+    const top = this.heap[0];
     const last = this.heap.pop();
-
+    
     if (this.heap.length > 0) {
       this.heap[0] = last;
       this._sinkDown(0);
     }
-
+    
     return top;
   }
 
-  // Moves a newly inserted element up until heap property is restored
-  _bubbleUp(i) {
-    while (i > 0) {
-      const parent = Math.floor((i - 1) / 2);
-      if (this.heap[parent].priority <= this.heap[i].priority) break;
-      [this.heap[parent], this.heap[i]] = [this.heap[i], this.heap[parent]];
-      i = parent;
+  _bubbleUp(index) {
+    while (index > 0) {
+      const parent = Math.floor((index - 1) / 2);
+      if (this.heap[parent].priority <= this.heap[index].priority) break;
+      [this.heap[parent], this.heap[index]] = [this.heap[index], this.heap[parent]];
+      index = parent;
     }
   }
 
-  // Moves an element down until heap property is restored
-  _sinkDown(i) {
-    const n = this.heap.length;
+  _sinkDown(index) {
+    const length = this.heap.length;
     while (true) {
-      let smallest = i;
-      const left   = 2 * i + 1;
-      const right  = 2 * i + 2;
+      let smallest = index;
+      const left = 2 * index + 1;
+      const right = 2 * index + 2;
 
-      if (left  < n && this.heap[left].priority  < this.heap[smallest].priority) smallest = left;
-      if (right < n && this.heap[right].priority < this.heap[smallest].priority) smallest = right;
+      if (left < length && this.heap[left].priority < this.heap[smallest].priority) {
+        smallest = left;
+      }
+      if (right < length && this.heap[right].priority < this.heap[smallest].priority) {
+        smallest = right;
+      }
+      if (smallest === index) break;
 
-      if (smallest === i) break;
-
-      [this.heap[smallest], this.heap[i]] = [this.heap[i], this.heap[smallest]];
-      i = smallest;
+      [this.heap[smallest], this.heap[index]] = [this.heap[index], this.heap[smallest]];
+      index = smallest;
     }
   }
 }
