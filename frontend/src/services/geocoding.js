@@ -119,6 +119,7 @@ export async function geocode(query, signal) {
     if (!response.ok) return localResults;
 
     const data = await response.json();
+    console.log('[LocationIQ raw]', JSON.stringify(data[0], null, 2));
     if (!data || data.length === 0) return localResults;
 
     const formatted = data
