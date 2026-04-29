@@ -75,6 +75,7 @@ export function searchLocal(query) {
 // Falls back to the second segment of display_name (usually a road name)
 // so something useful always appears even in low-coverage areas.
 function extractArea(address = {}, displayName = "") {
+  if (address.town)          return address.town;
   if (address.suburb)        return address.suburb;
   if (address.neighbourhood) return address.neighbourhood;
   if (address.quarter)       return address.quarter;
@@ -82,16 +83,20 @@ function extractArea(address = {}, displayName = "") {
   if (address.county)        return address.county;
   if (address.city_district) return address.city_district;
   if (address.city)          return address.city;
-  // last resort: second comma-segment e.g. "Spintex Road" or "Haatso"
   const segment = displayName.split(",")[1]?.trim();
   return segment || null;
 }
 
 // ── Place name extraction ────────────────────────────────────────────────────
-// Prefers structured address fields over splitting display_name, which
-// avoids getting junk like a long road description as the "name".
+// LocationIQ stores the place name under the OSM type key in the address object
+// e.g. type="fast_food" → address.fast_food = "KFC"
+//      type="restaurant" → address.restaurant = "Pizza Man"
+//      type="bank" → address.bank = "Stanbic"
+// Falls back to common fixed keys, then display_name first segment.
 function extractName(item) {
   return (
+    (item.type && item.address?.[item.type]) ||
+    (item.class && item.address?.[item.class]) ||
     item.address?.amenity  ||
     item.address?.shop     ||
     item.address?.office   ||
@@ -119,7 +124,6 @@ export async function geocode(query, signal) {
     if (!response.ok) return localResults;
 
     const data = await response.json();
-    console.log('[LocationIQ raw]', JSON.stringify(data[0], null, 2));
     if (!data || data.length === 0) return localResults;
 
     const formatted = data
