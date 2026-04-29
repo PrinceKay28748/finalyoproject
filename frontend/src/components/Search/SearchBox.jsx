@@ -61,7 +61,7 @@ export default function SearchBox({
   const debounceRef = useRef(null);
   const abortRef = useRef(null);
 
-  // ── Recent searches ─────────────────────────────────────────────────────────
+  // ── Recent searches ──────────────────────────────────────────────────────────
   useEffect(() => {
     setRecentSearches(getRecentSearches());
     const sync = () => setRecentSearches(getRecentSearches());
@@ -69,7 +69,7 @@ export default function SearchBox({
     return () => window.removeEventListener("recentSearchesUpdated", sync);
   }, []);
 
-  // ── Cancel pending request ────────────────────────────────────────
+  // ── Cancel pending request ───────────────────────────────────────────────────
   const cancelPending = useCallback(() => {
     if (abortRef.current) {
       abortRef.current.abort();
@@ -181,18 +181,15 @@ export default function SearchBox({
     showDropdown &&
     (showCurrentLocationOption || showRecents || showSuggestions || loading || showEmpty);
 
-  // Helper to get short address from full address
-  const getShortAddress = (fullAddress) => {
-    if (!fullAddress) return null;
-    const parts = fullAddress.split(',').slice(1, 3);
-    return parts.join(',').trim();
-  };
-
   return (
     <div className="searchbox-root">
+
       {/* Input */}
       <div className="searchbox-input-wrap">
-        <span className="searchbox-accent-dot" style={{ background: accentColor, boxShadow: `0 0 6px ${accentColor}` }} />
+        <span
+          className="searchbox-accent-dot"
+          style={{ background: accentColor, boxShadow: `0 0 6px ${accentColor}` }}
+        />
         <input
           ref={inputRef}
           type="text"
@@ -204,7 +201,10 @@ export default function SearchBox({
           onFocus={handleInputClick}
         />
         {loading && (
-          <span className="searchbox-spinner" style={{ borderColor: `${accentColor}40`, borderTopColor: accentColor }} />
+          <span
+            className="searchbox-spinner"
+            style={{ borderColor: `${accentColor}40`, borderTopColor: accentColor }}
+          />
         )}
       </div>
 
@@ -216,7 +216,11 @@ export default function SearchBox({
           {showCurrentLocationOption && (
             <button
               className="searchbox-curr-loc"
-              onMouseDown={(e) => { e.preventDefault(); onUseCurrentLocation(); setShowDropdown(false); }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onUseCurrentLocation();
+                setShowDropdown(false);
+              }}
             >
               <span className="curr-loc-dot" />
               Use my current location
@@ -228,20 +232,30 @@ export default function SearchBox({
             <div className="searchbox-section">
               <div className="searchbox-section-header">
                 <span>Recent</span>
-                <button className="searchbox-clear-btn" onClick={handleClearAll}>Clear all</button>
+                <button className="searchbox-clear-btn" onClick={handleClearAll}>
+                  Clear all
+                </button>
               </div>
               {visibleRecent.map((item, i) => (
                 <button
                   key={i}
                   className="searchbox-row"
-                  onMouseDown={(e) => { e.preventDefault(); handleSelect({ name: item.name, lat: item.lat, lng: item.lng }); }}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSelect({ name: item.name, lat: item.lat, lng: item.lng });
+                  }}
                 >
-                  <span className="searchbox-row-icon"><PinIcon color="#6b7280" /></span>
+                  <span className="searchbox-row-icon">
+                    <PinIcon color="#6b7280" />
+                  </span>
                   <span className="searchbox-row-name">{item.name}</span>
                 </button>
               ))}
               {hasMoreRecent && (
-                <button className="searchbox-show-more" onClick={() => setShowAllRecent(!showAllRecent)}>
+                <button
+                  className="searchbox-show-more"
+                  onClick={() => setShowAllRecent(!showAllRecent)}
+                >
                   {showAllRecent ? "Show less" : `Show ${recentSearches.length - 5} more`}
                 </button>
               )}
@@ -251,7 +265,10 @@ export default function SearchBox({
           {/* Loading skeleton */}
           {loading && !showSuggestions && (
             <div className="searchbox-loading-row">
-              <span className="searchbox-spinner-inline" style={{ borderColor: `${accentColor}40`, borderTopColor: accentColor }} />
+              <span
+                className="searchbox-spinner-inline"
+                style={{ borderColor: `${accentColor}40`, borderTopColor: accentColor }}
+              />
               <span>Searching…</span>
             </div>
           )}
@@ -262,27 +279,47 @@ export default function SearchBox({
               <div className="searchbox-section-header">
                 <span>Suggestions</span>
                 {loading && (
-                  <span className="searchbox-spinner-xs" style={{ borderColor: `${accentColor}40`, borderTopColor: accentColor }} />
+                  <span
+                    className="searchbox-spinner-xs"
+                    style={{ borderColor: `${accentColor}40`, borderTopColor: accentColor }}
+                  />
                 )}
               </div>
               {suggestions.map((loc, i) => {
                 const meta = getTypeMeta(loc.type, loc.source);
-                const shortAddress = loc.fullAddress ? getShortAddress(loc.fullAddress) : null;
-                
+
+                // For LocationIQ results: primary line is "KFC — East Legon"
+                // For local results: primary line is just the place name as before
+                const primaryLabel =
+                  loc.source === "locationiq" && loc.displayLabel
+                    ? loc.displayLabel
+                    : loc.name;
+
+                // Sub-line: for LocationIQ show the first 3 segments of the full
+                // address so the user can verify the exact location if needed.
+                // Local results don't need this — their type badge is enough.
+                const subLabel =
+                  loc.source === "locationiq" && loc.fullAddress
+                    ? loc.fullAddress.split(",").slice(0, 3).join(",").trim()
+                    : null;
+
                 return (
                   <button
                     key={`${loc.name}-${i}`}
                     className="searchbox-row"
                     onMouseDown={(e) => { e.preventDefault(); handleSelect(loc); }}
                   >
-                    <span className="searchbox-row-emoji" title={meta.label}>{meta.icon}</span>
+                    <span className="searchbox-row-emoji" title={meta.label}>
+                      {meta.icon}
+                    </span>
                     <div className="searchbox-row-info">
-                      <span className="searchbox-row-name">{loc.name}</span>
-                      {shortAddress && loc.source === "locationiq" && (
-                        <span className="searchbox-row-address">{shortAddress}</span>
+                      <span className="searchbox-row-name">{primaryLabel}</span>
+                      {subLabel && (
+                        <span className="searchbox-row-address">{subLabel}</span>
                       )}
                     </div>
-                    {loc.dist > 0 && loc.source !== "locationiq" && (
+                    {/* Distance badge on every result — local and off-campus */}
+                    {loc.dist > 0 && (
                       <span className="searchbox-row-dist">{loc.dist.toFixed(1)} km</span>
                     )}
                   </button>
@@ -295,6 +332,7 @@ export default function SearchBox({
           {showEmpty && (
             <div className="searchbox-empty">No results — try a different name</div>
           )}
+
         </div>
       )}
     </div>
