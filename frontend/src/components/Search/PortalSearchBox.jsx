@@ -26,7 +26,8 @@ const TYPE_META = {
 };
 
 function getTypeMeta(type, source) {
-  if (source === "nominatim") return { icon: "🌍", label: "Place" };
+  if (source === "locationiq") return { icon: "🌍", label: "Place" };
+  if (source === "nominatim")  return { icon: "🌍", label: "Place" };
   return TYPE_META[type] || TYPE_META.place;
 }
 
@@ -50,7 +51,6 @@ export default function PortalSearchBox({
   const inputRef = useRef(null);
   const dropdownRef = useRef(null);
   const debounceRef = useRef(null);
-  // useRef — not state — so debounce closures always read the current controller
   const abortRef = useRef(null);
 
   // ── Recent searches ──────────────────────────────────────────────────────────
@@ -111,17 +111,14 @@ export default function PortalSearchBox({
       return;
     }
 
-    // Local search — instant, zero network
     const localResults = searchLocal(val);
     setSuggestions(localResults);
 
-    // Strong local match — skip Nominatim entirely
     if (localResults.length >= 3) {
       setLoading(false);
       return;
     }
 
-    // Weak local match — show what we have, then top up from Nominatim in background
     if (localResults.length === 0) setLoading(true);
 
     debounceRef.current = setTimeout(async () => {
@@ -131,14 +128,13 @@ export default function PortalSearchBox({
       try {
         const apiResults = await geocode(val, controller.signal);
 
-        // null = aborted by a newer keystroke — leave current suggestions untouched
         if (apiResults === null) return;
 
         const localNames = new Set(localResults.map((r) => r.name.toLowerCase()));
         const fresh = apiResults.filter((r) => !localNames.has(r.name.toLowerCase()));
         setSuggestions([...localResults, ...fresh].slice(0, 7));
       } catch {
-        // silent — abort errors are handled inside geocode()
+        // silent
       } finally {
         setLoading(false);
         abortRef.current = null;
@@ -254,14 +250,20 @@ export default function PortalSearchBox({
                 <div
                   key={i}
                   className="search-dropdown-item"
-                  onMouseDown={(e) => { e.preventDefault(); handleSelect({ name: item.name, lat: item.lat, lng: item.lng }); }}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSelect({ name: item.name, lat: item.lat, lng: item.lng });
+                  }}
                 >
                   <span className="search-dropdown-type-icon">🕐</span>
                   <span className="search-dropdown-name">{item.name}</span>
                 </div>
               ))}
               {hasMoreRecent && (
-                <div className="search-dropdown-showmore" onClick={() => setShowAllRecent(!showAllRecent)}>
+                <div
+                  className="search-dropdown-showmore"
+                  onClick={() => setShowAllRecent(!showAllRecent)}
+                >
                   {showAllRecent ? "Show less" : `Show ${recentSearches.length - 5} more`}
                 </div>
               )}
@@ -294,15 +296,37 @@ export default function PortalSearchBox({
               </div>
               {suggestions.map((loc, i) => {
                 const meta = getTypeMeta(loc.type, loc.source);
+
+                // For locationiq results: show "KFC — Legon" as the primary label
+                // For local results: show the plain name as before
+                const primaryLabel =
+                  loc.source === "locationiq" && loc.displayLabel
+                    ? loc.displayLabel
+                    : loc.name;
+
+                // Sub-line for locationiq: first 3 segments of the full address
+                // so the user can verify which branch this is
+                const subLabel =
+                  loc.source === "locationiq" && loc.fullAddress
+                    ? loc.fullAddress.split(",").slice(0, 3).join(",").trim()
+                    : null;
+
                 return (
                   <div
                     key={`${loc.name}-${i}`}
                     className="search-dropdown-item"
                     onMouseDown={(e) => { e.preventDefault(); handleSelect(loc); }}
                   >
-                    <span className="search-dropdown-type-icon" title={meta.label}>{meta.icon}</span>
-                    <span className="search-dropdown-name">{loc.name}</span>
-                    <span className="search-dropdown-tag">{meta.label}</span>
+                    <span className="search-dropdown-type-icon" title={meta.label}>
+                      {meta.icon}
+                    </span>
+                    <div className="search-dropdown-info">
+                      <span className="search-dropdown-name">{primaryLabel}</span>
+                      {subLabel && (
+                        <span className="search-dropdown-address">{subLabel}</span>
+                      )}
+                    </div>
+                    {/* Distance badge on every result */}
                     {loc.dist > 0 && (
                       <span className="search-dropdown-dist">{loc.dist.toFixed(1)} km</span>
                     )}
