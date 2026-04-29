@@ -1,21 +1,20 @@
 // services/graphBuilder.js
-// Fetches road network from OpenStreetMap and builds a graph for Dijkstra
+// Fetches road network from OpenStreetMap and builds a graph for A*
 
 import { UG_BOUNDS } from "../function/utils/bounds";
 import { distanceKm } from "../function/utils/distance";
 import { getCachedGraph, cacheGraph } from "./cacheStore";
 
-// OSM Overpass API endpoints
-const OVERPASS_API = "https://overpass-api.de/api/interpreter";
+const OVERPASS_API        = "https://overpass-api.de/api/interpreter";
 const OVERPASS_API_BACKUP = "https://overpass.kumi.systems/api/interpreter";
 
 function getBoundsValues(bounds) {
-  if (bounds && bounds._southWest && bounds._northEast) {
+  if (bounds?._southWest && bounds?._northEast) {
     return {
       south: bounds._southWest.lat,
-      west: bounds._southWest.lng,
+      west:  bounds._southWest.lng,
       north: bounds._northEast.lat,
-      east: bounds._northEast.lng,
+      east:  bounds._northEast.lng,
     };
   }
   return { south: 5.62, west: -0.21, north: 5.672, east: -0.175 };
@@ -23,7 +22,6 @@ function getBoundsValues(bounds) {
 
 const getOSMQuery = (bounds) => {
   const { south, west, north, east } = getBoundsValues(bounds);
-  
   return `
     [out:json][timeout:45];
     (
@@ -40,32 +38,23 @@ async function fetchWithRetry(url, query, retries = 3) {
   for (let i = 0; i <= retries; i++) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 45000);
-      
+      const timeoutId  = setTimeout(() => controller.abort(), 45000);
+
       const response = await fetch(url, {
-        method: "POST",
-        body: query,
+        method:  "POST",
+        body:    query,
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        signal: controller.signal,
+        signal:  controller.signal,
       });
-      
+
       clearTimeout(timeoutId);
-      
-      if (response.ok) {
-        return response;
-      }
-      
+      if (response.ok) return response;
       console.warn(`[GraphBuilder] Attempt ${i + 1} failed: HTTP ${response.status}`);
-      
     } catch (error) {
       console.warn(`[GraphBuilder] Attempt ${i + 1} failed:`, error.message);
     }
-    
-    if (i < retries) {
-      await new Promise(resolve => setTimeout(resolve, 2000 * (i + 1)));
-    }
+    if (i < retries) await new Promise(r => setTimeout(r, 2000 * (i + 1)));
   }
-  
   throw new Error('All fetch attempts failed');
 }
 
@@ -76,422 +65,319 @@ export async function buildGraph() {
       console.log("[GraphBuilder] Using cached graph from IndexedDB");
       return cached;
     }
-    
-    console.log("[GraphBuilder] Fetching OSM data for Legon...");
 
+    console.log("[GraphBuilder] Fetching OSM data for Legon...");
     const query = getOSMQuery(UG_BOUNDS);
-    
+
     let response;
-    let usedBackup = false;
-    
     try {
       response = await fetchWithRetry(OVERPASS_API, query);
-    } catch (error) {
+    } catch {
       console.log("[GraphBuilder] Primary endpoint failed, trying backup...");
-      usedBackup = true;
       response = await fetchWithRetry(OVERPASS_API_BACKUP, query);
     }
-    
-    if (!response) {
-      throw new Error('No response from Overpass API');
-    }
-    
+
+    if (!response) throw new Error('No response from Overpass API');
+
     const data = await response.json();
     console.log(`[GraphBuilder] Received ${data.elements?.length || 0} elements`);
 
-    if (!data.elements || data.elements.length === 0) {
+    if (!data.elements?.length) {
       console.warn("[GraphBuilder] No OSM data returned");
       return null;
     }
 
     let graph = processOSMData(data.elements);
-
-    if (!graph || Object.keys(graph.nodes).length === 0) {
-      console.warn("[GraphBuilder] Graph is empty after processing");
+    if (!graph || !Object.keys(graph.nodes).length) {
+      console.warn("[GraphBuilder] Graph empty after processing");
       return null;
     }
 
-    // Add manual pedestrian connections for UG Legon campus
-    const manualGraph = addManualPedestrianConnections(graph, 25);
-    graph = { nodes: manualGraph.nodes, edges: manualGraph.edges };
+    graph = addManualPedestrianConnections(graph, 25);
+    graph = { nodes: graph.nodes, edges: graph.edges };
+    graph = connectNearbyNodes(graph, 15);
 
-    const enhancedGraph = connectNearbyNodes(graph, 15);
-    
-    const components = findConnectedComponents(enhancedGraph);
+    const components = findConnectedComponents(graph);
     console.log(
-      `[GraphBuilder] Graph ready — ${Object.keys(enhancedGraph.nodes).length} nodes, ` +
-      `${enhancedGraph.edges.length} edges, ${components.length} connected component(s)`
+      `[GraphBuilder] Ready — ${Object.keys(graph.nodes).length} nodes, ` +
+      `${graph.edges.length} edges, ${components.length} component(s)`
     );
 
-    await cacheGraph(enhancedGraph);
-
-    return enhancedGraph;
+    await cacheGraph(graph);
+    return graph;
 
   } catch (error) {
-    console.error("[GraphBuilder] Error building graph:", error);
+    console.error("[GraphBuilder] Error:", error);
     return null;
   }
 }
 
 function processOSMData(elements) {
   const nodes = {};
-  const ways = [];
+  const ways  = [];
 
   elements.forEach((el) => {
     if (el.type === "node") {
-      const id = String(el.id);
-      nodes[id] = { id, lat: el.lat, lng: el.lon, neighbors: [] };
+      nodes[String(el.id)] = { id: String(el.id), lat: el.lat, lng: el.lon, neighbors: [] };
     } else if (el.type === "way" && el.tags?.highway && el.nodes?.length > 0) {
-      const highwayType = el.tags.highway;
-      if (highwayType === 'motorway' || highwayType === 'motorway_link') {
-        return;
-      }
-      
-      ways.push({
-        id: String(el.id),
-        nodes: el.nodes.map(String),
-        tags: el.tags,
-        type: highwayType,
-      });
+      const t = el.tags.highway;
+      if (t === 'motorway' || t === 'motorway_link') return;
+      ways.push({ id: String(el.id), nodes: el.nodes.map(String), tags: el.tags, type: t });
     }
   });
 
   console.log(`[GraphBuilder] ${Object.keys(nodes).length} nodes, ${ways.length} ways`);
 
-  const edges = [];
+  const edges   = [];
   const edgeSet = new Set();
-  let edgeCount = 0;
-  let skippedCount = 0;
+  let edgeCount = 0, skippedCount = 0;
 
   ways.forEach((way) => {
     for (let i = 0; i < way.nodes.length - 1; i++) {
       const fromId = way.nodes[i];
-      const toId = way.nodes[i + 1];
+      const toId   = way.nodes[i + 1];
 
-      if (!nodes[fromId] || !nodes[toId]) {
-        skippedCount++;
-        continue;
-      }
+      if (!nodes[fromId] || !nodes[toId]) { skippedCount++; continue; }
 
-      const from = nodes[fromId];
-      const to = nodes[toId];
-
+      const from       = nodes[fromId];
+      const to         = nodes[toId];
       const distMetres = distanceKm(from.lat, from.lng, to.lat, to.lng) * 1000;
 
       if (distMetres < 0.5) continue;
 
-      const edgeKey = `${fromId}-${toId}`;
+      const edgeKey    = `${fromId}-${toId}`;
       const reverseKey = `${toId}-${fromId}`;
       if (edgeSet.has(edgeKey) || edgeSet.has(reverseKey)) continue;
 
       edgeSet.add(edgeKey);
       edgeCount++;
 
-      edges.push({
-        id: edgeKey,
-        from: fromId,
-        to: toId,
-        distance: distMetres,
-        tags: way.tags,
-        type: way.type
-      });
-
-      from.neighbors.push({ nodeId: toId, edgeId: edgeKey, distance: distMetres });
-      to.neighbors.push({ nodeId: fromId, edgeId: edgeKey, distance: distMetres });
+      edges.push({ id: edgeKey, from: fromId, to: toId, distance: distMetres, tags: way.tags, type: way.type });
+      from.neighbors.push({ nodeId: toId,   edgeId: edgeKey, distance: distMetres });
+      to.neighbors.push  ({ nodeId: fromId, edgeId: edgeKey, distance: distMetres });
     }
   });
 
-  console.log(`[GraphBuilder] Built ${edgeCount} edges, skipped ${skippedCount} missing nodes`);
+  console.log(`[GraphBuilder] Built ${edgeCount} edges, skipped ${skippedCount}`);
 
   const connectedNodes = {};
-  let isolatedCount = 0;
-  
+  let isolatedCount    = 0;
   Object.entries(nodes).forEach(([id, node]) => {
-    if (node.neighbors.length > 0) {
-      connectedNodes[id] = node;
-    } else {
-      isolatedCount++;
-    }
+    if (node.neighbors.length > 0) connectedNodes[id] = node;
+    else isolatedCount++;
   });
 
-  console.log(`[GraphBuilder] ${Object.keys(connectedNodes).length} connected nodes, ${isolatedCount} isolated removed`);
-
+  console.log(`[GraphBuilder] ${Object.keys(connectedNodes).length} connected, ${isolatedCount} isolated removed`);
   return { nodes: connectedNodes, edges };
 }
 
-/**
- * Manually adds missing pedestrian connections for UG Legon campus
- * These are known shortcuts and internal paths that may be missing from OSM data
- */
 function addManualPedestrianConnections(graph, thresholdMeters = 25) {
-  const nodes = graph.nodes;
-  const edges = [...graph.edges];
-  const edgeSet = new Set(graph.edges.map(e => e.id));
-  
-  let connectionsAdded = 0;
-  
-  // Define critical pedestrian connections between key campus points
-  // Format: { from: {lat, lng}, to: {lat, lng}, tags: {} }
+  const nodes    = graph.nodes;
+  const edges    = [...graph.edges];
+  const edgeSet  = new Set(graph.edges.map(e => e.id));
+  let added      = 0;
+
   const manualConnections = [
-    // 1. Basic School area to Nsia Road (direct north connection - CRITICAL)
-    { 
-      from: { lat: 5.6482, lng: -0.1878 }, 
-      to: { lat: 5.6525, lng: -0.1872 }, 
+    {
+      from: { lat: 5.6482, lng: -0.1878 },
+      to:   { lat: 5.6525, lng: -0.1872 },
       tags: { highway: 'footway', foot: 'yes', surface: 'asphalt', name: 'Basic School Connector' }
     },
-    // 2. Nsia Road to Akuafo Road (central campus corridor)
-    { 
-      from: { lat: 5.6525, lng: -0.1872 }, 
-      to: { lat: 5.6548, lng: -0.1863 }, 
+    {
+      from: { lat: 5.6525, lng: -0.1872 },
+      to:   { lat: 5.6548, lng: -0.1863 },
       tags: { highway: 'footway', foot: 'yes', surface: 'asphalt', name: 'Nsia-Akuafo Link' }
     },
-    // 3. Akuafo Road to Onyaa Road junction
-    { 
-      from: { lat: 5.6548, lng: -0.1863 }, 
-      to: { lat: 5.6565, lng: -0.1848 }, 
+    {
+      from: { lat: 5.6548, lng: -0.1863 },
+      to:   { lat: 5.6565, lng: -0.1848 },
       tags: { highway: 'footway', foot: 'yes', surface: 'asphalt', name: 'Akuafo-Onyaa Link' }
     },
-    // 4. Onyaa Road to E.A. Boateng Road
-    { 
-      from: { lat: 5.6565, lng: -0.1848 }, 
-      to: { lat: 5.6590, lng: -0.1832 }, 
+    {
+      from: { lat: 5.6565, lng: -0.1848 },
+      to:   { lat: 5.6590, lng: -0.1832 },
       tags: { highway: 'footway', foot: 'yes', surface: 'asphalt', name: 'Onyaa-Boateng Link' }
     },
-    // 5. E.A. Boateng Road to School of Engineering area
-    { 
-      from: { lat: 5.6590, lng: -0.1832 }, 
-      to: { lat: 5.6620, lng: -0.1818 }, 
+    {
+      from: { lat: 5.6590, lng: -0.1832 },
+      to:   { lat: 5.6620, lng: -0.1818 },
       tags: { highway: 'footway', foot: 'yes', surface: 'asphalt', name: 'Boateng-Engineering Link' }
     },
-    // 6. Direct field shortcut (pedestrian only - across the oval)
-    { 
-      from: { lat: 5.6508, lng: -0.1868 }, 
-      to: { lat: 5.6542, lng: -0.1858 }, 
+    {
+      from: { lat: 5.6508, lng: -0.1868 },
+      to:   { lat: 5.6542, lng: -0.1858 },
+      // Grass shortcut — surface penalty will naturally discourage unless it's
+      // genuinely shorter, which is the right behaviour
       tags: { highway: 'path', foot: 'yes', surface: 'grass', informal: 'yes', name: 'Field Shortcut' }
     },
-    // 7. Ivan Addae Mensah Intersection connector
-    { 
-      from: { lat: 5.6570, lng: -0.1885 }, 
-      to: { lat: 5.6582, lng: -0.1868 }, 
+    {
+      from: { lat: 5.6570, lng: -0.1885 },
+      to:   { lat: 5.6582, lng: -0.1868 },
       tags: { highway: 'footway', foot: 'yes', surface: 'asphalt', name: 'Ivan Addae Connector' }
     },
-    // 8. Additional shortcut through central campus
-    { 
-      from: { lat: 5.6535, lng: -0.1865 }, 
-      to: { lat: 5.6555, lng: -0.1855 }, 
+    {
+      from: { lat: 5.6535, lng: -0.1865 },
+      to:   { lat: 5.6555, lng: -0.1855 },
       tags: { highway: 'path', foot: 'yes', surface: 'paved', name: 'Central Campus Shortcut' }
     },
-    // 9. Legon Road to Nsia Road connector (avoid perimeter)
-    { 
-      from: { lat: 5.6495, lng: -0.1890 }, 
-      to: { lat: 5.6520, lng: -0.1875 }, 
+    {
+      from: { lat: 5.6495, lng: -0.1890 },
+      to:   { lat: 5.6520, lng: -0.1875 },
       tags: { highway: 'footway', foot: 'yes', surface: 'asphalt', name: 'Legon-Nsia Connector' }
     },
-    // 10. Direct connection from basic school area to Akuafo area
-    { 
-      from: { lat: 5.6490, lng: -0.1870 }, 
-      to: { lat: 5.6540, lng: -0.1860 }, 
+    {
+      from: { lat: 5.6490, lng: -0.1870 },
+      to:   { lat: 5.6540, lng: -0.1860 },
       tags: { highway: 'path', foot: 'yes', surface: 'paved', name: 'Basic School to Akuafo Direct' }
     },
-    // 11. Additional connection through central campus grid
-    { 
-      from: { lat: 5.6550, lng: -0.1870 }, 
-      to: { lat: 5.6568, lng: -0.1855 }, 
+    {
+      from: { lat: 5.6550, lng: -0.1870 },
+      to:   { lat: 5.6568, lng: -0.1855 },
       tags: { highway: 'footway', foot: 'yes', surface: 'asphalt', name: 'Central Grid Connector' }
     },
-    // 12. Shortcut near UG Post Office
-    { 
-      from: { lat: 5.6510, lng: -0.1880 }, 
-      to: { lat: 5.6530, lng: -0.1875 }, 
+    {
+      from: { lat: 5.6510, lng: -0.1880 },
+      to:   { lat: 5.6530, lng: -0.1875 },
       tags: { highway: 'path', foot: 'yes', surface: 'paved', name: 'Post Office Shortcut' }
     },
   ];
-  
-  // Helper function to find or create a node
+
   function findOrCreateNode(lat, lng) {
-    // First try to find an existing node within threshold
     for (const [nodeId, node] of Object.entries(nodes)) {
-      const dist = distanceKm(lat, lng, node.lat, node.lng) * 1000;
-      if (dist <= 10) {
-        return nodeId;
-      }
+      if (distanceKm(lat, lng, node.lat, node.lng) * 1000 <= 10) return nodeId;
     }
-    
-    // Create new node
-    const newNodeId = `manual_${lat.toFixed(6)}_${lng.toFixed(6)}`;
-    nodes[newNodeId] = {
-      id: newNodeId,
-      lat: lat,
-      lng: lng,
-      neighbors: []
-    };
-    return newNodeId;
+    const newId      = `manual_${lat.toFixed(6)}_${lng.toFixed(6)}`;
+    nodes[newId]     = { id: newId, lat, lng, neighbors: [] };
+    return newId;
   }
-  
-  // Add each manual connection
+
   for (const conn of manualConnections) {
-    const fromNodeId = findOrCreateNode(conn.from.lat, conn.from.lng);
-    const toNodeId = findOrCreateNode(conn.to.lat, conn.to.lng);
-    
-    if (fromNodeId === toNodeId) continue;
-    
-    const edgeKey = `${fromNodeId}-${toNodeId}`;
-    const reverseKey = `${toNodeId}-${fromNodeId}`;
-    
+    const fromId     = findOrCreateNode(conn.from.lat, conn.from.lng);
+    const toId       = findOrCreateNode(conn.to.lat,   conn.to.lng);
+    if (fromId === toId) continue;
+
+    const edgeKey    = `${fromId}-${toId}`;
+    const reverseKey = `${toId}-${fromId}`;
     if (edgeSet.has(edgeKey) || edgeSet.has(reverseKey)) continue;
-    
-    const distance = distanceKm(conn.from.lat, conn.from.lng, conn.to.lat, conn.to.lng) * 1000;
-    
+
+    const distance   = distanceKm(conn.from.lat, conn.from.lng, conn.to.lat, conn.to.lng) * 1000;
     edgeSet.add(edgeKey);
-    connectionsAdded++;
-    
-    const newEdge = {
-      id: edgeKey,
-      from: fromNodeId,
-      to: toNodeId,
-      distance: distance,
-      tags: conn.tags,
-      type: conn.tags.highway
-    };
-    
+    added++;
+
+    const newEdge = { id: edgeKey, from: fromId, to: toId, distance, tags: conn.tags, type: conn.tags.highway };
     edges.push(newEdge);
-    nodes[fromNodeId].neighbors.push({ nodeId: toNodeId, edgeId: edgeKey, distance: distance });
-    nodes[toNodeId].neighbors.push({ nodeId: fromNodeId, edgeId: edgeKey, distance: distance });
+    nodes[fromId].neighbors.push({ nodeId: toId,    edgeId: edgeKey, distance });
+    nodes[toId].neighbors.push  ({ nodeId: fromId,  edgeId: edgeKey, distance });
   }
-  
-  console.log(`[GraphBuilder] Added ${connectionsAdded} manual pedestrian connections`);
+
+  console.log(`[GraphBuilder] Added ${added} manual connections`);
   return { nodes, edges };
 }
 
 function connectNearbyNodes(graph, thresholdMeters = 15) {
-  const nodes = graph.nodes;
-  const edges = [...graph.edges];
-  const edgeSet = new Set(graph.edges.map(e => e.id));
-  
-  let connectionsAdded = 0;
+  const nodes    = graph.nodes;
+  const edges    = [...graph.edges];
+  const edgeSet  = new Set(graph.edges.map(e => e.id));
+  let added      = 0;
   const nodeList = Object.values(nodes);
-  
+
   console.log(`[GraphBuilder] Connecting nodes within ${thresholdMeters}m...`);
-  
+
+  // Grid spatial index for O(N) instead of O(N²)
   const GRID_SIZE_DEG = 0.005;
-  const grid = new Map();
-  
+  const grid          = new Map();
+
   for (const node of nodeList) {
-    const cellX = Math.floor(node.lat / GRID_SIZE_DEG);
-    const cellY = Math.floor(node.lng / GRID_SIZE_DEG);
-    const cellKey = `${cellX},${cellY}`;
-    
-    if (!grid.has(cellKey)) {
-      grid.set(cellKey, []);
-    }
+    const cellKey = `${Math.floor(node.lat / GRID_SIZE_DEG)},${Math.floor(node.lng / GRID_SIZE_DEG)}`;
+    if (!grid.has(cellKey)) grid.set(cellKey, []);
     grid.get(cellKey).push(node);
   }
-  
-  const nodesWithGoodConnections = new Set();
-  for (const node of nodeList) {
-    if (node.neighbors.length >= 2) {
-      nodesWithGoodConnections.add(node.id);
-    }
-  }
-  
+
+  const wellConnected = new Set(nodeList.filter(n => n.neighbors.length >= 2).map(n => n.id));
+
   for (const [cellKey, cellNodes] of grid.entries()) {
     const [cellX, cellY] = cellKey.split(',').map(Number);
-    
+
     for (let dx = -1; dx <= 1; dx++) {
       for (let dy = -1; dy <= 1; dy++) {
-        const adjacentNodes = grid.get(`${cellX + dx},${cellY + dy}`);
-        if (!adjacentNodes) continue;
-        
+        const adjacent = grid.get(`${cellX + dx},${cellY + dy}`);
+        if (!adjacent) continue;
+
         for (const nodeA of cellNodes) {
           if (nodeA.neighbors.length > 6) continue;
-          
-          for (const nodeB of adjacentNodes) {
+
+          for (const nodeB of adjacent) {
             if (nodeA.id === nodeB.id) continue;
-            
-            if (nodesWithGoodConnections.has(nodeA.id) && nodesWithGoodConnections.has(nodeB.id)) {
-              continue;
-            }
-            
-            const distMeters = distanceKm(nodeA.lat, nodeA.lng, nodeB.lat, nodeB.lng) * 1000;
-            
-            if (distMeters <= thresholdMeters && distMeters > 0.5) {
-              const edgeKey = `${nodeA.id}-${nodeB.id}`;
-              const reverseKey = `${nodeB.id}-${nodeA.id}`;
-              
-              if (!edgeSet.has(edgeKey) && !edgeSet.has(reverseKey)) {
-                edgeSet.add(edgeKey);
-                connectionsAdded++;
-                
-                const newEdge = {
-                  id: edgeKey,
-                  from: nodeA.id,
-                  to: nodeB.id,
-                  distance: distMeters,
-                  tags: { highway: 'connection' },
-                  type: 'connection'
-                };
-                
-                edges.push(newEdge);
-                nodeA.neighbors.push({ nodeId: nodeB.id, edgeId: edgeKey, distance: distMeters });
-                nodeB.neighbors.push({ nodeId: nodeA.id, edgeId: edgeKey, distance: distMeters });
-              }
-            }
+            if (wellConnected.has(nodeA.id) && wellConnected.has(nodeB.id)) continue;
+
+            const dist = distanceKm(nodeA.lat, nodeA.lng, nodeB.lat, nodeB.lng) * 1000;
+            if (dist > thresholdMeters || dist < 0.5) continue;
+
+            const edgeKey    = `${nodeA.id}-${nodeB.id}`;
+            const reverseKey = `${nodeB.id}-${nodeA.id}`;
+            if (edgeSet.has(edgeKey) || edgeSet.has(reverseKey)) continue;
+
+            edgeSet.add(edgeKey);
+            added++;
+
+            // Tag as footway so it gets the correct pedestrian cost (0.9)
+            // rather than falling through to the 1.3 unknown fallback
+            const newEdge = {
+              id:       edgeKey,
+              from:     nodeA.id,
+              to:       nodeB.id,
+              distance: dist,
+              tags:     { highway: 'footway' },
+              type:     'footway',
+            };
+
+            edges.push(newEdge);
+            nodeA.neighbors.push({ nodeId: nodeB.id, edgeId: edgeKey, distance: dist });
+            nodeB.neighbors.push({ nodeId: nodeA.id, edgeId: edgeKey, distance: dist });
           }
         }
       }
     }
   }
-  
-  console.log(`[GraphBuilder] Added ${connectionsAdded} connections`);
-  
+
+  console.log(`[GraphBuilder] Added ${added} proximity connections`);
   return { nodes, edges };
 }
 
 export function findConnectedComponents(graph) {
-  const visited = new Set();
+  const visited    = new Set();
   const components = [];
 
   for (const nodeId of Object.keys(graph.nodes)) {
     if (visited.has(nodeId)) continue;
-
     const component = new Set();
-    const queue = [nodeId];
+    const queue     = [nodeId];
     visited.add(nodeId);
 
     while (queue.length > 0) {
-      const current = queue.shift();
+      const current    = queue.shift();
       component.add(current);
-      const neighbors = graph.nodes[current]?.neighbors || [];
-      for (const n of neighbors) {
-        if (!visited.has(n.nodeId)) {
-          visited.add(n.nodeId);
-          queue.push(n.nodeId);
-        }
+      for (const n of (graph.nodes[current]?.neighbors || [])) {
+        if (!visited.has(n.nodeId)) { visited.add(n.nodeId); queue.push(n.nodeId); }
       }
     }
-
     components.push(component);
   }
-
   return components;
 }
 
 export function findClosestNode(graph, lat, lng) {
-  if (!graph || Object.keys(graph.nodes).length === 0) {
-    console.warn("[GraphBuilder] Cannot find closest node — graph is empty");
+  if (!graph || !Object.keys(graph.nodes).length) {
+    console.warn("[GraphBuilder] Cannot find closest node — graph empty");
     return null;
   }
 
-  let closestId = null;
-  let minDistance = Infinity;
+  let closestId  = null;
+  let minDist    = Infinity;
 
   for (const [nodeId, node] of Object.entries(graph.nodes)) {
     const dist = distanceKm(lat, lng, node.lat, node.lng);
-    if (dist < minDistance) {
-      minDistance = dist;
-      closestId = nodeId;
-    }
+    if (dist < minDist) { minDist = dist; closestId = nodeId; }
   }
-
   return closestId;
 }

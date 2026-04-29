@@ -1,28 +1,22 @@
 // services/routing.js
 // A* algorithm with min-heap priority queue for optimal performance
-// Uses heuristic (straight-line distance to destination) to guide search toward target
+// Carries incoming bearing in the queue so turn penalties can be applied per edge
 
-import { calculateEdgeCost, buildRouteContext, getActiveWarnings, PROFILES } from "./costFunction";
+import { calculateEdgeCost, buildRouteContext, getActiveWarnings, getBearing, PROFILES } from "./costFunction";
 import { distanceKm } from "../function/utils/distance";
 import { MinHeap }    from "../function/utils/MinHeap";
 
-// Convert degrees to meters approximation
-function degreesToMeters(latDiff, lngDiff, lat) {
-  const latMeters = latDiff * 111319;
-  const lngMeters = lngDiff * 85200 * Math.cos(lat * Math.PI / 180);
-  return Math.hypot(latMeters, lngMeters);
-}
-
 /**
- * Simplifies a coordinate array using the Ramer-Douglas-Peucker algorithm
+ * Simplifies a coordinate array using the Ramer-Douglas-Peucker algorithm.
+ * Keeps the path accurate to the given tolerance (in degrees).
  */
 function simplifyPath(coords, tolerance = 0.00005) {
   if (coords.length <= 2) return coords;
 
-  let maxDist = 0;
+  let maxDist  = 0;
   let maxIndex = 0;
-  const start = coords[0];
-  const end = coords[coords.length - 1];
+  const start  = coords[0];
+  const end    = coords[coords.length - 1];
 
   for (let i = 1; i < coords.length - 1; i++) {
     const dist = perpendicularDistance(coords[i], start, end);
@@ -31,9 +25,8 @@ function simplifyPath(coords, tolerance = 0.00005) {
 
   if (maxDist <= tolerance) return [start, end];
 
-  const left = simplifyPath(coords.slice(0, maxIndex + 1), tolerance);
+  const left  = simplifyPath(coords.slice(0, maxIndex + 1), tolerance);
   const right = simplifyPath(coords.slice(maxIndex), tolerance);
-
   return [...left.slice(0, -1), ...right];
 }
 
@@ -46,72 +39,64 @@ function perpendicularDistance(p, a, b) {
 }
 
 /**
- * A* heuristic: straight-line distance to destination (in weighted cost units)
- * This guides the search toward the target instead of exploring all directions
+ * A* admissible heuristic: straight-line distance to destination.
+ * Must be <= actual cost to guarantee optimality.
+ * We use raw distance (no multipliers) so it never over-estimates.
  */
-function heuristicCost(lat1, lng1, lat2, lng2, profile, vehicleMode) {
-  // Convert to meters using Haversine formula
-  const R = 6371000;
+function heuristicCost(lat1, lng1, lat2, lng2) {
+  const R    = 6371000;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLng = (lng2 - lng1) * Math.PI / 180;
-  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-            Math.sin(dLng/2) * Math.sin(dLng/2);
-  const distanceMeters = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  
-  // Apply a small speed factor based on vehicle mode
-  let speedFactor = 1.0;
-  if (vehicleMode === 'car') speedFactor = 1.2;
-  else if (vehicleMode === 'motorcycle') speedFactor = 1.1;
-  // Walking is base 1.0
-  
-  // Heuristic must be optimistic (<= actual cost) for A* to be optimal
-  return distanceMeters * speedFactor;
+  const a    =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-/**
- * Finds the nearest node ID to a given GPS coordinate
- */
 export function findNearestNode(graph, lat, lng, maxDistanceDegrees = 0.01) {
   if (!graph?.nodes) return null;
-  
-  let minDist = Infinity;
+
+  let minDist   = Infinity;
   let nearestId = null;
-  
+
   for (const [nodeId, node] of Object.entries(graph.nodes)) {
-    const dx = node.lat - lat;
-    const dy = node.lng - lng;
-    const dist = Math.hypot(dx, dy);
-    
+    const dist = Math.hypot(node.lat - lat, node.lng - lng);
     if (dist < minDist && dist < maxDistanceDegrees) {
-      minDist = dist;
+      minDist   = dist;
       nearestId = nodeId;
     }
   }
-  
+
   return nearestId;
 }
 
 /**
- * Finds the optimal path between two nodes using A* algorithm
- * A* = Dijkstra + heuristic (straight-line distance to destination)
- * This naturally avoids exploring roads that go away from the target
- * 
- * @param {Object} graph - Graph with nodes and edges
- * @param {string} startNodeId - Starting node ID
- * @param {string} endNodeId - Destination node ID
- * @param {string} profileKey - Routing profile (standard, fastest, accessible, night)
- * @param {string} vehicleMode - Vehicle mode (walk, car, motorcycle)
+ * Finds the optimal path between two nodes using A* with turn penalties.
+ *
+ * Key change from the original: the priority queue carries
+ *   { nodeId, incomingBearing }
+ * instead of just nodeId. This lets calculateEdgeCost apply a turn penalty
+ * every time the route changes direction sharply.
+ *
+ * The previous map stores { from: nodeId, bearing: number } so we can both
+ * reconstruct the path AND know the bearing at each hop.
  */
-export function findShortestPath(graph, startNodeId, endNodeId, profileKey = "standard", vehicleMode = "walk") {
+export function findShortestPath(
+  graph,
+  startNodeId,
+  endNodeId,
+  profileKey  = "standard",
+  vehicleMode = "walk"
+) {
   if (!graph?.nodes || !graph?.edges) {
     console.error("[Routing] Invalid graph");
     return null;
   }
 
-  const nodes = graph.nodes;
+  const nodes   = graph.nodes;
   const endNode = nodes[endNodeId];
-  
+
   if (!nodes[startNodeId] || !endNode) {
     console.error("[Routing] Start or end node not found");
     return null;
@@ -125,98 +110,157 @@ export function findShortestPath(graph, startNodeId, endNodeId, profileKey = "st
       totalDistanceKm: 0,
       isFallback:      false,
       profile:         profileKey,
-      vehicleMode:     vehicleMode,
+      vehicleMode,
     };
   }
 
   const context = buildRouteContext();
   const profile = PROFILES[profileKey] || PROFILES.standard;
 
-  // Build edge lookup map once — O(1) access during traversal
+  // Pre-compute goal bearing from every expanded node to destination.
+  // This is used for the direction-consistency penalty in calculateEdgeCost.
+  // Computed lazily per node during expansion to avoid upfront O(N) work.
+
+  // Build edge lookup map once — O(E), then O(1) per lookup during traversal.
+  // We also store lat/lng on each edge entry so calculateEdgeCost can compute
+  // the outgoing bearing without a separate node lookup.
   const edgeMap = {};
   for (const edge of graph.edges) {
-    edgeMap[`${edge.from}-${edge.to}`] = edge;
-    edgeMap[`${edge.to}-${edge.from}`] = edge;
+    const fromNode = nodes[edge.from];
+    const toNode   = nodes[edge.to];
+    if (!fromNode || !toNode) continue;
+
+    // Enrich edge with coordinate data for bearing calculations
+    const enriched = {
+      ...edge,
+      fromLat: fromNode.lat,
+      fromLng: fromNode.lng,
+      toLat:   toNode.lat,
+      toLng:   toNode.lng,
+    };
+
+    edgeMap[`${edge.from}-${edge.to}`] = enriched;
+    // Reverse edge: swap from/to coordinates so bearing is correct
+    edgeMap[`${edge.to}-${edge.from}`] = {
+      ...enriched,
+      from:    edge.to,
+      to:      edge.from,
+      fromLat: toNode.lat,
+      fromLng: toNode.lng,
+      toLat:   fromNode.lat,
+      toLng:   fromNode.lng,
+    };
   }
 
-  // ── A* with min-heap ─────────────────────────────────────────────────────
-  // gScore = actual cost from start to current node
-  // fScore = gScore + heuristic (estimated cost to destination)
-  const gScore = {};
-  const fScore = {};
-  const previous = {};
-  const visited = new Set();
-  const heap = new MinHeap();
+  // ── A* with min-heap ──────────────────────────────────────────────────────
+  // State per queue entry: { nodeId, incomingBearing }
+  // incomingBearing = null at the start node (no incoming edge)
+  const gScore   = {};
+  const previous = {}; // nodeId → { from: nodeId, bearing: number }
+  const visited  = new Set();
+  const heap     = new MinHeap();
 
-  // Initialize all scores to infinity
   for (const nodeId in nodes) {
-    gScore[nodeId] = Infinity;
-    fScore[nodeId] = Infinity;
+    gScore[nodeId]   = Infinity;
     previous[nodeId] = null;
   }
-  
+
   gScore[startNodeId] = 0;
-  fScore[startNodeId] = heuristicCost(
+  const startH = heuristicCost(
     nodes[startNodeId].lat, nodes[startNodeId].lng,
-    endNode.lat, endNode.lng,
-    profile, vehicleMode
+    endNode.lat, endNode.lng
   );
-  heap.push(startNodeId, fScore[startNodeId]);
+  // Queue entry format: { nodeId, incomingBearing }
+  heap.push({ nodeId: startNodeId, incomingBearing: null }, startH);
 
   let nodesExplored = 0;
 
   while (heap.size > 0) {
-    const { nodeId: current } = heap.pop();
+    const { value: state } = heap.pop();
+    const { nodeId: current, incomingBearing } = state;
+
     nodesExplored++;
 
-    // Early exit when we reach the destination
     if (current === endNodeId) {
-      console.log(`[Routing] A* explored ${nodesExplored} nodes (vs Dijkstra would explore more)`);
+      console.log(`[Routing] A* explored ${nodesExplored} nodes`);
       break;
     }
 
+    // A node may be pushed multiple times with different costs — skip stale entries
     if (visited.has(current)) continue;
     visited.add(current);
 
-    const neighbors = nodes[current].neighbors || [];
-    const currentG = gScore[current];
+    const neighbors  = nodes[current].neighbors || [];
+    const currentG   = gScore[current];
+    const currentNode = nodes[current];
+
+    // Goal bearing from this node — used for direction-consistency penalty
+    const goalBearing = getBearing(
+      currentNode.lat, currentNode.lng,
+      endNode.lat, endNode.lng
+    );
 
     for (const neighbor of neighbors) {
       if (visited.has(neighbor.nodeId)) continue;
 
       const edgeKey = `${current}-${neighbor.nodeId}`;
-      const edge = edgeMap[edgeKey] || { distance: neighbor.distance, tags: {}, type: "residential" };
-      
-      // Calculate edge cost with all contextual factors
-      const edgeCost = calculateEdgeCost(edge, profile, context.timePeriod, context.vehicleRestricted, context.currentHour, vehicleMode);
+      const edge    = edgeMap[edgeKey] || {
+        distance: neighbor.distance,
+        tags:     {},
+        type:     "residential",
+        from:     current,
+        to:       neighbor.nodeId,
+        fromLat:  currentNode.lat,
+        fromLng:  currentNode.lng,
+        toLat:    nodes[neighbor.nodeId]?.lat ?? currentNode.lat,
+        toLng:    nodes[neighbor.nodeId]?.lng ?? currentNode.lng,
+      };
+
+      // Outgoing bearing of this edge (used both for turn penalty and to pass
+      // forward as the next node's incomingBearing)
+      const outgoingBearing = getBearing(
+        edge.fromLat, edge.fromLng,
+        edge.toLat,   edge.toLng
+      );
+
+      const edgeCost = calculateEdgeCost(
+        edge,
+        profile,
+        context.timePeriod,
+        context.vehicleRestricted,
+        context.currentHour,
+        vehicleMode,
+        incomingBearing,   // direction we arrived from (null at start)
+        goalBearing        // direction toward destination
+      );
+
       const tentativeG = currentG + edgeCost;
 
       if (tentativeG < gScore[neighbor.nodeId]) {
-        // This path is better than any previous one
-        previous[neighbor.nodeId] = current;
-        gScore[neighbor.nodeId] = tentativeG;
-        
-        // Calculate heuristic (straight-line distance to destination)
+        previous[neighbor.nodeId] = { from: current, bearing: outgoingBearing };
+        gScore[neighbor.nodeId]   = tentativeG;
+
         const h = heuristicCost(
           nodes[neighbor.nodeId].lat, nodes[neighbor.nodeId].lng,
-          endNode.lat, endNode.lng,
-          profile, vehicleMode
+          endNode.lat, endNode.lng
         );
-        fScore[neighbor.nodeId] = tentativeG + h;
-        
-        heap.push(neighbor.nodeId, fScore[neighbor.nodeId]);
+
+        heap.push(
+          { nodeId: neighbor.nodeId, incomingBearing: outgoingBearing },
+          tentativeG + h
+        );
       }
     }
   }
 
-  // ── No path found ──
+  // ── No path found ─────────────────────────────────────────────────────────
   if (gScore[endNodeId] === Infinity) {
-    const s = nodes[startNodeId];
-    const e = nodes[endNodeId];
+    const s          = nodes[startNodeId];
+    const e          = nodes[endNodeId];
     const directDist = distanceKm(s.lat, s.lng, e.lat, e.lng) * 1000;
 
     if (directDist <= 500) {
-      console.log(`[Routing] A* fallback direct connection — ${directDist.toFixed(1)}m`);
+      console.log(`[Routing] Fallback direct connection — ${directDist.toFixed(1)}m`);
       return {
         nodes:           [startNodeId, endNodeId],
         coordinates:     [{ lat: s.lat, lng: s.lng }, { lat: e.lat, lng: e.lng }],
@@ -224,12 +268,12 @@ export function findShortestPath(graph, startNodeId, endNodeId, profileKey = "st
         totalDistanceKm: directDist / 1000,
         isFallback:      true,
         profile:         profileKey,
-        vehicleMode:     vehicleMode,
+        vehicleMode,
         context,
       };
     }
 
-    console.warn(`[Routing] A* no path found - direct distance ${directDist.toFixed(1)}m exceeds fallback`);
+    console.warn(`[Routing] No path found — direct distance ${directDist.toFixed(1)}m exceeds fallback`);
     return null;
   }
 
@@ -238,10 +282,11 @@ export function findShortestPath(graph, startNodeId, endNodeId, profileKey = "st
   let current = endNodeId;
   while (current !== null) {
     pathNodeIds.unshift(current);
-    current = previous[current];
+    const prev = previous[current];
+    current = prev ? prev.from : null;
   }
 
-  // Calculate actual physical distance
+  // Physical distance (unweighted) for display
   let actualDistMetres = 0;
   for (let i = 0; i < pathNodeIds.length - 1; i++) {
     const a = nodes[pathNodeIds[i]];
@@ -249,14 +294,11 @@ export function findShortestPath(graph, startNodeId, endNodeId, profileKey = "st
     actualDistMetres += distanceKm(a.lat, a.lng, b.lat, b.lng) * 1000;
   }
 
-  // Convert to [lat, lng] pairs for Leaflet
-  const rawCoords = pathNodeIds.map(id => [nodes[id].lat, nodes[id].lng]);
-
-  // Simplify the path
+  const rawCoords        = pathNodeIds.map(id => [nodes[id].lat, nodes[id].lng]);
   const simplifiedCoords = simplifyPath(rawCoords);
 
   console.log(
-    `[Routing] A* path — ${pathNodeIds.length} nodes → ${simplifiedCoords.length} after simplification, ` +
+    `[Routing] Path — ${pathNodeIds.length} nodes → ${simplifiedCoords.length} simplified, ` +
     `${(actualDistMetres / 1000).toFixed(2)}km`
   );
 
@@ -268,43 +310,37 @@ export function findShortestPath(graph, startNodeId, endNodeId, profileKey = "st
     weightedCost:    gScore[endNodeId],
     isFallback:      false,
     profile:         profileKey,
-    vehicleMode:     vehicleMode,
+    vehicleMode,
     context,
   };
 }
 
 /**
- * Calculates all four route variants in parallel
- * @param {Object} graph - Graph with nodes and edges
- * @param {string} startNodeId - Starting node ID
- * @param {string} endNodeId - Destination node ID
- * @param {string} profileKey - Routing profile
- * @param {string} vehicleMode - Vehicle mode (walk, car, motorcycle)
+ * Calculates all four route variants.
  */
-export async function getAllRoutes(graph, startNodeId, endNodeId, profileKey = "standard", vehicleMode = "walk") {
+export async function getAllRoutes(
+  graph,
+  startNodeId,
+  endNodeId,
+  profileKey  = "standard",
+  vehicleMode = "walk"
+) {
   const startTime = performance.now();
-  
+
   const [standard, fastest, accessible, night] = await Promise.all([
-    Promise.resolve(findShortestPath(graph, startNodeId, endNodeId, "standard", vehicleMode)),
-    Promise.resolve(findShortestPath(graph, startNodeId, endNodeId, "fastest", vehicleMode)),
+    Promise.resolve(findShortestPath(graph, startNodeId, endNodeId, "standard",   vehicleMode)),
+    Promise.resolve(findShortestPath(graph, startNodeId, endNodeId, "fastest",    vehicleMode)),
     Promise.resolve(findShortestPath(graph, startNodeId, endNodeId, "accessible", vehicleMode)),
-    Promise.resolve(findShortestPath(graph, startNodeId, endNodeId, "night", vehicleMode))
+    Promise.resolve(findShortestPath(graph, startNodeId, endNodeId, "night",      vehicleMode)),
   ]);
-  
+
   const elapsed = performance.now() - startTime;
-  console.log(`[Routing] All 4 routes calculated in ${elapsed.toFixed(0)}ms (vehicle: ${vehicleMode}, algorithm: A*)`);
-  
-  // Generate warnings for each route based on context and profile
-  if (standard?.context) standard.context.warnings = getActiveWarnings(standard.context, "standard");
-  if (fastest?.context) fastest.context.warnings = getActiveWarnings(fastest.context, "fastest");
-  if (accessible?.context) accessible.context.warnings = getActiveWarnings(accessible.context, "accessible");
-  if (night?.context) night.context.warnings = getActiveWarnings(night.context, "night");
-  
-  return {
-    standard,
-    fastest,
-    accessible,
-    night,
-    timestamp: Date.now()
-  };
+  console.log(`[Routing] All 4 routes in ${elapsed.toFixed(0)}ms (vehicle: ${vehicleMode})`);
+
+  if (standard?.context)   standard.context.warnings   = getActiveWarnings(standard.context,   "standard");
+  if (fastest?.context)    fastest.context.warnings     = getActiveWarnings(fastest.context,    "fastest");
+  if (accessible?.context) accessible.context.warnings  = getActiveWarnings(accessible.context, "accessible");
+  if (night?.context)      night.context.warnings       = getActiveWarnings(night.context,      "night");
+
+  return { standard, fastest, accessible, night, timestamp: Date.now() };
 }
