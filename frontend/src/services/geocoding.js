@@ -1,4 +1,3 @@
-// services/geocoding.js
 import { UG_CENTER } from "../function/utils/bounds";
 import { distanceKm } from "../function/utils/distance";
 import { API_URL } from "../config";
@@ -6,12 +5,15 @@ import ugLocations from "../data/ugLocations.json";
 
 const apiCache = new Map();
 
-// Local fuzzy search
+// Results beyond this distance from UG centre are dropped entirely
+const UG_MAX_RADIUS_KM = 6;
+
+// ── Local fuzzy search ───────────────────────────────────────────────────────
+
 function scoreLocalMatch(location, query) {
   const q = query.toLowerCase().trim();
   const name = location.name.toLowerCase();
   const aliases = location.aliases || [];
-
   if (name === q) return 100;
   if (name.startsWith(q)) return 90;
   if (aliases.some((a) => a === q)) return 85;
@@ -19,7 +21,6 @@ function scoreLocalMatch(location, query) {
   if (name.includes(` ${q}`) || name.includes(`${q} `)) return 70;
   if (name.includes(q)) return 60;
   if (aliases.some((a) => a.includes(q))) return 50;
-
   const tokens = q.split(" ").filter((t) => t.length >= 2);
   if (tokens.length > 1) {
     const hits = tokens.filter(
@@ -28,32 +29,29 @@ function scoreLocalMatch(location, query) {
     if (hits === tokens.length) return 45;
     if (hits > 0) return 30;
   }
-
   return 0;
 }
 
 export function searchLocal(query) {
   if (!query || query.trim().length < 2) return [];
-
   const cleanQuery = query.trim().toLowerCase();
   const queryWords = cleanQuery.split(/\s+/);
-  
+
   let allWordsValid = true;
   for (const word of queryWords) {
     if (word.length < 3) continue;
-    const wordExists = ugLocations.some(loc => 
-      loc.name.toLowerCase().includes(word) || 
-      (loc.aliases && loc.aliases.some(alias => alias.toLowerCase().includes(word)))
+    const wordExists = ugLocations.some(
+      (loc) =>
+        loc.name.toLowerCase().includes(word) ||
+        (loc.aliases && loc.aliases.some((alias) => alias.toLowerCase().includes(word)))
     );
     if (!wordExists) {
       allWordsValid = false;
       break;
     }
   }
-  
-  if (!allWordsValid) {
-    return [];
-  }
+
+  if (!allWordsValid) return [];
 
   return ugLocations
     .map((loc) => ({ ...loc, score: scoreLocalMatch(loc, cleanQuery) }))
@@ -70,49 +68,96 @@ export function searchLocal(query) {
     }));
 }
 
+// ── Area label extraction ────────────────────────────────────────────────────
+// Reads the structured address object that LocationIQ returns when
+// addressdetails=1 is set on the backend request.
+// Priority: suburb > neighbourhood > quarter > district > county > city
+// Falls back to the second segment of display_name (usually a road name)
+// so something useful always appears even in low-coverage areas.
+function extractArea(address = {}, displayName = "") {
+  if (address.suburb)        return address.suburb;
+  if (address.neighbourhood) return address.neighbourhood;
+  if (address.quarter)       return address.quarter;
+  if (address.district)      return address.district;
+  if (address.county)        return address.county;
+  if (address.city_district) return address.city_district;
+  if (address.city)          return address.city;
+  // last resort: second comma-segment e.g. "Spintex Road" or "Haatso"
+  const segment = displayName.split(",")[1]?.trim();
+  return segment || null;
+}
+
+// ── Place name extraction ────────────────────────────────────────────────────
+// Prefers structured address fields over splitting display_name, which
+// avoids getting junk like a long road description as the "name".
+function extractName(item) {
+  return (
+    item.address?.amenity  ||
+    item.address?.shop     ||
+    item.address?.office   ||
+    item.address?.building ||
+    item.address?.tourism  ||
+    item.address?.leisure  ||
+    item.display_name.split(",")[0].trim()
+  );
+}
+
+// ── Main geocode function ────────────────────────────────────────────────────
 export async function geocode(query, signal) {
   if (!query || query.trim().length < 3) return [];
 
   const localResults = searchLocal(query);
-  if (localResults.length >= 2) {
-    return localResults;
-  }
+  if (localResults.length >= 2) return localResults;
 
   const cacheKey = query.trim().toLowerCase();
-  
-  if (apiCache.has(cacheKey)) {
-    return apiCache.get(cacheKey);
-  }
+  if (apiCache.has(cacheKey)) return apiCache.get(cacheKey);
 
   try {
     const url = `${API_URL}/api/locationiq/search?q=${encodeURIComponent(query.trim())}`;
     const response = await fetch(url, { signal });
-    
-    if (!response.ok) {
-      return localResults;
-    }
-    
+
+    if (!response.ok) return localResults;
+
     const data = await response.json();
-    
-    if (!data || data.length === 0) {
-      return localResults;
-    }
-    
-    const formatted = data.map((item) => ({
-      name: item.display_name.split(",")[0] || item.display_name,
-      fullAddress: item.display_name,
-      lat: parseFloat(item.lat),
-      lng: parseFloat(item.lon),
-      source: "locationiq",
-    }));
-    
+    if (!data || data.length === 0) return localResults;
+
+    const formatted = data
+      .map((item) => {
+        const lat  = parseFloat(item.lat);
+        const lng  = parseFloat(item.lon);
+        const dist = distanceKm(UG_CENTER.lat, UG_CENTER.lng, lat, lng);
+        const name = extractName(item);
+        const area = extractArea(item.address || {}, item.display_name);
+
+        // displayLabel is what the dropdown shows as the primary line:
+        // "KFC — East Legon" instead of just "KFC"
+        const displayLabel = area ? `${name} — ${area}` : name;
+
+        return {
+          name,
+          displayLabel,
+          area,
+          fullAddress: item.display_name,
+          lat,
+          lng,
+          dist,
+          source: "locationiq",
+          type: "place",
+        };
+      })
+      // Drop anything beyond the campus radius (e.g. same chain in Kumasi)
+      .filter((r) => r.dist <= UG_MAX_RADIUS_KM)
+      // Closest branch first
+      .sort((a, b) => a.dist - b.dist)
+      // Cap at 5 for the dropdown
+      .slice(0, 5);
+
     apiCache.set(cacheKey, formatted);
-    
+    // Keep cache from growing unbounded
     if (apiCache.size > 200) {
-      const firstKey = apiCache.keys().next().value;
-      apiCache.delete(firstKey);
+      apiCache.delete(apiCache.keys().next().value);
     }
-    
+
     return formatted;
   } catch (err) {
     if (err.name === "AbortError") return null;
@@ -120,23 +165,22 @@ export async function geocode(query, signal) {
   }
 }
 
+// ── Reverse geocode ──────────────────────────────────────────────────────────
 export async function reverseGeocode(lat, lng) {
   try {
     const url = `${API_URL}/api/locationiq/reverse?lat=${lat}&lon=${lng}&format=json`;
     const response = await fetch(url);
-    
-    if (!response.ok) {
-      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-    }
-    
+
+    if (!response.ok) return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+
     const data = await response.json();
-    
+
     if (data.address?.building) return data.address.building;
-    if (data.address?.road) return data.address.road;
-    if (data.address?.footway) return data.address.footway;
-    
+    if (data.address?.road)     return data.address.road;
+    if (data.address?.footway)  return data.address.footway;
+
     return data.display_name?.split(",")[0] || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-  } catch (err) {
+  } catch {
     return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
   }
 }
