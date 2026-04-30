@@ -12,7 +12,7 @@ import { sanitizeParams } from './middleware/validation.js';
 import { handleError } from './utils/errorHandler.js';
 import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
-import analyticsRoutes from './routes/analytics.js';
+import analyticsRoutes, { heatmapRouter } from './routes/analytics.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -194,6 +194,7 @@ app.use('/admin', adminRoutes);
 app.use('/auth/login', loginLimiter);
 app.use('/auth/register', generalLimiter);
 app.use('/auth', authRoutes);
+app.use('/analytics/heatmap', heatmapRouter);
 app.use('/analytics', analyticsRoutes);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────

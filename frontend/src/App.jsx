@@ -16,7 +16,6 @@ import { useAuthContext }         from "./context/AuthContext";
 import AdminDashboard             from './components/Admin/AdminDashboard';
 import "./index.css";
 
-// Lazy load the map
 const MapView = lazy(() => import("./components/Map/MapView"));
 
 function MapLoader() {
@@ -30,7 +29,7 @@ function MapLoader() {
 
 export default function App() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuthContext();
-  
+
   const [startPoint, setStartPoint]           = useState(null);
   const [destPoint, setDestPoint]             = useState(null);
   const [startText, setStartText]             = useState("");
@@ -43,131 +42,116 @@ export default function App() {
   const [activeProfile, setActiveProfile]     = useState("standard");
   const [vehicleMode, setVehicleMode]         = useState("walk");
   const [lastLoggedRoute, setLastLoggedRoute] = useState(null);
-  
+
   const [isRouteLocked, setIsRouteLocked] = useState(false);
   const [isNavExpanded, setIsNavExpanded] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  
-  const [customStartPoint, setCustomStartPoint] = useState(null);
+
+  const [customStartPoint, setCustomStartPoint]   = useState(null);
   const [useCustomLocation, setUseCustomLocation] = useState(false);
-  const [isSharedLocation, setIsSharedLocation] = useState(false);
-  const [isLegendExpanded, setIsLegendExpanded] = useState(true);
-  
-  const [graph, setGraph] = useState(null);
+  const [isSharedLocation, setIsSharedLocation]   = useState(false);
+  const [isLegendExpanded, setIsLegendExpanded]   = useState(true);
+
+  // Heatmap toggle — persisted in preferences
+  const [showHeatmap, setShowHeatmap] = useState(false);
+
+  const [graph, setGraph]               = useState(null);
   const [graphLoading, setGraphLoading] = useState(true);
-  
+
   const legendCollapseRef = useRef(null);
 
   const { location: currentLocation, accuracy, error: locationError } = useGeolocation();
 
-  const isAdmin = user?.is_admin === 1 || user?.is_admin === true;
+  const isAdmin      = user?.is_admin === 1 || user?.is_admin === true;
   const isAdminRoute = window.location.pathname === '/admin';
 
-  // Load saved route state on mount
+  // ── Restore route state ──────────────────────────────────────────────────
   useEffect(() => {
     const savedState = loadRouteState();
     if (savedState) {
-      if (savedState.startPoint) setStartPoint(savedState.startPoint);
-      if (savedState.destPoint) setDestPoint(savedState.destPoint);
-      if (savedState.startText) setStartText(savedState.startText);
-      if (savedState.destText) setDestText(savedState.destText);
+      if (savedState.startPoint)    setStartPoint(savedState.startPoint);
+      if (savedState.destPoint)     setDestPoint(savedState.destPoint);
+      if (savedState.startText)     setStartText(savedState.startText);
+      if (savedState.destText)      setDestText(savedState.destText);
       if (savedState.markersVisible) setMarkersVisible(savedState.markersVisible);
       if (savedState.activeProfile) setActiveProfile(savedState.activeProfile);
-      if (savedState.vehicleMode) setVehicleMode(savedState.vehicleMode);
+      if (savedState.vehicleMode)   setVehicleMode(savedState.vehicleMode);
       console.log('[App] Restored route state from storage');
     }
     setIsInitialLoad(false);
   }, []);
 
-  // Save route state whenever critical values change
+  // ── Persist route state ──────────────────────────────────────────────────
   useEffect(() => {
     if (isInitialLoad) return;
-    
-    saveRouteState({
-      startPoint,
-      destPoint,
-      startText,
-      destText,
-      markersVisible,
-      activeProfile,
-      vehicleMode,
-    });
+    saveRouteState({ startPoint, destPoint, startText, destText, markersVisible, activeProfile, vehicleMode });
   }, [startPoint, destPoint, startText, destText, markersVisible, activeProfile, vehicleMode, isInitialLoad]);
 
-  // Parse shared location from URL
+  // ── Shared location from URL ─────────────────────────────────────────────
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const lat = params.get('lat');
-    const lng = params.get('lng');
-    const name = params.get('name') || "Shared location";
-    
+    const lat    = params.get('lat');
+    const lng    = params.get('lng');
+    const name   = params.get('name') || "Shared location";
+
     if (lat && lng) {
-      const sharedLocation = {
-        lat: parseFloat(lat),
-        lng: parseFloat(lng),
-        name: decodeURIComponent(name)
-      };
-      setDestPoint(sharedLocation);
-      setDestText(sharedLocation.name);
+      const shared = { lat: parseFloat(lat), lng: parseFloat(lng), name: decodeURIComponent(name) };
+      setDestPoint(shared);
+      setDestText(shared.name);
       setMarkersVisible(true);
       setIsSharedLocation(true);
-      console.log("[App] Shared location loaded:", sharedLocation);
+      console.log("[App] Shared location loaded:", shared);
     }
   }, []);
 
-  // Load graph
+  // ── Load graph ───────────────────────────────────────────────────────────
   useEffect(() => {
     console.log("[App] Loading road network graph...");
     setGraphLoading(true);
-    buildGraph().then((graphData) => {
-      if (graphData && Object.keys(graphData.nodes).length > 0) {
-        setGraph(graphData);
-        console.log("[App] Graph loaded successfully with", Object.keys(graphData.nodes).length, "nodes");
-      } else {
-        console.error("[App] Failed to load graph data");
-      }
-      setGraphLoading(false);
-    }).catch((err) => {
-      console.error("[App] Graph loading error:", err);
-      setGraphLoading(false);
-    });
+    buildGraph()
+      .then((graphData) => {
+        if (graphData && Object.keys(graphData.nodes).length > 0) {
+          setGraph(graphData);
+          console.log("[App] Graph loaded —", Object.keys(graphData.nodes).length, "nodes");
+        } else {
+          console.error("[App] Failed to load graph data");
+        }
+        setGraphLoading(false);
+      })
+      .catch((err) => {
+        console.error("[App] Graph loading error:", err);
+        setGraphLoading(false);
+      });
   }, []);
 
-  // Load preferences
+  // ── Load preferences ─────────────────────────────────────────────────────
   useEffect(() => {
-    loadPreferences().then((prefs) => {
-      if (prefs) {
-        if (prefs.activeProfile) setActiveProfile(prefs.activeProfile);
+    loadPreferences()
+      .then((prefs) => {
+        if (!prefs) return;
+        if (prefs.activeProfile)        setActiveProfile(prefs.activeProfile);
         if (prefs.darkMode !== undefined) setDarkMode(prefs.darkMode);
-        if (prefs.vehicleMode) setVehicleMode(prefs.vehicleMode);
+        if (prefs.vehicleMode)          setVehicleMode(prefs.vehicleMode);
+        if (prefs.showHeatmap !== undefined) setShowHeatmap(prefs.showHeatmap);
         console.log("[App] Preferences loaded:", prefs);
-      }
-    }).catch((err) => {
-      console.warn("[App] Failed to load preferences:", err);
-    });
+      })
+      .catch((err) => console.warn("[App] Failed to load preferences:", err));
   }, []);
 
-  // Log login
+  // ── Log login ────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (isAuthenticated && user) {
-      logLogin();
-    }
+    if (isAuthenticated && user) logLogin();
   }, [isAuthenticated, user]);
 
-  // Save preferences
+  // ── Save preferences (includes heatmap toggle) ───────────────────────────
   useEffect(() => {
-    savePreferences({
-      activeProfile,
-      darkMode,
-      vehicleMode,
-    }).catch((err) => {
-      console.warn("[App] Failed to save preferences:", err);
-    });
-  }, [activeProfile, darkMode, vehicleMode]);
+    savePreferences({ activeProfile, darkMode, vehicleMode, showHeatmap })
+      .catch((err) => console.warn("[App] Failed to save preferences:", err));
+  }, [activeProfile, darkMode, vehicleMode, showHeatmap]);
 
   const effectiveStartPoint = useCustomLocation && customStartPoint ? customStartPoint : startPoint;
-  const effectiveStartText = useCustomLocation && customStartPoint 
-    ? customStartPoint.name || "Custom location" 
+  const effectiveStartText  = useCustomLocation && customStartPoint
+    ? customStartPoint.name || "Custom location"
     : startText;
 
   const getNodeId = useCallback((point) => {
@@ -177,9 +161,9 @@ export default function App() {
   }, [graph]);
 
   const startNodeId = effectiveStartPoint ? getNodeId(effectiveStartPoint) : null;
-  const destNodeId = destPoint ? getNodeId(destPoint) : null;
+  const destNodeId  = destPoint           ? getNodeId(destPoint)           : null;
 
-  const { 
+  const {
     primaryRoute,
     alternativeRoutes,
     isLoading: isRouting,
@@ -189,14 +173,14 @@ export default function App() {
   } = useRealtimeRoutes({
     graph,
     startNodeId,
-    endNodeId: destNodeId,
+    endNodeId:   destNodeId,
     currentLocation,
     activeProfile,
     vehicleMode,
-    isActive: markersVisible && effectiveStartPoint && destPoint
+    isActive: markersVisible && !!effectiveStartPoint && !!destPoint,
   });
 
-  // Log route
+  // ── Log route ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (markersVisible && primaryRoute && effectiveStartPoint && destPoint) {
       const routeKey = `${effectiveStartPoint.name}-${destPoint.name}-${activeProfile}-${vehicleMode}-${primaryRoute.totalDistanceKm}`;
@@ -214,7 +198,7 @@ export default function App() {
 
   const warnings = primaryRoute?.context?.warnings || [];
 
-  // Auto-fill FROM with GPS
+  // ── Auto-fill FROM with GPS ───────────────────────────────────────────────
   const [hasAutoFilled, setHasAutoFilled] = useState(false);
   if (currentLocation && !hasAutoFilled && !useCustomLocation) {
     setStartPoint(currentLocation);
@@ -222,24 +206,24 @@ export default function App() {
     setHasAutoFilled(true);
   }
 
-  // Lock route when markers are visible
+  // ── Lock route when active ────────────────────────────────────────────────
   useEffect(() => {
-    if (markersVisible && primaryRoute && primaryRoute.coordinates?.length > 0) {
+    if (markersVisible && primaryRoute?.coordinates?.length > 0) {
       setIsRouteLocked(true);
-      console.log("[App] Route locked");
     } else {
       setIsRouteLocked(false);
     }
   }, [markersVisible, primaryRoute]);
 
-  const registerLegendCollapse = useCallback((collapseFn) => {
-    legendCollapseRef.current = collapseFn;
+  const registerLegendCollapse = useCallback((fn) => {
+    legendCollapseRef.current = fn;
   }, []);
 
   const handleNavExpandRequest = useCallback((expanded) => {
     setIsNavExpanded(expanded);
   }, []);
 
+  // ── Handlers ─────────────────────────────────────────────────────────────
   const handleUseCurrentLocation = () => {
     if (!currentLocation) return;
     setStartPoint(currentLocation);
@@ -273,16 +257,16 @@ export default function App() {
 
   const handleMapClick = useCallback(async (latlng) => {
     if (isRouteLocked) {
-      console.log("[App] Route locked - collapsing legend");
       if (isLegendExpanded && legendCollapseRef.current) {
         legendCollapseRef.current();
         setIsLegendExpanded(false);
       }
       return;
     }
-    
+
     const name = await reverseGeocode(latlng.lat, latlng.lng);
-    const loc = { lat: latlng.lat, lng: latlng.lng, name };
+    const loc  = { lat: latlng.lat, lng: latlng.lng, name };
+
     if (waitingForStart) {
       setStartPoint(loc);
       setStartText(name);
@@ -300,12 +284,12 @@ export default function App() {
 
   const handleCustomLocationDragEnd = useCallback(async (e) => {
     const { lat, lng } = e.target.getLatLng();
-    const name = await reverseGeocode(lat, lng);
-    const draggedLocation = { lat, lng, name };
-    setCustomStartPoint(draggedLocation);
+    const name         = await reverseGeocode(lat, lng);
+    const dragged      = { lat, lng, name };
+    setCustomStartPoint(dragged);
     setUseCustomLocation(true);
     if (!startPoint && startText === "") {
-      setStartPoint(draggedLocation);
+      setStartPoint(dragged);
       setStartText(name);
     }
   }, [startPoint, startText]);
@@ -313,18 +297,14 @@ export default function App() {
   const handleShowOnMap = async () => {
     setIsResolving(true);
     let resolvedStart = effectiveStartPoint;
-    let resolvedDest = destPoint;
+    let resolvedDest  = destPoint;
 
     if (!resolvedStart && effectiveStartText.trim().length > 0) {
       const results = await geocode(effectiveStartText);
       if (results.length > 0) {
         resolvedStart = results[0];
-        if (!useCustomLocation) {
-          setStartPoint(results[0]);
-          setStartText(results[0].name);
-        } else {
-          setCustomStartPoint(results[0]);
-        }
+        if (!useCustomLocation) { setStartPoint(results[0]); setStartText(results[0].name); }
+        else                    { setCustomStartPoint(results[0]); }
       }
     }
 
@@ -376,7 +356,7 @@ export default function App() {
     setIsRouteLocked(false);
     setIsNavExpanded(false);
     clearRouteState();
-    console.log("[App] Route unlocked and cleared");
+    console.log("[App] Route cleared");
     if (currentLocation) {
       setStartPoint(currentLocation);
       setStartText("My current location");
@@ -388,15 +368,14 @@ export default function App() {
   };
 
   const handleRecenter = () => {
-    if (currentLocation) {
-      setFlyTarget({ ...currentLocation, _t: Date.now() });
-    }
+    if (currentLocation) setFlyTarget({ ...currentLocation, _t: Date.now() });
   };
 
   const canShow =
     (effectiveStartPoint || effectiveStartText.trim().length > 0) &&
-    (destPoint || destText.trim().length > 0);
+    (destPoint           || destText.trim().length > 0);
 
+  // ── Auth / admin guards ───────────────────────────────────────────────────
   if (authLoading) {
     return (
       <div className="map-loader">
@@ -405,15 +384,10 @@ export default function App() {
       </div>
     );
   }
-  
+
   if (isAdminRoute) {
-    if (!isAuthenticated) {
-      return <AuthPage />;
-    }
-    if (!isAdmin) {
-      window.location.href = '/';
-      return null;
-    }
+    if (!isAuthenticated) return <AuthPage />;
+    if (!isAdmin)         { window.location.href = '/'; return null; }
     return <AdminDashboard />;
   }
 
@@ -485,6 +459,8 @@ export default function App() {
               onRecenter={handleRecenter}
               isRouteLocked={isRouteLocked}
               registerLegendCollapse={registerLegendCollapse}
+              showHeatmap={showHeatmap}
+              onToggleHeatmap={() => setShowHeatmap(h => !h)}
             />
           </Suspense>
         </div>
