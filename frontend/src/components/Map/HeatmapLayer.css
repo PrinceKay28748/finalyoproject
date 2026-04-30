@@ -1,19 +1,28 @@
+/* HeatmapLayer.css */
+
 .heatmap-controls {
   position: absolute;
-  bottom: 20px;
-  right: 20px;
-  background: var(--panel);
-  backdrop-filter: blur(16px);
-  border-radius: 16px;
-  padding: 12px 16px;
-  border: 1px solid var(--border);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  bottom: 100px;
+  right: 12px;
   z-index: 1000;
+  background: var(--drop-bg, #ffffff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 14px;
+  padding: 12px 14px;
+  width: 220px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  font-family: "Outfit", sans-serif;
   pointer-events: auto;
-  min-width: 180px;
-  font-family: 'Outfit', sans-serif;
+  touch-action: manipulation;
 }
 
+.ug-root.dark .heatmap-controls {
+  background: #1f2937;
+  border-color: #374151;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────────*/
 .heatmap-header {
   display: flex;
   justify-content: space-between;
@@ -23,85 +32,125 @@
 
 .heatmap-title {
   font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
+  font-weight: 700;
+  color: var(--text, #111827);
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.heatmap-spinner {
-  width: 12px;
-  height: 12px;
-  border: 2px solid var(--border);
-  border-top-color: #f59e0b;
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-  display: inline-block;
+.ug-root.dark .heatmap-title {
+  color: #f3f4f6;
 }
 
 .heatmap-close {
   background: none;
   border: none;
-  font-size: 16px;
+  font-size: 12px;
+  color: #9ca3af;
   cursor: pointer;
-  color: var(--text);
-  opacity: 0.6;
-  transition: opacity 0.2s;
-  padding: 0;
+  padding: 2px 5px;
+  border-radius: 6px;
   line-height: 1;
+  transition: background 0.15s, color 0.15s;
 }
 
 .heatmap-close:hover {
-  opacity: 1;
+  background: #f3f4f6;
+  color: #374151;
 }
 
+.ug-root.dark .heatmap-close:hover {
+  background: #374151;
+  color: #d1d5db;
+}
+
+/* ── Loading spinner ────────────────────────────────────────────────────────*/
+.heatmap-spinner {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 2px solid #e5e7eb;
+  border-top-color: #f59e0b;
+  border-radius: 50%;
+  animation: ugspin 0.7s linear infinite;
+}
+
+/* ── Time filter pills ──────────────────────────────────────────────────────*/
 .heatmap-time-pills {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 5px;
   margin-bottom: 10px;
 }
 
 .heatmap-pill {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 4px 10px;
   font-size: 11px;
-  font-weight: 500;
+  font-family: "Outfit", sans-serif;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 20px;
+  border: 1.5px solid #e5e7eb;
+  background: transparent;
+  color: #6b7280;
   cursor: pointer;
-  transition: all 0.2s;
-  color: var(--text);
+  transition: all 0.15s;
+  white-space: nowrap;
 }
 
 .heatmap-pill:hover {
-  background: var(--hover-bg);
+  border-color: #f59e0b;
+  color: #f59e0b;
 }
 
 .heatmap-pill--active {
   background: #f59e0b;
-  color: white;
   border-color: #f59e0b;
+  color: #ffffff;
 }
 
-.heatmap-stats {
-  font-size: 11px;
-  color: var(--sub);
-  margin-bottom: 10px;
+.ug-root.dark .heatmap-pill {
+  border-color: #374151;
+  color: #9ca3af;
 }
 
-.heatmap-empty {
+.ug-root.dark .heatmap-pill:hover {
+  border-color: #f59e0b;
   color: #f59e0b;
 }
 
+.ug-root.dark .heatmap-pill--active {
+  background: #f59e0b;
+  border-color: #f59e0b;
+  color: #ffffff;
+}
+
+/* ── Stats line ─────────────────────────────────────────────────────────────*/
+.heatmap-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+
+.heatmap-stats span {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.ug-root.dark .heatmap-stats span {
+  color: #9ca3af;
+}
+
+.heatmap-empty {
+  font-style: italic;
+}
+
 .heatmap-refresh-time {
-  display: block;
-  font-size: 10px;
-  margin-top: 4px;
   opacity: 0.6;
 }
 
+/* ── Colour legend (solid colors, no gradient) ──────────────────────────────*/
 .heatmap-legend {
   display: flex;
   align-items: center;
@@ -111,16 +160,33 @@
 
 .heatmap-legend-label {
   font-size: 10px;
-  color: var(--sub);
+  color: #9ca3af;
+  white-space: nowrap;
 }
 
 .heatmap-legend-bar {
   flex: 1;
-  height: 8px;
-  border-radius: 4px;
-  background: linear-gradient(90deg, #313695, #4575b4, #74add1, #fee090, #f46d43, #d73027, #a50026);
+  height: 6px;
+  border-radius: 3px;
+  display: flex;
+  overflow: hidden;
 }
 
-@keyframes spin {
+.heatmap-legend-color {
+  flex: 1;
+  height: 100%;
+}
+
+.heatmap-legend-color:nth-child(1) { background-color: #313695; }
+.heatmap-legend-color:nth-child(2) { background-color: #4575b4; }
+.heatmap-legend-color:nth-child(3) { background-color: #74add1; }
+.heatmap-legend-color:nth-child(4) { background-color: #fee090; }
+.heatmap-legend-color:nth-child(5) { background-color: #f46d43; }
+.heatmap-legend-color:nth-child(6) { background-color: #d73027; }
+.heatmap-legend-color:nth-child(7) { background-color: #a50026; }
+
+/* Optional: Dark mode legend colors stay the same (they're visible enough) */
+
+@keyframes ugspin {
   to { transform: rotate(360deg); }
 }
