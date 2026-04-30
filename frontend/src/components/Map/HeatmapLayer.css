@@ -12,8 +12,6 @@
   width: 220px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   font-family: "Outfit", sans-serif;
-  pointer-events: auto;
-  touch-action: manipulation;
 }
 
 .ug-root.dark .heatmap-controls {
@@ -150,7 +148,7 @@
   opacity: 0.6;
 }
 
-/* ── Colour legend (solid colors, no gradient) ──────────────────────────────*/
+/* ── Colour legend ──────────────────────────────────────────────────────────*/
 .heatmap-legend {
   display: flex;
   align-items: center;
@@ -168,24 +166,16 @@
   flex: 1;
   height: 6px;
   border-radius: 3px;
-  display: flex;
-  overflow: hidden;
+  background: linear-gradient(to right,
+    #313695,
+    #4575b4,
+    #74add1,
+    #fee090,
+    #f46d43,
+    #d73027,
+    #a50026
+  );
 }
-
-.heatmap-legend-color {
-  flex: 1;
-  height: 100%;
-}
-
-.heatmap-legend-color:nth-child(1) { background-color: #313695; }
-.heatmap-legend-color:nth-child(2) { background-color: #4575b4; }
-.heatmap-legend-color:nth-child(3) { background-color: #74add1; }
-.heatmap-legend-color:nth-child(4) { background-color: #fee090; }
-.heatmap-legend-color:nth-child(5) { background-color: #f46d43; }
-.heatmap-legend-color:nth-child(6) { background-color: #d73027; }
-.heatmap-legend-color:nth-child(7) { background-color: #a50026; }
-
-/* Optional: Dark mode legend colors stay the same (they're visible enough) */
 
 @keyframes ugspin {
   to { transform: rotate(360deg); }

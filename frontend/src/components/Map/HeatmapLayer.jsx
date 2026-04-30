@@ -132,7 +132,6 @@ export default function HeatmapLayer({ visible, onToggle }) {
       onTouchStart={stopPropagation}
       onPointerDown={stopPropagation}
       onClick={stopPropagation}
-      style={{ position: 'relative', zIndex: 1000, pointerEvents: 'auto' }}
     >
       <div className="heatmap-header">
         <span className="heatmap-title">
