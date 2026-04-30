@@ -1,20 +1,12 @@
 // frontend/src/components/Map/HeatmapLayer.jsx
 // Renders a Leaflet.heat congestion overlay on the map.
-//
-// Setup: install leaflet.heat first —
-//   npm install leaflet.heat
-// Then import it once in your app entry point (main.jsx or App.jsx):
-//   import 'leaflet.heat';
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useMap } from "react-leaflet";
 import { fetchHeatmapData } from "../../services/heatmapAnalytics";
 import "./HeatmapLayer.css";
 
-// How long to wait after map movement before fetching new data (ms)
 const FETCH_DEBOUNCE_MS = 800;
-
-// Refresh heatmap data every 5 minutes while the layer is visible
 const AUTO_REFRESH_MS = 5 * 60 * 1000;
 
 const TIME_SLOTS = [
@@ -26,20 +18,6 @@ const TIME_SLOTS = [
   { label: "Night",     hour: 22 },
 ];
 
-const DAY_SLOTS = [
-  { label: "All week", dayOfWeek: undefined },
-  { label: "Weekdays", dayOfWeek: undefined, weekdays: true },
-  { label: "Weekend",  dayOfWeek: undefined, weekends: true },
-];
-
-/**
- * HeatmapLayer — drop this inside your <MapContainer> as a sibling to
- * <TileLayer> and <RouteLayer>.
- *
- * Props:
- *   visible {boolean} — whether to show the heatmap overlay
- *   onToggle {function} — called when the user toggles the layer off
- */
 export default function HeatmapLayer({ visible, onToggle }) {
   const map              = useMap();
   const heatLayerRef     = useRef(null);
@@ -51,7 +29,12 @@ export default function HeatmapLayer({ visible, onToggle }) {
   const [pointCount,      setPointCount]      = useState(0);
   const [lastRefresh,     setLastRefresh]     = useState(null);
 
-  // ── Create / destroy the heat layer when visibility changes ────────────────
+  // Prevent map interaction when clicking on controls
+  const stopPropagation = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+  };
+
   useEffect(() => {
     if (!visible) {
       if (heatLayerRef.current) {
@@ -61,29 +44,24 @@ export default function HeatmapLayer({ visible, onToggle }) {
       return;
     }
 
-    // leaflet.heat attaches itself to the L global
     if (!window.L?.heatLayer) {
-      console.warn("[HeatmapLayer] leaflet.heat not loaded — run: npm install leaflet.heat");
+      console.warn("[HeatmapLayer] leaflet.heat not loaded");
       return;
     }
 
-    // Create the heat layer with UG-tuned parameters:
-    // radius: ~20px — covers a ~15m radius at typical campus zoom
-    // blur:   15    — smooth enough to read, sharp enough to see paths
-    // max:    1.0   — weights are pre-normalised by the backend
     heatLayerRef.current = window.L.heatLayer([], {
       radius:   20,
       blur:     15,
       max:      1.0,
       minOpacity: 0.3,
       gradient: {
-        0.0: '#313695', // deep blue  — very low usage
-        0.2: '#4575b4', // blue
-        0.4: '#74add1', // light blue
-        0.5: '#fee090', // yellow     — moderate usage
-        0.7: '#f46d43', // orange
-        0.9: '#d73027', // red
-        1.0: '#a50026', // deep red   — highest usage
+        0.0: '#313695',
+        0.2: '#4575b4',
+        0.4: '#74add1',
+        0.5: '#fee090',
+        0.7: '#f46d43',
+        0.9: '#d73027',
+        1.0: '#a50026',
       },
     }).addTo(map);
 
@@ -95,22 +73,16 @@ export default function HeatmapLayer({ visible, onToggle }) {
     };
   }, [visible, map]);
 
-  // ── Fetch data and update the heat layer ───────────────────────────────────
   const refreshData = useCallback(async () => {
     if (!visible || !heatLayerRef.current) return;
 
     setIsLoading(true);
     try {
       const bounds = map.getBounds();
-      const points = await fetchHeatmapData(bounds, {
-        hour: selectedHour,
-      });
+      const points = await fetchHeatmapData(bounds, { hour: selectedHour });
 
       if (heatLayerRef.current) {
-        // Leaflet.heat expects [[lat, lng, intensity], ...]
-        heatLayerRef.current.setLatLngs(
-          points.map(p => [p.lat, p.lng, p.weight])
-        );
+        heatLayerRef.current.setLatLngs(points.map(p => [p.lat, p.lng, p.weight]));
       }
 
       setPointCount(points.length);
@@ -122,7 +94,6 @@ export default function HeatmapLayer({ visible, onToggle }) {
     }
   }, [visible, map, selectedHour]);
 
-  // ── Debounced fetch on map move/zoom ──────────────────────────────────────
   useEffect(() => {
     if (!visible) return;
 
@@ -133,8 +104,6 @@ export default function HeatmapLayer({ visible, onToggle }) {
 
     map.on('moveend', onMoveEnd);
     map.on('zoomend', onMoveEnd);
-
-    // Initial fetch
     refreshData();
 
     return () => {
@@ -144,14 +113,12 @@ export default function HeatmapLayer({ visible, onToggle }) {
     };
   }, [visible, map, refreshData]);
 
-  // ── Auto-refresh every 5 minutes ─────────────────────────────────────────
   useEffect(() => {
     if (!visible) return;
     refreshTimerRef.current = setInterval(refreshData, AUTO_REFRESH_MS);
     return () => clearInterval(refreshTimerRef.current);
   }, [visible, refreshData]);
 
-  // ── Refetch when time filter changes ─────────────────────────────────────
   useEffect(() => {
     if (visible) refreshData();
   }, [selectedHour, visible, refreshData]);
@@ -159,29 +126,46 @@ export default function HeatmapLayer({ visible, onToggle }) {
   if (!visible) return null;
 
   return (
-    <div className="heatmap-controls">
+    <div 
+      className="heatmap-controls" 
+      onMouseDown={stopPropagation}
+      onTouchStart={stopPropagation}
+      onPointerDown={stopPropagation}
+      onClick={stopPropagation}
+      style={{ position: 'relative', zIndex: 1000, pointerEvents: 'auto' }}
+    >
       <div className="heatmap-header">
         <span className="heatmap-title">
           🔥 Congestion
           {isLoading && <span className="heatmap-spinner" />}
         </span>
-        <button className="heatmap-close" onClick={onToggle} aria-label="Hide heatmap">✕</button>
+        <button 
+          className="heatmap-close" 
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle();
+          }}
+          aria-label="Hide heatmap"
+        >
+          ✕
+        </button>
       </div>
 
-      {/* Time filter */}
       <div className="heatmap-time-pills">
         {TIME_SLOTS.map((slot) => (
           <button
             key={slot.label}
             className={`heatmap-pill ${selectedHour === slot.hour ? "heatmap-pill--active" : ""}`}
-            onClick={() => setSelectedHour(slot.hour)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedHour(slot.hour);
+            }}
           >
             {slot.label}
           </button>
         ))}
       </div>
 
-      {/* Stats */}
       <div className="heatmap-stats">
         {pointCount > 0 ? (
           <span>{pointCount.toLocaleString()} data point{pointCount !== 1 ? 's' : ''}</span>
@@ -195,7 +179,6 @@ export default function HeatmapLayer({ visible, onToggle }) {
         )}
       </div>
 
-      {/* Colour legend */}
       <div className="heatmap-legend">
         <span className="heatmap-legend-label">Low</span>
         <div className="heatmap-legend-bar" />
