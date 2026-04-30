@@ -92,6 +92,20 @@ CREATE TABLE IF NOT EXISTS user_activity (
 );
 
 
+-- ============================================
+-- ROUTE SEGMENTS TABLE (for heatmap)
+-- ============================================
+CREATE TABLE IF NOT EXISTS route_segments (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  lat_bucket    REAL NOT NULL,
+  lng_bucket    REAL NOT NULL,
+  hour_of_day   INTEGER NOT NULL,
+  day_of_week   INTEGER NOT NULL,
+  count         INTEGER NOT NULL DEFAULT 1,
+  updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+
 
 -- ============================================
 -- INDEXES
@@ -106,3 +120,6 @@ CREATE INDEX IF NOT EXISTS idx_password_resets_token_hash ON password_resets(tok
 CREATE INDEX IF NOT EXISTS idx_password_resets_user_id ON password_resets(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_activity_user_id ON user_activity(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_activity_created_at ON user_activity(created_at);
+CREATE INDEX IF NOT EXISTS idx_route_segments_cell ON route_segments (lat_bucket, lng_bucket, hour_of_day, day_of_week);
+CREATE INDEX IF NOT EXISTS idx_route_segments_lat ON route_segments (lat_bucket);
+CREATE INDEX IF NOT EXISTS idx_route_segments_lng ON route_segments (lng_bucket);

@@ -1,0 +1,177 @@
+/* HeatmapLayer.css */
+
+.heatmap-controls {
+  position: absolute;
+  bottom: 100px;
+  right: 12px;
+  z-index: 1000;
+  background: var(--drop-bg, #ffffff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 14px;
+  padding: 12px 14px;
+  width: 220px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  font-family: "Outfit", sans-serif;
+}
+
+.ug-root.dark .heatmap-controls {
+  background: #1f2937;
+  border-color: #374151;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────────*/
+.heatmap-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.heatmap-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text, #111827);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ug-root.dark .heatmap-title {
+  color: #f3f4f6;
+}
+
+.heatmap-close {
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 2px 5px;
+  border-radius: 6px;
+  line-height: 1;
+  transition: background 0.15s, color 0.15s;
+}
+
+.heatmap-close:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.ug-root.dark .heatmap-close:hover {
+  background: #374151;
+  color: #d1d5db;
+}
+
+/* ── Loading spinner ────────────────────────────────────────────────────────*/
+.heatmap-spinner {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 2px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: ugspin 0.7s linear infinite;
+}
+
+/* ── Time filter pills ──────────────────────────────────────────────────────*/
+.heatmap-time-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.heatmap-pill {
+  font-size: 11px;
+  font-family: "Outfit", sans-serif;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 20px;
+  border: 1.5px solid #e5e7eb;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.heatmap-pill:hover {
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+.heatmap-pill--active {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #ffffff;
+}
+
+.ug-root.dark .heatmap-pill {
+  border-color: #374151;
+  color: #9ca3af;
+}
+
+.ug-root.dark .heatmap-pill:hover {
+  border-color: #60a5fa;
+  color: #60a5fa;
+}
+
+.ug-root.dark .heatmap-pill--active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+
+/* ── Stats line ─────────────────────────────────────────────────────────────*/
+.heatmap-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+
+.heatmap-stats span {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.ug-root.dark .heatmap-stats span {
+  color: #9ca3af;
+}
+
+.heatmap-empty {
+  font-style: italic;
+}
+
+.heatmap-refresh-time {
+  opacity: 0.6;
+}
+
+/* ── Colour legend ──────────────────────────────────────────────────────────*/
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.heatmap-legend-label {
+  font-size: 10px;
+  color: #9ca3af;
+  white-space: nowrap;
+}
+
+.heatmap-legend-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right,
+    #313695,
+    #4575b4,
+    #74add1,
+    #fee090,
+    #f46d43,
+    #d73027,
+    #a50026
+  );
+}
