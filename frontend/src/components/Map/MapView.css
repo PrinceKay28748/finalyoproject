@@ -106,6 +106,16 @@
   z-index: 999;
   transition: all 0.15s ease;
   backdrop-filter: blur(8px);
+  pointer-events: auto;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.map-heatmap-btn:active,
+.map-heatmap-btn:focus,
+.map-heatmap-btn:focus-visible {
+  outline: none;
+  color: inherit;
 }
 
 .map-heatmap-btn:hover {
@@ -121,6 +131,11 @@
 
 .map-heatmap-btn--active:hover {
   background: #d97706;
+}
+
+.map-heatmap-btn--active:active,
+.map-heatmap-btn--active:focus {
+  color: white;
 }
 
 /* ============================================
