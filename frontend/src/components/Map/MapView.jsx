@@ -4,17 +4,23 @@ import "leaflet/dist/leaflet.css";
 import { useEffect, useRef } from "react";
 
 import TileLayerSwitcher from "./TileLayerSwitcher";
-import SmoothFly         from "./SmoothFly";
-import InitialFly        from "./InitialFly";
-import MapClickHandler   from "./MapClickHandler";
+import SmoothFly from "./SmoothFly";
+import InitialFly from "./InitialFly";
+import MapClickHandler from "./MapClickHandler";
 import { GpsLocationMarker, CustomLocationMarker } from "./LocationMarker";
-import RouteMarkers      from "./RouteMarkers";
-import RouteLayer        from "./RouteLayer";
-import HeatmapLayer      from "./HeatmapLayer";
-import Legend            from "../Legend/Legend";
+import RouteMarkers from "./RouteMarkers";
+import RouteLayer from "./RouteLayer";
+import HeatmapLayer from "./HeatmapLayer";
+import Legend from "../Legend/Legend";
 import "../Legend/Legend.css";
 
-import { UG_MAX_BOUNDS, UG_CENTER, DEFAULT_ZOOM, MIN_ZOOM, MAX_ZOOM } from "../../function/utils/bounds";
+import {
+  UG_MAX_BOUNDS,
+  UG_CENTER,
+  DEFAULT_ZOOM,
+  MIN_ZOOM,
+  MAX_ZOOM,
+} from "../../function/utils/bounds";
 import "./MapView.css";
 
 import { ROUTE_COLORS } from "../../function/utils/colors";
@@ -29,41 +35,41 @@ function SmartFitBounds({ startPoint, destPoint, visible }) {
     if (startPoint && destPoint) {
       const bounds = [
         [startPoint.lat, startPoint.lng],
-        [destPoint.lat,  destPoint.lng],
+        [destPoint.lat, destPoint.lng],
       ];
 
-      const R    = 6371000;
-      const dLat = (destPoint.lat - startPoint.lat) * Math.PI / 180;
-      const dLng = (destPoint.lng - startPoint.lng) * Math.PI / 180;
-      const a    =
+      const R = 6371000;
+      const dLat = ((destPoint.lat - startPoint.lat) * Math.PI) / 180;
+      const dLng = ((destPoint.lng - startPoint.lng) * Math.PI) / 180;
+      const a =
         Math.sin(dLat / 2) ** 2 +
-        Math.cos(startPoint.lat * Math.PI / 180) *
-        Math.cos(destPoint.lat  * Math.PI / 180) *
-        Math.sin(dLng / 2) ** 2;
+        Math.cos((startPoint.lat * Math.PI) / 180) *
+          Math.cos((destPoint.lat * Math.PI) / 180) *
+          Math.sin(dLng / 2) ** 2;
       const distance = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
       const isMobile = window.innerWidth < 600;
 
       let padding;
       if (isMobile) {
-        if      (distance < 50)   padding = [20,  20];
-        else if (distance < 200)  padding = [30,  30];
-        else if (distance < 500)  padding = [40,  40];
-        else if (distance < 1000) padding = [50,  50];
-        else if (distance < 2000) padding = [60,  60];
-        else                      padding = [80,  80];
+        if (distance < 50) padding = [20, 20];
+        else if (distance < 200) padding = [30, 30];
+        else if (distance < 500) padding = [40, 40];
+        else if (distance < 1000) padding = [50, 50];
+        else if (distance < 2000) padding = [60, 60];
+        else padding = [80, 80];
       } else {
-        if      (distance < 50)   padding = [30,  30];
-        else if (distance < 200)  padding = [50,  50];
-        else if (distance < 500)  padding = [70,  70];
-        else if (distance < 1000) padding = [90,  90];
+        if (distance < 50) padding = [30, 30];
+        else if (distance < 200) padding = [50, 50];
+        else if (distance < 500) padding = [70, 70];
+        else if (distance < 1000) padding = [90, 90];
         else if (distance < 2000) padding = [120, 120];
-        else                      padding = [180, 180];
+        else padding = [180, 180];
       }
 
-      const topPadding    = isMobile ? padding[0] + 50 : padding[0] + 80;
+      const topPadding = isMobile ? padding[0] + 50 : padding[0] + 80;
       const bottomPadding = isMobile ? padding[1] + 50 : padding[1] + 80;
-      const sidePadding   = padding[1];
+      const sidePadding = padding[1];
 
       map.fitBounds(bounds, {
         padding: [topPadding, sidePadding, bottomPadding, sidePadding],
@@ -88,33 +94,34 @@ export default function MapView({
   markersVisible,
   primaryRoute,
   alternativeRoutes = [],
-  allRoutes         = null,
-  isRouting         = false,
-  isRerouting       = false,
+  allRoutes = null,
+  isRouting = false,
+  isRerouting = false,
   deviationDetected = false,
-  warnings          = [],
-  activeProfile     = "standard",
-  vehicleMode       = "walk",
+  warnings = [],
+  activeProfile = "standard",
+  vehicleMode = "walk",
   flyTarget,
   darkMode,
   waitingForStart,
-  useCustomLocation   = false,
-  isSharedLocation    = false,
-  isLegendExpanded    = true,
+  useCustomLocation = false,
+  isSharedLocation = false,
+  isLegendExpanded = true,
   onLegendExpandedChange,
   onProfileChange,
   onVehicleModeChange,
   onMapClick,
   onCustomLocationDragEnd,
   onRecenter,
-  isRouteLocked       = false,
+  isRouteLocked = false,
   registerLegendCollapse,
   // Heatmap
-  showHeatmap         = false,
+  showHeatmap = false,
   onToggleHeatmap,
 }) {
   const showDestinationMarker = !!destPoint;
-  const displayStartPoint     = useCustomLocation && customStartPoint ? customStartPoint : startPoint;
+  const displayStartPoint =
+    useCustomLocation && customStartPoint ? customStartPoint : startPoint;
 
   const legendRef = useRef(null);
 
@@ -127,7 +134,8 @@ export default function MapView({
     };
   }, [registerLegendCollapse]);
 
-  const getMap = () => document.querySelector('.leaflet-container')?._leaflet_map;
+  const getMap = () =>
+    document.querySelector(".leaflet-container")?._leaflet_map;
 
   const hasValidRoute = primaryRoute?.coordinates?.length > 0;
 
@@ -184,7 +192,7 @@ export default function MapView({
               return (
                 <Polyline
                   key={`alt-${alt.profile}-${alt.route?.totalDistance}`}
-                  positions={coords.map(c => [c.lat, c.lng])}
+                  positions={coords.map((c) => [c.lat, c.lng])}
                   color={ROUTE_COLORS[alt.profile]}
                   weight={4}
                   opacity={0.5}
@@ -208,7 +216,7 @@ export default function MapView({
               return (
                 <Polyline
                   key={`alt-${alt.profile}-${alt.route?.totalDistance}`}
-                  positions={coords.map(c => [c.lat, c.lng])}
+                  positions={coords.map((c) => [c.lat, c.lng])}
                   color={ROUTE_COLORS[alt.profile]}
                   weight={4}
                   opacity={0.35}
@@ -270,8 +278,15 @@ export default function MapView({
       {/* Heatmap toggle button — sits above the recenter button */}
       <button
         className={`map-heatmap-btn${showHeatmap ? " map-heatmap-btn--active" : ""}`}
-        onClick={onToggleHeatmap}
-        title={showHeatmap ? "Hide congestion heatmap" : "Show congestion heatmap"}
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleHeatmap();
+        }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+        title={
+          showHeatmap ? "Hide congestion heatmap" : "Show congestion heatmap"
+        }
         aria-label="Toggle congestion heatmap"
         aria-pressed={showHeatmap}
       >
@@ -295,7 +310,11 @@ export default function MapView({
 
       <Legend
         ref={legendRef}
-        startText={useCustomLocation && customStartPoint ? customStartPoint.name || "Custom location" : startText}
+        startText={
+          useCustomLocation && customStartPoint
+            ? customStartPoint.name || "Custom location"
+            : startText
+        }
         destText={destText}
         visible={markersVisible}
         route={primaryRoute}
