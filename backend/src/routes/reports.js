@@ -6,6 +6,12 @@ import { sendReportNotification, sendReportResolutionEmail } from '../services/e
 
 const router = express.Router();
 
+// Helper function to safely convert to integer
+const toInt = (value) => {
+  const num = parseInt(value, 10);
+  return isNaN(num) ? null : num;
+};
+
 // =============================================
 // POST /api/reports - Submit a new report
 // =============================================
@@ -33,29 +39,33 @@ router.post('/', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'Severity must be between 1 and 3' });
     }
 
-    // FIXED: Use req.user.userId (matches your auth middleware)
-    const userId = req.user.userId;
+    // Get user ID from token and convert to integer
+    const userId = toInt(req.user.userId);
     
     if (!userId) {
-      return res.status(400).json({ error: 'User ID not found in token' });
+      return res.status(400).json({ error: 'Valid user ID not found in token' });
     }
+
+    // Convert lat/lng/severity to proper numbers
+    const parsedLat = parseFloat(lat);
+    const parsedLng = parseFloat(lng);
+    const parsedSeverity = parseInt(severity, 10);
 
     // Insert the report
     const result = await query(
       `INSERT INTO accessibility_reports 
        (submitted_by, lat, lng, location_name, issue_type, custom_description, severity, status, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', CURRENT_TIMESTAMP)
+       VALUES ($1::integer, $2::numeric, $3::numeric, $4::text, $5::text, $6::text, $7::integer, 'pending', CURRENT_TIMESTAMP)
        RETURNING id, submitted_by, lat, lng, location_name, issue_type, custom_description, severity, status, created_at`,
-      [userId, lat, lng, location_name || null, issue_type, custom_description || null, severity]
+      [userId, parsedLat, parsedLng, location_name || null, issue_type, custom_description || null, parsedSeverity]
     );
 
     const newReport = result.rows[0];
 
-    // ✅ ADDED: Send email notification to admin
+    // Send email notification to admin
     try {
-      // Get user email for the report object
       const userResult = await query(
-        'SELECT email FROM users WHERE id = $1 AND deleted_at IS NULL',
+        'SELECT email FROM users WHERE id = $1::integer AND deleted_at IS NULL',
         [userId]
       );
       
@@ -68,7 +78,6 @@ router.post('/', verifyToken, async (req, res) => {
       console.log('[Reports] Admin notification sent for report #', newReport.id);
     } catch (emailError) {
       console.error('[Reports] Failed to send admin notification:', emailError.message);
-      // Don't fail the request if email fails
     }
 
     res.status(201).json({
@@ -90,12 +99,15 @@ router.get('/', verifyToken, async (req, res) => {
   try {
     const { status = 'pending', limit = 50, offset = 0 } = req.query;
     
-    // FIXED: Use req.user.userId
-    const userId = req.user.userId;
+    const userId = toInt(req.user.userId);
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'Valid user ID not found' });
+    }
     
     // Check if user is admin
     const userCheck = await query(
-      'SELECT is_admin FROM users WHERE id = $1 AND deleted_at IS NULL',
+      'SELECT is_admin FROM users WHERE id = $1::integer AND deleted_at IS NULL',
       [userId]
     );
     
@@ -103,11 +115,14 @@ router.get('/', verifyToken, async (req, res) => {
       return res.status(403).json({ error: 'Admin access required' });
     }
     
+    const parsedLimit = parseInt(limit, 10);
+    const parsedOffset = parseInt(offset, 10);
+    
     let statusFilter = '';
-    const params = [limit, offset];
+    const params = [parsedLimit, parsedOffset];
     
     if (status !== 'all') {
-      statusFilter = 'AND status = $3';
+      statusFilter = 'AND status = $3::text';
       params.push(status);
     }
     
@@ -118,14 +133,14 @@ router.get('/', verifyToken, async (req, res) => {
        FROM accessibility_reports
        WHERE deleted_at IS NULL ${statusFilter}
        ORDER BY created_at DESC
-       LIMIT $1 OFFSET $2`,
+       LIMIT $1::integer OFFSET $2::integer`,
       params
     );
     
     res.json({
       success: true,
       reports: result.rows,
-      pagination: { limit, offset }
+      pagination: { limit: parsedLimit, offset: parsedOffset }
     });
     
   } catch (error) {
@@ -140,15 +155,20 @@ router.get('/', verifyToken, async (req, res) => {
 router.get('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.userId;
+    const userId = toInt(req.user.userId);
+    const reportId = toInt(id);
+    
+    if (!userId || !reportId) {
+      return res.status(400).json({ error: 'Invalid ID format' });
+    }
     
     const result = await query(
       `SELECT id, submitted_by, lat, lng, location_name, issue_type, 
               custom_description, severity, status, admin_notes, 
               reviewed_by, reviewed_at, created_at, updated_at
        FROM accessibility_reports
-       WHERE id = $1 AND deleted_at IS NULL`,
-      [id]
+       WHERE id = $1::integer AND deleted_at IS NULL`,
+      [reportId]
     );
     
     if (result.rows.length === 0) {
@@ -157,7 +177,7 @@ router.get('/:id', verifyToken, async (req, res) => {
     
     // Check if user is admin or report owner
     const isAdmin = await query(
-      'SELECT is_admin FROM users WHERE id = $1',
+      'SELECT is_admin FROM users WHERE id = $1::integer',
       [userId]
     );
     
@@ -180,7 +200,12 @@ router.patch('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { status, admin_notes } = req.body;
-    const userId = req.user.userId;
+    const userId = toInt(req.user.userId);
+    const reportId = toInt(id);
+    
+    if (!userId || !reportId) {
+      return res.status(400).json({ error: 'Invalid ID format' });
+    }
     
     // Validate status
     if (!['approved', 'rejected', 'resolved'].includes(status)) {
@@ -189,7 +214,7 @@ router.patch('/:id', verifyToken, async (req, res) => {
     
     // Check if user is admin
     const userCheck = await query(
-      'SELECT is_admin FROM users WHERE id = $1 AND deleted_at IS NULL',
+      'SELECT is_admin FROM users WHERE id = $1::integer AND deleted_at IS NULL',
       [userId]
     );
     
@@ -202,8 +227,8 @@ router.patch('/:id', verifyToken, async (req, res) => {
       `SELECT r.*, u.email 
        FROM accessibility_reports r
        LEFT JOIN users u ON r.submitted_by = u.id
-       WHERE r.id = $1 AND r.deleted_at IS NULL`,
-      [id]
+       WHERE r.id = $1::integer AND r.deleted_at IS NULL`,
+      [reportId]
     );
     
     if (reportResult.rows.length === 0) {
@@ -213,28 +238,27 @@ router.patch('/:id', verifyToken, async (req, res) => {
     const originalReport = reportResult.rows[0];
     const oldStatus = originalReport.status;
     
-    // Update the report status
+    // Update the report status with explicit type casting
     const updateResult = await query(
       `UPDATE accessibility_reports 
-       SET status = $1, 
-           admin_notes = COALESCE($2, admin_notes),
-           reviewed_by = $3,
+       SET status = $1::text, 
+           admin_notes = COALESCE($2::text, admin_notes),
+           reviewed_by = $3::integer,
            reviewed_at = CURRENT_TIMESTAMP,
            updated_at = CURRENT_TIMESTAMP,
-           resolved_at = CASE WHEN $1 = 'resolved' THEN CURRENT_TIMESTAMP ELSE resolved_at END
-       WHERE id = $4 AND deleted_at IS NULL
+           resolved_at = CASE WHEN $1::text = 'resolved' THEN CURRENT_TIMESTAMP ELSE resolved_at END
+       WHERE id = $4::integer AND deleted_at IS NULL
        RETURNING id, status, admin_notes, reviewed_at`,
-      [status, admin_notes, userId, id]
+      [status, admin_notes || null, userId, reportId]
     );
     
-    // ✅ ADDED: Send email notification to user if status changed significantly
+    // Send email notification to user if status changed significantly
     if (oldStatus !== status && (status === 'approved' || status === 'rejected')) {
       try {
         await sendReportResolutionEmail(originalReport, status, admin_notes);
-        console.log('[Reports] Resolution email sent to user for report #', id);
+        console.log('[Reports] Resolution email sent to user for report #', reportId);
       } catch (emailError) {
         console.error('[Reports] Failed to send resolution email:', emailError.message);
-        // Don't fail the request if email fails
       }
     }
     
@@ -256,11 +280,16 @@ router.patch('/:id', verifyToken, async (req, res) => {
 router.delete('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.userId;
+    const userId = toInt(req.user.userId);
+    const reportId = toInt(id);
+    
+    if (!userId || !reportId) {
+      return res.status(400).json({ error: 'Invalid ID format' });
+    }
     
     // Check if user is admin
     const userCheck = await query(
-      'SELECT is_admin FROM users WHERE id = $1 AND deleted_at IS NULL',
+      'SELECT is_admin FROM users WHERE id = $1::integer AND deleted_at IS NULL',
       [userId]
     );
     
@@ -271,9 +300,9 @@ router.delete('/:id', verifyToken, async (req, res) => {
     const result = await query(
       `UPDATE accessibility_reports 
        SET deleted_at = CURRENT_TIMESTAMP
-       WHERE id = $1 AND deleted_at IS NULL
+       WHERE id = $1::integer AND deleted_at IS NULL
        RETURNING id`,
-      [id]
+      [reportId]
     );
     
     if (result.rows.length === 0) {
@@ -293,11 +322,15 @@ router.delete('/:id', verifyToken, async (req, res) => {
 // =============================================
 router.get('/stats/summary', verifyToken, async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = toInt(req.user.userId);
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'Valid user ID not found' });
+    }
     
     // Check if user is admin
     const userCheck = await query(
-      'SELECT is_admin FROM users WHERE id = $1 AND deleted_at IS NULL',
+      'SELECT is_admin FROM users WHERE id = $1::integer AND deleted_at IS NULL',
       [userId]
     );
     

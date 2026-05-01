@@ -25,28 +25,23 @@ if (isProduction) {
     ssl: { rejectUnauthorized: false },
     max: 20,
     idleTimeoutMillis: 30000,
-    family: 4, // force IPv4 — Render free tier blocks IPv6
+    family: 4,
   });
 
   console.log('✅ Connected to Supabase PostgreSQL (Production)');
 
-  function convertPlaceholders(sql, params) {
-    if (!params || params.length === 0) return sql;
-    let result = sql;
-    for (let i = 1; i <= params.length; i++) {
-      result = result.replace('?', `$${i}`);
-    }
-    return result;
-  }
+  // REMOVED the broken convertPlaceholders function
+  // Your SQL already uses $1, $2 format - no conversion needed
 
   query = async (sql, params = []) => {
     try {
-      const convertedSql = convertPlaceholders(sql, params);
-      const result = await pool.query(convertedSql, params);
+      // Directly use pool.query - no placeholder conversion needed
+      const result = await pool.query(sql, params);
       return { rows: result.rows };
     } catch (error) {
       console.error('[DB] Query error:', error.message);
       console.error('[DB] SQL:', sql);
+      console.error('[DB] Params:', params);
       throw error;
     }
   };
@@ -77,8 +72,20 @@ if (isProduction) {
 
   console.log('✅ Connected to SQLite (Development)');
 
+  // SQLite uses ? placeholders - keep conversion here
+  function convertSqlitePlaceholders(sql, params) {
+    if (!params || params.length === 0) return sql;
+    let result = sql;
+    for (let i = 0; i < params.length; i++) {
+      result = result.replace('?', `$${i + 1}`);
+    }
+    return result;
+  }
+
   query = async (sql, params = []) => {
     try {
+      // SQLite needs ? placeholders, not $1
+      // So keep original SQL with ? for SQLite
       if (sql.trim().toUpperCase().startsWith('SELECT')) {
         return { rows: await db.all(sql, params) };
       }
