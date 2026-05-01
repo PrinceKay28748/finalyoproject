@@ -1,12 +1,12 @@
 // frontend/src/components/Admin/AdminDashboard.jsx
-// Modern Admin Dashboard — Fully Responsive with clean icons, no gradients
+// Modern Admin Dashboard — Clean, professional, no gradients
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthContext } from '../../context/AuthContext';
 import { API_URL } from '../../config';
 import './AdminDashboard.css';
 
-// Clean SVG Icons - minimal, monochrome, no gradients
+// Clean SVG Icons
 const Icons = {
   Dashboard: () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -80,11 +80,6 @@ const Icons = {
       <line x1="6" y1="6" x2="18" y2="18" />
     </svg>
   ),
-  ChevronRight: () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="9 18 15 12 9 6" />
-    </svg>
-  ),
   Flag: () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
@@ -113,23 +108,27 @@ const Icons = {
       <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
       <circle cx="12" cy="10" r="3" />
     </svg>
+  ),
+  ChevronDown: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
   )
 };
 
-// Severity labels and colors
 const SEVERITY_CONFIG = {
-  1: { label: 'Mild', color: '#22c55e' },
-  2: { label: 'Moderate', color: '#f59e0b' },
-  3: { label: 'Severe', color: '#ef4444' }
+  1: { label: 'Mild', color: '#22c55e', bg: '#ecfdf5' },
+  2: { label: 'Moderate', color: '#f59e0b', bg: '#fffbeb' },
+  3: { label: 'Severe', color: '#ef4444', bg: '#fef2f2' }
 };
 
 const ISSUE_TYPE_LABELS = {
-  blocked_ramp: 'Blocked Ramp',
-  missing_curb: 'Missing Curb Cut',
-  broken_surface: 'Broken / Uneven Surface',
-  poor_lighting: 'Poor Lighting',
-  construction: 'Construction / Road Closed',
-  other: 'Other Issue'
+  blocked_ramp: '🚧 Blocked Ramp',
+  missing_curb: '📐 Missing Curb Cut',
+  broken_surface: '🕳️ Broken Surface',
+  poor_lighting: '💡 Poor Lighting',
+  construction: '🚧 Construction',
+  other: '📝 Other Issue'
 };
 
 export default function AdminDashboard() {
@@ -141,11 +140,10 @@ export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('reports'); // Default to reports
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [processingReport, setProcessingReport] = useState(null);
-  const [showReportDetails, setShowReportDetails] = useState(null);
-  const [adminNotes, setAdminNotes] = useState('');
+  const [expandedReports, setExpandedReports] = useState({});
 
   const getHeaders = useCallback(() => {
     const token = sessionStorage.getItem('accessToken');
@@ -155,30 +153,7 @@ export default function AdminDashboard() {
     };
   }, []);
 
-  const fetchReports = useCallback(async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/reports?status=pending&limit=100`, {
-        headers: getHeaders()
-      });
-      
-      if (response.status === 401) {
-        sessionStorage.removeItem('accessToken');
-        sessionStorage.removeItem('refreshToken');
-        sessionStorage.removeItem('user');
-        window.location.href = '/';
-        return;
-      }
-      
-      const data = await response.json();
-      if (data.success) {
-        setReports(data.reports || []);
-      }
-    } catch (err) {
-      console.error('[Admin] Fetch reports error:', err);
-    }
-  }, [getHeaders]);
-
-  const fetchData = useCallback(async () => {
+  const fetchAllData = useCallback(async () => {
     try {
       const headers = getHeaders();
       
@@ -189,7 +164,7 @@ export default function AdminDashboard() {
         fetch(`${API_URL}/api/reports?status=pending&limit=100`, { headers })
       ]);
       
-      if (statsRes.status === 401 || usersRes.status === 401 || activityRes.status === 401 || reportsRes.status === 401) {
+      if (statsRes.status === 401) {
         sessionStorage.removeItem('accessToken');
         sessionStorage.removeItem('refreshToken');
         sessionStorage.removeItem('user');
@@ -236,12 +211,10 @@ export default function AdminDashboard() {
       });
       
       if (response.ok) {
-        await fetchReports();
-        setShowReportDetails(null);
-        setAdminNotes('');
+        await fetchAllData();
       } else {
-        const error = await response.json();
-        setError(error.error || 'Failed to approve report');
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to approve report');
       }
     } catch (err) {
       setError('Failed to approve report');
@@ -260,12 +233,10 @@ export default function AdminDashboard() {
       });
       
       if (response.ok) {
-        await fetchReports();
-        setShowReportDetails(null);
-        setAdminNotes('');
+        await fetchAllData();
       } else {
-        const error = await response.json();
-        setError(error.error || 'Failed to reject report');
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to reject report');
       }
     } catch (err) {
       setError('Failed to reject report');
@@ -274,11 +245,15 @@ export default function AdminDashboard() {
     }
   };
 
+  const toggleReportExpand = (reportId) => {
+    setExpandedReports(prev => ({ ...prev, [reportId]: !prev[reportId] }));
+  };
+
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 30000);
+    fetchAllData();
+    const interval = setInterval(fetchAllData, 30000);
     return () => clearInterval(interval);
-  }, [fetchData]);
+  }, [fetchAllData]);
 
   const formatNumber = (num) => {
     if (!num || num === 0) return '0';
@@ -287,17 +262,24 @@ export default function AdminDashboard() {
     return num.toString();
   };
 
+  const formatCoordinate = (lat, lng) => {
+    const numLat = typeof lat === 'number' ? lat : parseFloat(lat);
+    const numLng = typeof lng === 'number' ? lng : parseFloat(lng);
+    if (isNaN(numLat) || isNaN(numLng)) return 'Invalid coordinates';
+    return `${numLat.toFixed(6)}, ${numLng.toFixed(6)}`;
+  };
+
   const getActivityDisplay = (activity) => {
     const meta = activity.parsedMetadata;
     switch (activity.activity_type) {
       case 'route_calculated':
-        return `🗺️ Route: ${meta.start_location || '?'} → ${meta.end_location || '?'} (${meta.profile_used || 'standard'})`;
+        return `🗺️ Route: ${meta.start_location || '?'} → ${meta.end_location || '?'}`;
       case 'search':
-        return `🔍 Searched: "${meta.query || '?'}" → ${meta.selected_result || '?'}`;
+        return `🔍 Searched: "${meta.query || '?'}"`;
       case 'login':
-        return `🔐 Logged in from ${meta.browser || 'device'}`;
+        return `🔐 Logged in`;
       case 'register':
-        return `📝 New user registered: ${meta.email || ''}`;
+        return `📝 New user registered`;
       default:
         return activity.activity_type;
     }
@@ -333,13 +315,6 @@ export default function AdminDashboard() {
         </div>
         
         <nav className="admin-nav">
-          <button 
-            className={`admin-nav-item ${activeTab === 'overview' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('overview'); setMobileMenuOpen(false); }}
-          >
-            <Icons.Dashboard />
-            <span>Overview</span>
-          </button>
           <button 
             className={`admin-nav-item ${activeTab === 'reports' ? 'active' : ''}`}
             onClick={() => { setActiveTab('reports'); setMobileMenuOpen(false); }}
@@ -385,7 +360,6 @@ export default function AdminDashboard() {
         <div className="admin-main-header">
           <div>
             <h1>
-              {activeTab === 'overview' && 'Dashboard'}
               {activeTab === 'reports' && 'Accessibility Reports'}
               {activeTab === 'users' && 'User Management'}
               {activeTab === 'activity' && 'Activity Log'}
@@ -394,9 +368,9 @@ export default function AdminDashboard() {
           </div>
           <div className="admin-header-actions">
             <span className="admin-last-updated">
-              Updated: {lastUpdated?.toLocaleTimeString() || '--:--:--'}
+              Last updated: {lastUpdated?.toLocaleTimeString() || '--:--:--'}
             </span>
-            <button onClick={fetchData} className="admin-refresh-btn">
+            <button onClick={fetchAllData} className="admin-refresh-btn">
               <Icons.Refresh />
               Refresh
             </button>
@@ -410,51 +384,13 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Overview Tab */}
-        {activeTab === 'overview' && (
+        {/* Reports Tab */}
+        {activeTab === 'reports' && (
           <>
+            {/* Stats Cards */}
             <div className="admin-stats-grid">
               <div className="stat-card">
-                <div className="stat-card-icon blue">
-                  <Icons.UsersIcon />
-                </div>
-                <div className="stat-card-content">
-                  <span className="stat-card-value">{formatNumber(stats?.users?.total)}</span>
-                  <span className="stat-card-label">Total Users</span>
-                </div>
-                <div className="stat-card-trend positive">
-                  +{stats?.users?.newThisWeek || 0} this week
-                </div>
-              </div>
-
-              <div className="stat-card">
-                <div className="stat-card-icon green">
-                  <Icons.TrendingUp />
-                </div>
-                <div className="stat-card-content">
-                  <span className="stat-card-value">{stats?.users?.activeToday || 0}</span>
-                  <span className="stat-card-label">Active Today</span>
-                </div>
-                <div className="stat-card-trend">
-                  {stats?.users?.activeWeek || 0} active this week
-                </div>
-              </div>
-
-              <div className="stat-card">
-                <div className="stat-card-icon purple">
-                  <Icons.RouteIcon />
-                </div>
-                <div className="stat-card-content">
-                  <span className="stat-card-value">{stats?.routes?.today || 0}</span>
-                  <span className="stat-card-label">Routes Today</span>
-                </div>
-                <div className="stat-card-trend">
-                  {formatNumber(stats?.routes?.total)} total routes
-                </div>
-              </div>
-
-              <div className="stat-card">
-                <div className="stat-card-icon orange">
+                <div className="stat-card-icon pending">
                   <Icons.Flag />
                 </div>
                 <div className="stat-card-content">
@@ -462,197 +398,137 @@ export default function AdminDashboard() {
                   <span className="stat-card-label">Pending Reports</span>
                 </div>
               </div>
-            </div>
-
-            <div className="admin-two-col">
-              <div className="admin-card">
-                <h3>Route Preferences</h3>
-                <div className="profile-stats">
-                  {stats?.profilePreferences?.length > 0 ? (
-                    stats.profilePreferences.map((p) => (
-                      <div key={p.profile_used} className="profile-bar">
-                        <div className="profile-bar-header">
-                          <span className="profile-name">{p.profile_used}</span>
-                          <span className="profile-percent">
-                            {stats.routes?.total ? ((p.count / stats.routes.total) * 100).toFixed(0) : 0}%
-                          </span>
-                        </div>
-                        <div className="progress-bar">
-                          <div 
-                            className="progress-fill"
-                            style={{ width: stats.routes?.total ? `${(p.count / stats.routes.total) * 100}%` : '0%' }}
-                          />
-                        </div>
-                        <div className="profile-count">{p.count} routes</div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="no-data">No route data yet. Users need to calculate routes.</div>
-                  )}
+              <div className="stat-card">
+                <div className="stat-card-icon users">
+                  <Icons.UsersIcon />
+                </div>
+                <div className="stat-card-content">
+                  <span className="stat-card-value">{formatNumber(stats?.users?.total)}</span>
+                  <span className="stat-card-label">Total Users</span>
                 </div>
               </div>
-
-              <div className="admin-card">
-                <h3>Top Destinations</h3>
-                <div className="destinations-list">
-                  {stats?.topDestinations?.length > 0 ? (
-                    stats.topDestinations.slice(0, 5).map((d, i) => (
-                      <div key={d.end_location} className="destination-item">
-                        <span className="destination-rank">{i + 1}</span>
-                        <span className="destination-name">{d.end_location || 'Unknown'}</span>
-                        <span className="destination-count">{d.count} trips</span>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="no-data">No destination data yet</div>
-                  )}
+              <div className="stat-card">
+                <div className="stat-card-icon routes">
+                  <Icons.RouteIcon />
+                </div>
+                <div className="stat-card-content">
+                  <span className="stat-card-value">{stats?.routes?.today || 0}</span>
+                  <span className="stat-card-label">Routes Today</span>
                 </div>
               </div>
             </div>
 
-            <div className="admin-card full-width">
-              <h3>Recent Activity</h3>
-              <div className="activity-timeline">
-                {activity.slice(0, 10).map((a) => (
-                  <div key={a.id} className="activity-item">
-                    <div className="activity-dot" />
-                    <div className="activity-content">
-                      <div className="activity-header">
-                        <span className="activity-user">{a.username || a.email}</span>
-                        <span className="activity-time">{new Date(a.created_at).toLocaleString()}</span>
-                      </div>
-                      <p className="activity-type">{getActivityDisplay(a)}</p>
-                    </div>
-                  </div>
-                ))}
-                {activity.length === 0 && (
-                  <div className="no-data">No activity yet. Users need to interact with the app.</div>
-                )}
+            {/* Reports List */}
+            <div className="admin-card">
+              <div className="admin-table-header">
+                <h3>Pending Accessibility Reports</h3>
+                <span className="admin-table-stats">{reports.length} report(s) awaiting review</span>
               </div>
+              
+              {reports.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-state-icon">✅</div>
+                  <p>No pending reports. All clear!</p>
+                </div>
+              ) : (
+                <div className="reports-container">
+                  {reports.map((report) => {
+                    const severity = SEVERITY_CONFIG[report.severity] || SEVERITY_CONFIG[2];
+                    const isExpanded = expandedReports[report.id];
+                    
+                    return (
+                      <div key={report.id} className="report-item">
+                        <div className="report-item-header" onClick={() => toggleReportExpand(report.id)}>
+                          <div className="report-item-left">
+                            <span className="report-id">#{report.id}</span>
+                            <span className="report-type">{ISSUE_TYPE_LABELS[report.issue_type] || report.issue_type}</span>
+                          </div>
+                          <div className="report-item-right">
+                            <span className="report-severity" style={{ backgroundColor: severity.bg, color: severity.color }}>
+                              {severity.label}
+                            </span>
+                            <Icons.ChevronDown className={`report-expand-icon ${isExpanded ? 'expanded' : ''}`} />
+                          </div>
+                        </div>
+                        
+                        {isExpanded && (
+                          <div className="report-item-details">
+                            <div className="report-detail-row">
+                              <span className="report-detail-label">Location:</span>
+                              <span className="report-detail-value">
+                                {formatCoordinate(report.lat, report.lng)}
+                              </span>
+                            </div>
+                            
+                            {report.location_name && (
+                              <div className="report-detail-row">
+                                <span className="report-detail-label">Place:</span>
+                                <span className="report-detail-value">{report.location_name}</span>
+                              </div>
+                            )}
+                            
+                            {report.custom_description && (
+                              <div className="report-detail-row">
+                                <span className="report-detail-label">Description:</span>
+                                <span className="report-detail-value report-description">
+                                  {report.custom_description}
+                                </span>
+                              </div>
+                            )}
+                            
+                            <div className="report-detail-row">
+                              <span className="report-detail-label">Reported:</span>
+                              <span className="report-detail-value">
+                                {new Date(report.created_at).toLocaleString()}
+                              </span>
+                            </div>
+                            
+                            <div className="report-actions">
+                              <textarea
+                                className="report-notes-input"
+                                placeholder="Add admin notes (optional)..."
+                                id={`notes-${report.id}`}
+                                rows={2}
+                              />
+                              <div className="report-action-buttons">
+                                <button
+                                  className="report-btn reject-btn"
+                                  onClick={() => {
+                                    const notes = document.getElementById(`notes-${report.id}`).value;
+                                    handleRejectReport(report.id, notes);
+                                  }}
+                                  disabled={processingReport === report.id}
+                                >
+                                  <Icons.X />
+                                  Reject
+                                </button>
+                                <button
+                                  className="report-btn approve-btn"
+                                  onClick={() => {
+                                    const notes = document.getElementById(`notes-${report.id}`).value;
+                                    handleApproveReport(report.id, notes);
+                                  }}
+                                  disabled={processingReport === report.id}
+                                >
+                                  <Icons.Check />
+                                  {processingReport === report.id ? 'Processing...' : 'Approve'}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </>
         )}
 
-        {/* Reports Tab - NEW */}
-        {activeTab === 'reports' && (
-          <div className="admin-card full-width">
-            <div className="admin-table-header">
-              <h3>Pending Accessibility Reports</h3>
-              <span className="admin-table-stats">{reports.length} reports awaiting review</span>
-            </div>
-            
-            {reports.length === 0 ? (
-              <div className="no-data">No pending reports. All clear! 🎉</div>
-            ) : (
-              <div className="reports-list">
-                {reports.map((report) => (
-                  <div key={report.id} className="report-card">
-                    <div className="report-card-header">
-                      <div className="report-id">Report #{report.id}</div>
-                      <div 
-                        className="report-severity" 
-                        style={{ color: SEVERITY_CONFIG[report.severity]?.color }}
-                      >
-                        {SEVERITY_CONFIG[report.severity]?.label}
-                      </div>
-                    </div>
-                    
-                    <div className="report-card-body">
-                      <div className="report-detail-row">
-                        <Icons.MapPin className="report-icon" />
-                        <span className="report-detail-label">Location:</span>
-                        <span className="report-detail-value">
-                          {report.lat?.toFixed(6)}, {report.lng?.toFixed(6)}
-                        </span>
-                      </div>
-                      
-                      <div className="report-detail-row">
-                        <span className="report-detail-label">Issue:</span>
-                        <span className="report-detail-value">
-                          {ISSUE_TYPE_LABELS[report.issue_type] || report.issue_type}
-                        </span>
-                      </div>
-                      
-                      {report.location_name && (
-                        <div className="report-detail-row">
-                          <span className="report-detail-label">Place:</span>
-                          <span className="report-detail-value">{report.location_name}</span>
-                        </div>
-                      )}
-                      
-                      {report.custom_description && (
-                        <div className="report-detail-row">
-                          <span className="report-detail-label">Description:</span>
-                          <span className="report-detail-value report-description">
-                            {report.custom_description}
-                          </span>
-                        </div>
-                      )}
-                      
-                      <div className="report-detail-row">
-                        <span className="report-detail-label">Reported:</span>
-                        <span className="report-detail-value">
-                          {new Date(report.created_at).toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    {showReportDetails === report.id && (
-                      <div className="report-notes-section">
-                        <label className="report-notes-label">Admin Notes (optional):</label>
-                        <textarea
-                          className="report-notes-input"
-                          rows="2"
-                          placeholder="Add notes about your decision..."
-                          value={adminNotes}
-                          onChange={(e) => setAdminNotes(e.target.value)}
-                        />
-                      </div>
-                    )}
-                    
-                    <div className="report-card-actions">
-                      <button
-                        className="report-btn view-btn"
-                        onClick={() => {
-                          if (showReportDetails === report.id) {
-                            setShowReportDetails(null);
-                            setAdminNotes('');
-                          } else {
-                            setShowReportDetails(report.id);
-                            setAdminNotes(report.admin_notes || '');
-                          }
-                        }}
-                      >
-                        <Icons.Eye />
-                        {showReportDetails === report.id ? 'Hide Notes' : 'Add Notes'}
-                      </button>
-                      <button
-                        className="report-btn approve-btn"
-                        onClick={() => handleApproveReport(report.id, adminNotes)}
-                        disabled={processingReport === report.id}
-                      >
-                        <Icons.Check />
-                        {processingReport === report.id ? 'Processing...' : 'Approve'}
-                      </button>
-                      <button
-                        className="report-btn reject-btn"
-                        onClick={() => handleRejectReport(report.id, adminNotes)}
-                        disabled={processingReport === report.id}
-                      >
-                        <Icons.X />
-                        {processingReport === report.id ? 'Processing...' : 'Reject'}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
         {/* Users Tab */}
         {activeTab === 'users' && (
-          <div className="admin-card full-width">
+          <div className="admin-card">
             <div className="admin-table-header">
               <h3>All Users</h3>
               <span className="admin-table-stats">{users.length} total users</span>
@@ -665,7 +541,6 @@ export default function AdminDashboard() {
                     <th>Email</th>
                     <th>Joined</th>
                     <th>Routes</th>
-                    <th>Last Active</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -680,10 +555,9 @@ export default function AdminDashboard() {
                           {u.is_admin === 1 && <span className="admin-badge">Admin</span>}
                         </div>
                       </td>
-                      <td className="user-email">{u.email}</td>
+                      <td>{u.email}</td>
                       <td>{new Date(u.created_at).toLocaleDateString()}</td>
-                      <td className="user-routes">{u.route_count || 0}</td>
-                      <td>{u.last_active ? new Date(u.last_active).toLocaleDateString() : 'Never'}</td>
+                      <td>{u.route_count || 0}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -694,34 +568,33 @@ export default function AdminDashboard() {
 
         {/* Activity Tab */}
         {activeTab === 'activity' && (
-          <div className="admin-card full-width">
+          <div className="admin-card">
             <div className="admin-table-header">
-              <h3>Full Activity Log</h3>
+              <h3>Recent Activity</h3>
             </div>
-            <div className="admin-table-wrapper">
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>User</th>
-                    <th>Activity</th>
-                    <th>Time</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {activity.map((a) => (
-                    <tr key={a.id}>
-                      <td data-label="User">{a.username || a.email}</td>
-                      <td data-label="Activity">{getActivityDisplay(a)}</td>
-                      <td data-label="Time">{new Date(a.created_at).toLocaleString()}</td>
-                    </tr>
-                  ))}
-                  {activity.length === 0 && (
-                    <tr>
-                      <td colSpan="3" className="no-data">No activity recorded</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+            <div className="activity-list">
+              {activity.slice(0, 20).map((a) => (
+                <div key={a.id} className="activity-item">
+                  <div className="activity-icon">
+                    {a.activity_type === 'login' && '🔐'}
+                    {a.activity_type === 'route_calculated' && '🗺️'}
+                    {a.activity_type === 'search' && '🔍'}
+                    {a.activity_type === 'register' && '📝'}
+                  </div>
+                  <div className="activity-content">
+                    <div className="activity-header">
+                      <span className="activity-user">{a.username || a.email || 'Anonymous'}</span>
+                      <span className="activity-time">{new Date(a.created_at).toLocaleString()}</span>
+                    </div>
+                    <p className="activity-type">{getActivityDisplay(a)}</p>
+                  </div>
+                </div>
+              ))}
+              {activity.length === 0 && (
+                <div className="empty-state">
+                  <p>No activity recorded yet.</p>
+                </div>
+              )}
             </div>
           </div>
         )}
