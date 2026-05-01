@@ -1,14 +1,14 @@
 // backend/src/routes/reports.js
 import express from 'express';
 import { query } from '../config/db.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { verifyToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
 // =============================================
 // POST /api/reports - Submit a new report
 // =============================================
-router.post('/', authenticateToken, async (req, res) => {
+router.post('/', verifyToken, async (req, res) => {
   try {
     const {
       lat,
@@ -59,7 +59,7 @@ router.post('/', authenticateToken, async (req, res) => {
 // =============================================
 // GET /api/reports - Get reports (admin only)
 // =============================================
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', verifyToken, async (req, res) => {
   try {
     const { status = 'pending', limit = 50, offset = 0 } = req.query;
     
@@ -107,7 +107,7 @@ router.get('/', authenticateToken, async (req, res) => {
 // =============================================
 // GET /api/reports/:id - Get single report
 // =============================================
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -145,7 +145,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // =============================================
 // PATCH /api/reports/:id - Update report status (admin only)
 // =============================================
-router.patch('/:id', authenticateToken, async (req, res) => {
+router.patch('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { status, admin_notes } = req.body;
@@ -196,7 +196,7 @@ router.patch('/:id', authenticateToken, async (req, res) => {
 // =============================================
 // DELETE /api/reports/:id - Soft delete report (admin only)
 // =============================================
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -233,7 +233,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 // =============================================
 // GET /api/reports/stats/summary - Get report stats (admin only)
 // =============================================
-router.get('/stats/summary', authenticateToken, async (req, res) => {
+router.get('/stats/summary', verifyToken, async (req, res) => {
   try {
     // Check if user is admin
     const userCheck = await query(
