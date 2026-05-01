@@ -2,6 +2,7 @@
 import express from 'express';
 import { query } from '../config/db.js';
 import { verifyToken } from '../middleware/auth.js';
+import { sendReportNotification, sendReportResolutionEmail } from '../services/emailService.js';
 
 const router = express.Router();
 
@@ -32,22 +33,48 @@ router.post('/', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'Severity must be between 1 and 3' });
     }
 
-    // Get user ID from authenticated token
-    const userId = req.user.id; // or req.user.userId depending on your auth middleware
+    // FIXED: Use req.user.userId (matches your auth middleware)
+    const userId = req.user.userId;
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID not found in token' });
+    }
 
-    // FIXED: Use 'submitted_by' NOT 'user_id'
+    // Insert the report
     const result = await query(
       `INSERT INTO accessibility_reports 
        (submitted_by, lat, lng, location_name, issue_type, custom_description, severity, status, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', CURRENT_TIMESTAMP)
-       RETURNING id, submitted_by, lat, lng, location_name, issue_type, severity, status, created_at`,
-      [userId, lat, lng, location_name, issue_type, custom_description, severity]
+       RETURNING id, submitted_by, lat, lng, location_name, issue_type, custom_description, severity, status, created_at`,
+      [userId, lat, lng, location_name || null, issue_type, custom_description || null, severity]
     );
+
+    const newReport = result.rows[0];
+
+    // ✅ ADDED: Send email notification to admin
+    try {
+      // Get user email for the report object
+      const userResult = await query(
+        'SELECT email FROM users WHERE id = $1 AND deleted_at IS NULL',
+        [userId]
+      );
+      
+      const reportWithEmail = {
+        ...newReport,
+        email: userResult.rows[0]?.email || null
+      };
+      
+      await sendReportNotification(reportWithEmail);
+      console.log('[Reports] Admin notification sent for report #', newReport.id);
+    } catch (emailError) {
+      console.error('[Reports] Failed to send admin notification:', emailError.message);
+      // Don't fail the request if email fails
+    }
 
     res.status(201).json({
       success: true,
-      message: 'Report submitted successfully',
-      report: result.rows[0]
+      message: 'Report submitted successfully. Admin will review it shortly.',
+      report: newReport
     });
 
   } catch (error) {
@@ -63,10 +90,13 @@ router.get('/', verifyToken, async (req, res) => {
   try {
     const { status = 'pending', limit = 50, offset = 0 } = req.query;
     
+    // FIXED: Use req.user.userId
+    const userId = req.user.userId;
+    
     // Check if user is admin
     const userCheck = await query(
       'SELECT is_admin FROM users WHERE id = $1 AND deleted_at IS NULL',
-      [req.user.id]
+      [userId]
     );
     
     if (!userCheck.rows[0]?.is_admin) {
@@ -74,7 +104,7 @@ router.get('/', verifyToken, async (req, res) => {
     }
     
     let statusFilter = '';
-    const params = [];
+    const params = [limit, offset];
     
     if (status !== 'all') {
       statusFilter = 'AND status = $3';
@@ -89,7 +119,7 @@ router.get('/', verifyToken, async (req, res) => {
        WHERE deleted_at IS NULL ${statusFilter}
        ORDER BY created_at DESC
        LIMIT $1 OFFSET $2`,
-      [limit, offset, ...params]
+      params
     );
     
     res.json({
@@ -110,6 +140,7 @@ router.get('/', verifyToken, async (req, res) => {
 router.get('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user.userId;
     
     const result = await query(
       `SELECT id, submitted_by, lat, lng, location_name, issue_type, 
@@ -127,10 +158,10 @@ router.get('/:id', verifyToken, async (req, res) => {
     // Check if user is admin or report owner
     const isAdmin = await query(
       'SELECT is_admin FROM users WHERE id = $1',
-      [req.user.id]
+      [userId]
     );
     
-    if (!isAdmin.rows[0]?.is_admin && result.rows[0].submitted_by !== req.user.id) {
+    if (!isAdmin.rows[0]?.is_admin && result.rows[0].submitted_by !== userId) {
       return res.status(403).json({ error: 'Access denied' });
     }
     
@@ -149,6 +180,7 @@ router.patch('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { status, admin_notes } = req.body;
+    const userId = req.user.userId;
     
     // Validate status
     if (!['approved', 'rejected', 'resolved'].includes(status)) {
@@ -158,33 +190,58 @@ router.patch('/:id', verifyToken, async (req, res) => {
     // Check if user is admin
     const userCheck = await query(
       'SELECT is_admin FROM users WHERE id = $1 AND deleted_at IS NULL',
-      [req.user.id]
+      [userId]
     );
     
     if (!userCheck.rows[0]?.is_admin) {
       return res.status(403).json({ error: 'Admin access required' });
     }
     
-    const result = await query(
+    // First, get the original report with user email
+    const reportResult = await query(
+      `SELECT r.*, u.email 
+       FROM accessibility_reports r
+       LEFT JOIN users u ON r.submitted_by = u.id
+       WHERE r.id = $1 AND r.deleted_at IS NULL`,
+      [id]
+    );
+    
+    if (reportResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Report not found' });
+    }
+    
+    const originalReport = reportResult.rows[0];
+    const oldStatus = originalReport.status;
+    
+    // Update the report status
+    const updateResult = await query(
       `UPDATE accessibility_reports 
        SET status = $1, 
            admin_notes = COALESCE($2, admin_notes),
            reviewed_by = $3,
            reviewed_at = CURRENT_TIMESTAMP,
-           updated_at = CURRENT_TIMESTAMP
+           updated_at = CURRENT_TIMESTAMP,
+           resolved_at = CASE WHEN $1 = 'resolved' THEN CURRENT_TIMESTAMP ELSE resolved_at END
        WHERE id = $4 AND deleted_at IS NULL
        RETURNING id, status, admin_notes, reviewed_at`,
-      [status, admin_notes, req.user.id, id]
+      [status, admin_notes, userId, id]
     );
     
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Report not found' });
+    // ✅ ADDED: Send email notification to user if status changed significantly
+    if (oldStatus !== status && (status === 'approved' || status === 'rejected')) {
+      try {
+        await sendReportResolutionEmail(originalReport, status, admin_notes);
+        console.log('[Reports] Resolution email sent to user for report #', id);
+      } catch (emailError) {
+        console.error('[Reports] Failed to send resolution email:', emailError.message);
+        // Don't fail the request if email fails
+      }
     }
     
     res.json({
       success: true,
       message: `Report ${status}`,
-      report: result.rows[0]
+      report: updateResult.rows[0]
     });
     
   } catch (error) {
@@ -199,11 +256,12 @@ router.patch('/:id', verifyToken, async (req, res) => {
 router.delete('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user.userId;
     
     // Check if user is admin
     const userCheck = await query(
       'SELECT is_admin FROM users WHERE id = $1 AND deleted_at IS NULL',
-      [req.user.id]
+      [userId]
     );
     
     if (!userCheck.rows[0]?.is_admin) {
@@ -235,10 +293,12 @@ router.delete('/:id', verifyToken, async (req, res) => {
 // =============================================
 router.get('/stats/summary', verifyToken, async (req, res) => {
   try {
+    const userId = req.user.userId;
+    
     // Check if user is admin
     const userCheck = await query(
       'SELECT is_admin FROM users WHERE id = $1 AND deleted_at IS NULL',
-      [req.user.id]
+      [userId]
     );
     
     if (!userCheck.rows[0]?.is_admin) {
@@ -252,7 +312,7 @@ router.get('/stats/summary', verifyToken, async (req, res) => {
          COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved,
          COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected,
          COUNT(CASE WHEN status = 'resolved' THEN 1 END) as resolved,
-         ROUND(AVG(severity)::numeric, 2) as avg_severity
+         COALESCE(ROUND(AVG(severity)::numeric, 2), 0) as avg_severity
        FROM accessibility_reports
        WHERE deleted_at IS NULL`
     );
