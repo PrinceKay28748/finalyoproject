@@ -483,3 +483,59 @@
 .ug-root.dark .offroute-warning {
   color: #fbbf24;
 }
+
+/* Report button */
+.map-report-btn {
+  position: absolute;
+  left: 16px;
+  bottom: 120px;
+  width: 44px;
+  height: 44px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  box-shadow: var(--shadow-zoom);
+  cursor: pointer;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  transition: all 0.15s ease;
+  backdrop-filter: blur(8px);
+  pointer-events: auto;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  color: var(--text-primary);
+}
+
+.map-report-btn:hover {
+  transform: scale(1.1);
+  background: var(--hover-bg);
+}
+
+.map-report-btn:active,
+.map-report-btn:focus {
+  outline: none;
+}
+
+/* Dark mode */
+.ug-root.dark .map-report-btn {
+  background: rgba(24, 24, 32, 0.95);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #f3f4f6;
+}
+
+.ug-root.dark .map-report-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Mobile responsive */
+@media (max-width: 600px) {
+  .map-report-btn {
+    left: 12px;
+    bottom: 100px;
+    width: 38px;
+    height: 38px;
+  }
+}

@@ -1,0 +1,345 @@
+/* ReportModal.css — clean, no gradients, matches your design */
+
+.report-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: fadeIn 0.2s ease;
+}
+
+.report-modal {
+  background: var(--card-bg, #ffffff);
+  border-radius: 24px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  animation: slideUp 0.3s ease;
+}
+
+.ug-root.dark .report-modal {
+  background: #1a1a1a;
+}
+
+.report-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+}
+
+.report-modal-header h2 {
+  font-family: 'Syne', sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text, #111827);
+  margin: 0;
+}
+
+.report-modal-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: var(--text-secondary, #6b7280);
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.report-modal-close:hover {
+  background: var(--hover-bg, #f3f4f6);
+  color: var(--text, #111827);
+}
+
+/* Location preview */
+.report-location-preview {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 24px;
+  background: var(--bg-secondary, #f9fafb);
+  border-bottom: 1px solid var(--border, #e5e7eb);
+}
+
+.report-location-icon {
+  font-size: 20px;
+}
+
+.report-location-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.report-location-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-secondary, #6b7280);
+}
+
+.report-location-coords {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text, #111827);
+  font-family: monospace;
+}
+
+.report-location-name {
+  font-size: 12px;
+  color: var(--text-secondary, #6b7280);
+}
+
+/* Form */
+.report-form-group {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+}
+
+.report-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text, #111827);
+  margin-bottom: 12px;
+}
+
+/* Issue grid */
+.report-issue-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.report-issue-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--input-bg, #ffffff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.report-issue-btn:hover {
+  background: var(--hover-bg, #f3f4f6);
+  border-color: #2563eb;
+}
+
+.report-issue-btn.active {
+  background: rgba(37, 99, 235, 0.1);
+  border-color: #2563eb;
+}
+
+.report-issue-icon {
+  font-size: 18px;
+}
+
+.report-issue-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text, #111827);
+}
+
+/* Textarea */
+.report-textarea {
+  width: 100%;
+  padding: 12px;
+  background: var(--input-bg, #ffffff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: var(--text, #111827);
+  resize: vertical;
+  transition: all 0.2s;
+}
+
+.report-textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Severity grid */
+.report-severity-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.report-severity-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--input-bg, #ffffff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.report-severity-btn:hover {
+  background: var(--hover-bg, #f3f4f6);
+}
+
+.report-severity-btn.active {
+  background: rgba(37, 99, 235, 0.08);
+  border-color: #2563eb;
+}
+
+.report-severity-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.report-severity-info {
+  flex: 1;
+}
+
+.report-severity-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text, #111827);
+}
+
+.report-severity-desc {
+  display: block;
+  font-size: 11px;
+  color: var(--text-secondary, #6b7280);
+}
+
+/* Error & success */
+.report-error,
+.report-success {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  margin: 0 24px 16px 24px;
+  border-radius: 12px;
+  font-size: 13px;
+}
+
+.report-error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.report-success {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+/* Actions */
+.report-actions {
+  display: flex;
+  gap: 12px;
+  padding: 20px 24px;
+  border-top: 1px solid var(--border, #e5e7eb);
+}
+
+.report-btn {
+  flex: 1;
+  padding: 12px;
+  border-radius: 12px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.report-btn-primary {
+  background: #2563eb;
+  color: white;
+}
+
+.report-btn-primary:hover:not(:disabled) {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.report-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.report-btn-secondary {
+  background: transparent;
+  color: var(--text, #111827);
+  border: 1px solid var(--border, #e5e7eb);
+}
+
+.report-btn-secondary:hover {
+  background: var(--hover-bg, #f3f4f6);
+}
+
+/* Note */
+.report-note {
+  padding: 12px 24px 20px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-secondary, #6b7280);
+  border-top: 1px solid var(--border, #e5e7eb);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .report-modal {
+    width: 95%;
+    border-radius: 20px;
+  }
+  
+  .report-issue-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .report-form-group {
+    padding: 12px 20px;
+  }
+  
+  .report-actions {
+    padding: 16px 20px;
+  }
+}
