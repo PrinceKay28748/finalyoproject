@@ -13,6 +13,7 @@ import RouteLayer from "./RouteLayer";
 import HeatmapLayer from "./HeatmapLayer";
 import HeatmapControls from "./HeatmapControls";
 import Legend from "../Legend/Legend";
+import { IconReport } from "../ui/icon";
 import "../Legend/Legend.css";
 
 import {
@@ -121,6 +122,8 @@ export default function MapView({
   onToggleHeatmap,
   selectedHour,
   onSelectedHourChange,
+  // Report modal
+  onOpenReportModal,
 }) {
   const showDestinationMarker = !!destPoint;
   const displayStartPoint =
@@ -324,6 +327,21 @@ export default function MapView({
         aria-pressed={showHeatmap}
       >
         🔥
+      </button>
+
+      {/* Report button — accessibility issue reporting */}
+      <button
+        className="map-report-btn"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (onOpenReportModal) onOpenReportModal();
+        }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+        title="Report accessibility issue"
+        aria-label="Report accessibility issue"
+      >
+        <IconReport className="w-5 h-5" />
       </button>
 
       {/* Heatmap Controls Panel — OUTSIDE map container, no interference */}

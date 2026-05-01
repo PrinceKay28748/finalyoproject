@@ -13,6 +13,7 @@ import { handleError } from './utils/errorHandler.js';
 import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
 import analyticsRoutes, { heatmapRouter } from './routes/analytics.js';
+import reportsRoutes from './routes/reports.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -189,6 +190,11 @@ app.get('/api/locationiq/reverse', async (req, res) => {
   }
 });
 
+// ============================================
+// REPORTS ROUTES
+// ============================================
+app.use('/api/reports', reportsRoutes);
+
 // ─── Routes ──────────────────────────────────────────────────────────────────
 app.use('/admin', adminRoutes);
 app.use('/auth/login', loginLimiter);
@@ -227,6 +233,9 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 ║    • GET    /health          - Health check                ║
 ║    • GET    /admin/*         - Admin dashboard            ║
 ║    • GET    /api/locationiq/* - LocationIQ proxy          ║
+║    • POST   /api/reports     - Submit accessibility report ║
+║    • GET    /api/reports     - List reports (admin)        ║
+║    • PATCH  /api/reports/:id - Approve/reject report       ║
 ║                                                            ║
 ╚════════════════════════════════════════════════════════════╝
   `);

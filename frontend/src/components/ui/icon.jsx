@@ -216,8 +216,6 @@ export const IconInfo = ({
   </svg>
 );
 
-// Add these to your existing icon.jsx
-
 export const IconSun = ({
   className = "w-5 h-5",
   strokeWidth = 1.5,
@@ -336,5 +334,34 @@ export const IconLogout = ({ className = "w-5 h-5" }) => (
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
     <polyline points="16 17 21 12 16 7" />
     <line x1="21" y1="12" x2="9" y2="12" />
+  </svg>
+);
+
+// ============================================
+// NEW: Report Icon for accessibility issues
+// ============================================
+export const IconReport = ({
+  className = "w-5 h-5",
+  strokeWidth = 1.5,
+  color = "currentColor",
+}) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth={strokeWidth}
+    stroke={color}
+    className={className}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
+    />
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M3 3l18 18"
+    />
   </svg>
 );

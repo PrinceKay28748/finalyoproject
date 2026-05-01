@@ -14,6 +14,7 @@ import OfflineIndicator           from "./components/OfflineIndicator";
 import ProtectedRoute             from "./components/ProtectedRoute";
 import { useAuthContext }         from "./context/AuthContext";
 import AdminDashboard             from './components/Admin/AdminDashboard';
+import ReportModal                from './components/Map/ReportModal';
 import "./index.css";
 
 const MapView = lazy(() => import("./components/Map/MapView"));
@@ -54,6 +55,11 @@ export default function App() {
 
   // Heatmap toggle — persisted in preferences
   const [showHeatmap, setShowHeatmap] = useState(false);
+  const [selectedHour, setSelectedHour] = useState(undefined);
+
+  // Report modal state
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportLocation, setReportLocation] = useState(null);
 
   const [graph, setGraph]               = useState(null);
   const [graphLoading, setGraphLoading] = useState(true);
@@ -371,6 +377,36 @@ export default function App() {
     if (currentLocation) setFlyTarget({ ...currentLocation, _t: Date.now() });
   };
 
+  // ── Report modal handlers ────────────────────────────────────────────────
+  const handleOpenReportModal = useCallback(() => {
+    // Use current map center or GPS location as default report location
+    const mapContainer = document.querySelector('.leaflet-container');
+    let defaultLocation = null;
+    
+    if (mapContainer && mapContainer._leaflet_map) {
+      const center = mapContainer._leaflet_map.getCenter();
+      defaultLocation = { lat: center.lat, lng: center.lng };
+    } else if (currentLocation) {
+      defaultLocation = { lat: currentLocation.lat, lng: currentLocation.lng };
+    }
+    
+    setReportLocation(defaultLocation);
+    setIsReportModalOpen(true);
+  }, [currentLocation]);
+
+  const handleCloseReportModal = () => {
+    setIsReportModalOpen(false);
+    setReportLocation(null);
+  };
+
+  const handleSubmitReport = async (reportData) => {
+    // Will be implemented in the report service
+    console.log('[App] Submitting report:', reportData);
+    // Close modal after successful submission
+    setIsReportModalOpen(false);
+    setReportLocation(null);
+  };
+
   const canShow =
     (effectiveStartPoint || effectiveStartText.trim().length > 0) &&
     (destPoint           || destText.trim().length > 0);
@@ -461,8 +497,20 @@ export default function App() {
               registerLegendCollapse={registerLegendCollapse}
               showHeatmap={showHeatmap}
               onToggleHeatmap={() => setShowHeatmap(h => !h)}
+              selectedHour={selectedHour}
+              onSelectedHourChange={setSelectedHour}
+              onOpenReportModal={handleOpenReportModal}
             />
           </Suspense>
+
+          {/* Report Modal */}
+          <ReportModal
+            isOpen={isReportModalOpen}
+            onClose={handleCloseReportModal}
+            onSubmit={handleSubmitReport}
+            defaultLocation={reportLocation}
+            user={user}
+          />
         </div>
       </ErrorBoundary>
     </ProtectedRoute>
