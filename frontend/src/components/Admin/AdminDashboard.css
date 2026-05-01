@@ -869,3 +869,201 @@
     height: 22px;
   }
 }
+
+/* ============================================
+   REPORTS TAB STYLES - Add to your CSS
+   ============================================ */
+
+.reports-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.report-item {
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  overflow: hidden;
+  transition: all 0.15s ease;
+}
+
+.report-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.report-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: #f8fafc;
+}
+
+.report-item-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.report-id {
+  font-weight: 700;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+.report-type {
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  color: #0f172a;
+}
+
+.report-item-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.report-severity {
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+.report-item-details {
+  padding: 20px;
+  border-top: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.report-detail-row {
+  display: flex;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.report-detail-label {
+  width: 100px;
+  font-weight: 500;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.report-detail-value {
+  flex: 1;
+  color: #334155;
+  word-break: break-word;
+}
+
+.report-description {
+  background: #f8fafc;
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin-top: -4px;
+}
+
+.report-actions {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.report-notes-input {
+  width: 100%;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  resize: vertical;
+  margin-bottom: 12px;
+  transition: all 0.15s ease;
+}
+
+.report-notes-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  background: #ffffff;
+}
+
+.report-action-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.report-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: all 0.1s ease;
+  border: none;
+}
+
+.report-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.report-btn:active {
+  transform: scale(0.96);
+}
+
+.approve-btn {
+  background: #10b981;
+  color: white;
+}
+
+.approve-btn:hover {
+  background: #059669;
+}
+
+.reject-btn {
+  background: #ef4444;
+  color: white;
+}
+
+.reject-btn:hover {
+  background: #dc2626;
+}
+
+.report-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+@media (max-width: 768px) {
+  .report-item-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .report-item-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .report-action-buttons {
+    flex-direction: column;
+  }
+  
+  .report-btn {
+    justify-content: center;
+  }
+}
