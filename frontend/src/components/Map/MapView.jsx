@@ -1,7 +1,7 @@
 // components/Map/MapView.jsx
 import { MapContainer, useMap, Polyline } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import TileLayerSwitcher from "./TileLayerSwitcher";
 import SmoothFly from "./SmoothFly";
@@ -11,6 +11,7 @@ import { GpsLocationMarker, CustomLocationMarker } from "./LocationMarker";
 import RouteMarkers from "./RouteMarkers";
 import RouteLayer from "./RouteLayer";
 import HeatmapLayer from "./HeatmapLayer";
+import HeatmapControls from "./HeatmapControls";
 import Legend from "../Legend/Legend";
 import "../Legend/Legend.css";
 
@@ -118,12 +119,16 @@ export default function MapView({
   // Heatmap
   showHeatmap = false,
   onToggleHeatmap,
+  selectedHour,
+  onSelectedHourChange,
 }) {
   const showDestinationMarker = !!destPoint;
   const displayStartPoint =
     useCustomLocation && customStartPoint ? customStartPoint : startPoint;
 
   const legendRef = useRef(null);
+  const [mapBounds, setMapBounds] = useState(null);
+  const [map, setMap] = useState(null);
 
   useEffect(() => {
     if (registerLegendCollapse && legendRef.current) {
@@ -138,6 +143,36 @@ export default function MapView({
     document.querySelector(".leaflet-container")?._leaflet_map;
 
   const hasValidRoute = primaryRoute?.coordinates?.length > 0;
+
+  // Track map bounds for heatmap controls
+  useEffect(() => {
+    const container = document.querySelector(".leaflet-container");
+    if (container && container._leaflet_map) {
+      const leafletMap = container._leaflet_map;
+      setMap(leafletMap);
+      
+      const updateBounds = () => {
+        if (leafletMap) {
+          const bounds = leafletMap.getBounds();
+          setMapBounds({
+            south: bounds.getSouth(),
+            west: bounds.getWest(),
+            north: bounds.getNorth(),
+            east: bounds.getEast(),
+          });
+        }
+      };
+      
+      leafletMap.on('moveend', updateBounds);
+      leafletMap.on('zoomend', updateBounds);
+      updateBounds();
+      
+      return () => {
+        leafletMap.off('moveend', updateBounds);
+        leafletMap.off('zoomend', updateBounds);
+      };
+    }
+  }, []);
 
   return (
     <div className="map-wrap">
@@ -169,8 +204,8 @@ export default function MapView({
           visible={useCustomLocation && !!customStartPoint}
         />
 
-        {/* Heatmap overlay — must be inside MapContainer to access map context */}
-        <HeatmapLayer visible={showHeatmap} onToggle={onToggleHeatmap} />
+        {/* Heatmap overlay — inside map container (needs map context) */}
+        <HeatmapLayer visible={showHeatmap} selectedHour={selectedHour} />
 
         {markersVisible && hasValidRoute && (
           <RouteLayer
@@ -246,7 +281,7 @@ export default function MapView({
         />
       </MapContainer>
 
-      {/* ── Map controls ──────────────────────────────────────────────────── */}
+      {/* ── Map controls (OUTSIDE map container) ───────────────────────────── */}
       <div className="map-zoom-controls">
         <button
           className="map-zoom-btn map-zoom-in"
@@ -275,7 +310,7 @@ export default function MapView({
         🎯
       </button>
 
-      {/* Heatmap toggle button — sits above the recenter button */}
+      {/* Heatmap toggle button */}
       <button
         className={`map-heatmap-btn${showHeatmap ? " map-heatmap-btn--active" : ""}`}
         onClick={(e) => {
@@ -284,14 +319,21 @@ export default function MapView({
         }}
         onMouseDown={(e) => e.stopPropagation()}
         onTouchStart={(e) => e.stopPropagation()}
-        title={
-          showHeatmap ? "Hide congestion heatmap" : "Show congestion heatmap"
-        }
+        title={showHeatmap ? "Hide congestion heatmap" : "Show congestion heatmap"}
         aria-label="Toggle congestion heatmap"
         aria-pressed={showHeatmap}
       >
         🔥
       </button>
+
+      {/* Heatmap Controls Panel — OUTSIDE map container, no interference */}
+      <HeatmapControls
+        visible={showHeatmap}
+        onToggle={onToggleHeatmap}
+        mapBounds={mapBounds}
+        selectedHour={selectedHour}
+        onSelectedHourChange={onSelectedHourChange}
+      />
 
       {/* ── Status indicators ─────────────────────────────────────────────── */}
       {isRerouting && (
