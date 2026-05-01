@@ -1,12 +1,13 @@
 // frontend/src/components/Admin/AdminDashboard.jsx
-// Modern Admin Dashboard — Clean, no gradients, refined
+// Modern Admin Dashboard — Fully Responsive with modern icons
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthContext } from '../../context/AuthContext';
 import { API_URL } from '../../config';
+import { getReports, updateReportStatus } from '../../services/reportService';
 import './AdminDashboard.css';
 
-// Clean SVG Icons - no gradients, consistent stroke
+// Modern SVG Icons - clean, minimal, professional
 const Icons = {
   Dashboard: () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -84,7 +85,52 @@ const Icons = {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="9 18 15 12 9 6" />
     </svg>
+  ),
+  Flag: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+      <line x1="4" y1="22" x2="4" y2="15" />
+    </svg>
+  ),
+  Check: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  ),
+  X: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  ),
+  Eye: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  ),
+  MapPin: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
   )
+};
+
+// Severity configuration
+const SEVERITY_CONFIG = {
+  1: { label: 'Mild', color: '#22c55e', bg: '#ecfdf5' },
+  2: { label: 'Moderate', color: '#f59e0b', bg: '#fffbeb' },
+  3: { label: 'Severe', color: '#ef4444', bg: '#fef2f2' }
+};
+
+const ISSUE_TYPE_LABELS = {
+  blocked_ramp: 'Blocked Ramp',
+  missing_curb: 'Missing Curb Cut',
+  broken_surface: 'Broken / Uneven Surface',
+  poor_lighting: 'Poor Lighting',
+  construction: 'Construction / Road Closed',
+  other: 'Other Issue'
 };
 
 export default function AdminDashboard() {
@@ -92,11 +138,23 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
   const [activity, setActivity] = useState([]);
+  const [reports, setReports] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [lastUpdated, setLastUpdated] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [processingReport, setProcessingReport] = useState(null);
+  const [adminNotes, setAdminNotes] = useState({});
+
+  const fetchReports = useCallback(async () => {
+    try {
+      const data = await getReports('pending', 100);
+      setReports(data.reports || []);
+    } catch (err) {
+      console.error('[Admin] Fetch reports error:', err);
+    }
+  }, []);
 
   const fetchData = useCallback(async () => {
     try {
@@ -144,19 +202,60 @@ export default function AdminDashboard() {
       setActivity(parsedActivity);
       setLastUpdated(new Date());
       setError('');
+      
+      // Fetch reports if on reports tab
+      if (activeTab === 'reports') {
+        await fetchReports();
+      }
     } catch (err) {
       console.error('[Admin] Fetch error:', err);
       setError('Failed to load dashboard data');
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [fetchReports, activeTab]);
+
+  const handleApproveReport = async (reportId) => {
+    setProcessingReport(reportId);
+    try {
+      await updateReportStatus(reportId, 'approved', adminNotes[reportId] || '');
+      await fetchReports();
+      // Refresh stats to update pending count
+      fetchData();
+      setAdminNotes(prev => ({ ...prev, [reportId]: '' }));
+    } catch (err) {
+      setError(err.message || 'Failed to approve report');
+    } finally {
+      setProcessingReport(null);
+    }
+  };
+
+  const handleRejectReport = async (reportId) => {
+    setProcessingReport(reportId);
+    try {
+      await updateReportStatus(reportId, 'rejected', adminNotes[reportId] || '');
+      await fetchReports();
+      fetchData();
+      setAdminNotes(prev => ({ ...prev, [reportId]: '' }));
+    } catch (err) {
+      setError(err.message || 'Failed to reject report');
+    } finally {
+      setProcessingReport(null);
+    }
+  };
 
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, [fetchData]);
+
+  // Refetch reports when switching to reports tab
+  useEffect(() => {
+    if (activeTab === 'reports') {
+      fetchReports();
+    }
+  }, [activeTab, fetchReports]);
 
   const formatNumber = (num) => {
     if (!num || num === 0) return '0';
@@ -179,6 +278,13 @@ export default function AdminDashboard() {
       default:
         return activity.activity_type;
     }
+  };
+
+  const formatCoordinate = (lat, lng) => {
+    const numLat = typeof lat === 'number' ? lat : parseFloat(lat);
+    const numLng = typeof lng === 'number' ? lng : parseFloat(lng);
+    if (isNaN(numLat) || isNaN(numLng)) return 'Invalid coordinates';
+    return `${numLat.toFixed(6)}, ${numLng.toFixed(6)}`;
   };
 
   if (isLoading) {
@@ -221,6 +327,14 @@ export default function AdminDashboard() {
             <span>Overview</span>
           </button>
           <button 
+            className={`admin-nav-item ${activeTab === 'reports' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('reports'); setMobileMenuOpen(false); }}
+          >
+            <Icons.Flag />
+            <span>Reports</span>
+            {reports.length > 0 && <span className="report-badge">{reports.length}</span>}
+          </button>
+          <button 
             className={`admin-nav-item ${activeTab === 'users' ? 'active' : ''}`}
             onClick={() => { setActiveTab('users'); setMobileMenuOpen(false); }}
           >
@@ -257,7 +371,7 @@ export default function AdminDashboard() {
       <main className="admin-main">
         <div className="admin-main-header">
           <div>
-            <h1>{activeTab === 'overview' ? 'Dashboard' : activeTab === 'users' ? 'User Management' : 'Activity Log'}</h1>
+            <h1>{activeTab === 'overview' ? 'Dashboard' : activeTab === 'reports' ? 'Accessibility Reports' : activeTab === 'users' ? 'User Management' : 'Activity Log'}</h1>
             <p>Welcome back, {user?.username || 'Admin'}</p>
           </div>
           <div className="admin-header-actions">
@@ -278,7 +392,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Overview Tab */}
+        {/* Overview Tab - UNCHANGED */}
         {activeTab === 'overview' && (
           <>
             {/* Stats Grid */}
@@ -327,8 +441,8 @@ export default function AdminDashboard() {
                   <Icons.Activity />
                 </div>
                 <div className="stat-card-content">
-                  <span className="stat-card-value">{activity.length}</span>
-                  <span className="stat-card-label">Recent Activities</span>
+                  <span className="stat-card-value">{reports.length}</span>
+                  <span className="stat-card-label">Pending Reports</span>
                 </div>
               </div>
             </div>
@@ -427,7 +541,107 @@ export default function AdminDashboard() {
           </>
         )}
 
-        {/* Users Tab */}
+        {/* REPORTS TAB - NEW */}
+        {activeTab === 'reports' && (
+          <div className="admin-card full-width">
+            <div className="admin-table-header">
+              <h3>Pending Accessibility Reports</h3>
+              <span className="admin-table-stats">{reports.length} report(s) awaiting review</span>
+            </div>
+            
+            {reports.length === 0 ? (
+              <div className="no-data">
+                <div style={{ textAlign: 'center', padding: '48px 20px' }}>
+                  <div style={{ fontSize: '48px', marginBottom: '12px' }}>✅</div>
+                  <p>No pending reports. All clear!</p>
+                </div>
+              </div>
+            ) : (
+              <div className="reports-list">
+                {reports.map((report) => {
+                  const severity = SEVERITY_CONFIG[report.severity] || SEVERITY_CONFIG[2];
+                  return (
+                    <div key={report.id} className="report-item">
+                      <div className="report-item-header">
+                        <div className="report-item-left">
+                          <span className="report-id">#{report.id}</span>
+                          <span className="report-type">{ISSUE_TYPE_LABELS[report.issue_type] || report.issue_type}</span>
+                        </div>
+                        <div className="report-item-right">
+                          <span className="report-severity" style={{ backgroundColor: severity.bg, color: severity.color }}>
+                            {severity.label}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="report-item-details">
+                        <div className="report-detail-row">
+                          <span className="report-detail-label">Location:</span>
+                          <span className="report-detail-value">
+                            {formatCoordinate(report.lat, report.lng)}
+                          </span>
+                        </div>
+                        
+                        {report.location_name && (
+                          <div className="report-detail-row">
+                            <span className="report-detail-label">Place:</span>
+                            <span className="report-detail-value">{report.location_name}</span>
+                          </div>
+                        )}
+                        
+                        {report.custom_description && (
+                          <div className="report-detail-row">
+                            <span className="report-detail-label">Description:</span>
+                            <span className="report-detail-value report-description">
+                              {report.custom_description}
+                            </span>
+                          </div>
+                        )}
+                        
+                        <div className="report-detail-row">
+                          <span className="report-detail-label">Reported:</span>
+                          <span className="report-detail-value">
+                            {new Date(report.created_at).toLocaleString()}
+                          </span>
+                        </div>
+                        
+                        <div className="report-actions">
+                          <textarea
+                            className="report-notes-input"
+                            placeholder="Add admin notes (optional)..."
+                            value={adminNotes[report.id] || ''}
+                            onChange={(e) => setAdminNotes(prev => ({ ...prev, [report.id]: e.target.value }))}
+                            rows={2}
+                          />
+                          <div className="report-action-buttons">
+                            <button
+                              className="report-btn reject-btn"
+                              onClick={() => handleRejectReport(report.id)}
+                              disabled={processingReport === report.id}
+                            >
+                              <Icons.X />
+                              {processingReport === report.id ? 'Processing...' : 'Reject'}
+                            </button>
+                            <button
+                              className="report-btn approve-btn"
+                              onClick={() => handleApproveReport(report.id)}
+                              disabled={processingReport === report.id}
+                            >
+                              <Icons.Check />
+                              {processingReport === report.id ? 'Processing...' : 'Approve'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Users Tab - UNCHANGED */}
         {activeTab === 'users' && (
           <div className="admin-card full-width">
             <div className="admin-table-header">
@@ -469,7 +683,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Activity Tab */}
+        {/* Activity Tab - UNCHANGED */}
         {activeTab === 'activity' && (
           <div className="admin-card full-width">
             <div className="admin-table-header">
