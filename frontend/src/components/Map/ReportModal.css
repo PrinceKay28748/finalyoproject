@@ -343,3 +343,66 @@
     padding: 16px 20px;
   }
 }
+
+/* Success Popup Styles */
+.report-success-popup {
+  text-align: center;
+  padding: 40px 24px;
+}
+
+.success-checkmark {
+  width: 64px;
+  height: 64px;
+  background: #22c55e;
+  color: white;
+  font-size: 40px;
+  font-weight: bold;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px auto;
+}
+
+.report-success-popup h3 {
+  font-size: 22px;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 12px;
+}
+
+.ug-root.dark .report-success-popup h3 {
+  color: #f3f4f6;
+}
+
+.report-success-popup p {
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.report-success-popup .success-note {
+  font-size: 13px;
+  color: #94a3b8;
+  margin-bottom: 24px;
+}
+
+.success-close-btn {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.success-close-btn:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.success-close-btn:active {
+  transform: scale(0.98);
+}
