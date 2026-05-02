@@ -3,6 +3,8 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useMap } from "react-leaflet";
+import L from 'leaflet';
+import 'leaflet.heat';
 import { fetchHeatmapData } from "../../services/heatmapAnalytics";
 
 const FETCH_DEBOUNCE_MS = 800;
@@ -43,12 +45,13 @@ export default function HeatmapLayer({ visible, selectedHour }) {
       return;
     }
 
-    if (!window.L?.heatLayer) {
-      console.warn("[HeatmapLayer] leaflet.heat not loaded");
+    // Check if L.heatLayer exists after import
+    if (!L.heatLayer) {
+      console.warn("[HeatmapLayer] leaflet.heat not loaded - check import");
       return;
     }
 
-    heatLayerRef.current = window.L.heatLayer([], {
+    heatLayerRef.current = L.heatLayer([], {
       radius: 20,
       blur: 15,
       max: 1.0,
