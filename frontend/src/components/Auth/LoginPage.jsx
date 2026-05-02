@@ -1,5 +1,6 @@
 // frontend/src/components/Auth/LoginPage.jsx
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuthContext } from "../../context/AuthContext";
 import "./AuthPage.css";
 
@@ -8,10 +9,10 @@ export default function LoginPage({ onSwitchToRegister, onForgotPassword }) {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const { login } = useAuthContext();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -22,14 +23,11 @@ export default function LoginPage({ onSwitchToRegister, onForgotPassword }) {
       const result = await login(email, password);
 
       if (!result.success) {
-        // Error returned — show it, stop spinner
         setError(result.error || "Login failed");
         setIsLoading(false);
       } else {
-        // Success — show success state briefly before app re-renders
-        setSuccess(true);
-        setIsLoading(false);
-        // App will automatically re-render to the map via ProtectedRoute
+        // Force redirect to main page
+        navigate("/");
       }
     } catch (err) {
       setError(err.message || "Login failed");
@@ -68,32 +66,14 @@ export default function LoginPage({ onSwitchToRegister, onForgotPassword }) {
           <p>Sign in to continue your journey</p>
         </div>
 
-        {/* SUCCESS STATE */}
-        {success && (
-          <div className="auth-success-split" role="status">
-            <span className="success-icon">✓</span>
-            <div className="success-text">
-              <strong>Welcome back!</strong>
-              <span>Loading your map...</span>
-            </div>
-            <div className="success-spinner" />
-          </div>
-        )}
-
         {/* ERROR MESSAGE */}
-        {error && !success && (
+        {error && (
           <div className="auth-error-split" role="alert">
             <span className="error-message">{error}</span>
           </div>
         )}
 
-        <form
-          onSubmit={handleSubmit}
-          style={{
-            opacity: success ? 0.5 : 1,
-            pointerEvents: success ? "none" : "auto",
-          }}
-        >
+        <form onSubmit={handleSubmit}>
           <div className="form-group-split">
             <input
               id="email"
@@ -101,7 +81,7 @@ export default function LoginPage({ onSwitchToRegister, onForgotPassword }) {
               placeholder=" "
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              disabled={isLoading || success}
+              disabled={isLoading}
               required
               autoComplete="email"
             />
@@ -115,7 +95,7 @@ export default function LoginPage({ onSwitchToRegister, onForgotPassword }) {
               placeholder=" "
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              disabled={isLoading || success}
+              disabled={isLoading}
               required
               autoComplete="current-password"
             />
@@ -143,7 +123,7 @@ export default function LoginPage({ onSwitchToRegister, onForgotPassword }) {
           <button
             type="submit"
             className={`auth-button-split ${isLoading ? "loading" : ""}`}
-            disabled={isLoading || success}
+            disabled={isLoading}
           >
             {isLoading ? (
               <>
@@ -160,7 +140,7 @@ export default function LoginPage({ onSwitchToRegister, onForgotPassword }) {
           type="button"
           className="auth-secondary-split"
           onClick={onSwitchToRegister}
-          disabled={isLoading || success}
+          disabled={isLoading}
         >
           Create an account
         </button>

@@ -12,6 +12,7 @@ export default function RegisterPage({ onSwitchToLogin }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [needsEmailConfirmation, setNeedsEmailConfirmation] = useState(false);
 
   const { register } = useAuthContext();
 
@@ -36,7 +37,7 @@ export default function RegisterPage({ onSwitchToLogin }) {
 
     if (passwordStrength < 3) {
       setError(
-        "Password is too weak. Include uppercase, lowercase, and numbers.",
+        "Password is too weak. Include uppercase, lowercase, and numbers."
       );
       return;
     }
@@ -50,7 +51,10 @@ export default function RegisterPage({ onSwitchToLogin }) {
         setError(result.error || "Registration failed");
         setIsLoading(false);
       } else {
-        // Success — show success state briefly before app re-renders
+        // Check if email confirmation is required
+        if (result.needsEmailConfirmation) {
+          setNeedsEmailConfirmation(true);
+        }
         setSuccess(true);
         setIsLoading(false);
       }
@@ -62,6 +66,47 @@ export default function RegisterPage({ onSwitchToLogin }) {
 
   const strengthLabels = ["Weak", "Fair", "Good", "Strong"];
   const strengthColors = ["#ef4444", "#f97316", "#eab308", "#22c55e"];
+
+  // If email confirmation is needed, show different message
+  if (needsEmailConfirmation) {
+    return (
+      <div className="auth-container-split">
+        <div className="auth-hero">
+          <div className="auth-hero-bg">UG</div>
+          <img src="/icon-512.png" alt="UG Navigator" width={80} height={80} />
+          <h1>
+            Verify your
+            <br />
+            email.
+          </h1>
+          <p>You're almost there!</p>
+        </div>
+
+        <div className="auth-form-panel">
+          <div className="auth-form-header">
+            <h2>Check your inbox</h2>
+            <p>We sent a confirmation link to {email}</p>
+          </div>
+          
+          <div className="auth-success-split" style={{ marginBottom: '24px' }}>
+            <span className="success-icon">📧</span>
+            <div className="success-text">
+              <strong>Verify your email address</strong>
+              <span>Click the link in the email to activate your account.</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className="auth-secondary-split"
+            onClick={onSwitchToLogin}
+          >
+            Back to Sign in
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="auth-container-split">
@@ -86,15 +131,14 @@ export default function RegisterPage({ onSwitchToLogin }) {
           <p>Join UG Navigator today</p>
         </div>
 
-        {/* SUCCESS STATE */}
+        {/* SUCCESS STATE - No loading spinner, just success message */}
         {success && (
           <div className="auth-success-split" role="status">
             <span className="success-icon">✓</span>
             <div className="success-text">
               <strong>Account created!</strong>
-              <span>Welcome to UG Navigator...</span>
+              <span>Please check your email to confirm your account.</span>
             </div>
-            <div className="success-spinner" />
           </div>
         )}
 
