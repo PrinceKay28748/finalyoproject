@@ -1,13 +1,11 @@
 // frontend/src/components/Admin/AdminDashboard.jsx
-// Modern Admin Dashboard — Fully Responsive with modern icons
-
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthContext } from '../../context/AuthContext';
 import { API_URL } from '../../config';
 import { getReports, updateReportStatus } from '../../services/reportService';
 import './AdminDashboard.css';
 
-// Modern SVG Icons - clean, minimal, professional
+// ── Icons ─────────────────────────────────────────────────────────────────────
 const Icons = {
   Dashboard: () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -81,11 +79,6 @@ const Icons = {
       <line x1="6" y1="6" x2="18" y2="18" />
     </svg>
   ),
-  ChevronRight: () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="9 18 15 12 9 6" />
-    </svg>
-  ),
   Flag: () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
@@ -103,190 +96,211 @@ const Icons = {
       <line x1="6" y1="6" x2="18" y2="18" />
     </svg>
   ),
-  Eye: () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  ),
-  MapPin: () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-      <circle cx="12" cy="10" r="3" />
-    </svg>
-  )
 };
 
-// Severity configuration
 const SEVERITY_CONFIG = {
-  1: { label: 'Mild', color: '#22c55e', bg: '#ecfdf5' },
+  1: { label: 'Mild',     color: '#22c55e', bg: '#ecfdf5' },
   2: { label: 'Moderate', color: '#f59e0b', bg: '#fffbeb' },
-  3: { label: 'Severe', color: '#ef4444', bg: '#fef2f2' }
+  3: { label: 'Severe',   color: '#ef4444', bg: '#fef2f2' },
 };
 
 const ISSUE_TYPE_LABELS = {
-  blocked_ramp: 'Blocked Ramp',
-  missing_curb: 'Missing Curb Cut',
-  broken_surface: 'Broken / Uneven Surface',
-  poor_lighting: 'Poor Lighting',
-  construction: 'Construction / Road Closed',
-  other: 'Other Issue'
+  blocked_ramp:    'Blocked Ramp',
+  missing_curb:    'Missing Curb Cut',
+  broken_surface:  'Broken / Uneven Surface',
+  poor_lighting:   'Poor Lighting',
+  construction:    'Construction / Road Closed',
+  other:           'Other Issue',
 };
 
-export default function AdminDashboard() {
-  const { getAuthHeader, logout, user } = useAuthContext();
-  const [stats, setStats] = useState(null);
-  const [users, setUsers] = useState([]);
-  const [activity, setActivity] = useState([]);
-  const [reports, setReports] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [lastUpdated, setLastUpdated] = useState(null);
-  const [activeTab, setActiveTab] = useState('overview');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [processingReport, setProcessingReport] = useState(null);
-  const [adminNotes, setAdminNotes] = useState({});
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function getToken() {
+  // Always read fresh so a mid-session refresh is picked up automatically
+  return sessionStorage.getItem('accessToken');
+}
 
+function formatNumber(num) {
+  if (!num || num === 0) return '0';
+  if (num > 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
+  if (num > 1_000)     return `${(num / 1_000).toFixed(1)}K`;
+  return String(num);
+}
+
+function formatCoordinate(lat, lng) {
+  // Postgres numeric columns come back as strings from the pg driver
+  const numLat = parseFloat(lat);
+  const numLng = parseFloat(lng);
+  if (isNaN(numLat) || isNaN(numLng)) return 'Invalid coordinates';
+  return `${numLat.toFixed(6)}, ${numLng.toFixed(6)}`;
+}
+
+function getActivityDisplay(item) {
+  const meta = item.parsedMetadata || {};
+  switch (item.activity_type) {
+    case 'route_calculated':
+      return `🗺️ Route: ${meta.start_location || '?'} → ${meta.end_location || '?'} (${meta.profile_used || 'standard'})`;
+    case 'search':
+      return `🔍 Searched: "${meta.query || '?'}" → ${meta.selected_result || '?'}`;
+    case 'login':
+      return `🔐 Logged in from ${meta.browser || 'device'}`;
+    case 'register':
+      return `📝 New user registered: ${meta.email || ''}`;
+    default:
+      return item.activity_type;
+  }
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+export default function AdminDashboard() {
+  const { logout, user } = useAuthContext();
+
+  const [stats,            setStats]            = useState(null);
+  const [users,            setUsers]            = useState([]);
+  const [activity,         setActivity]         = useState([]);
+  const [reports,          setReports]          = useState([]);
+  const [pendingCount,     setPendingCount]      = useState(0); // sidebar badge — always fresh
+  const [isLoading,        setIsLoading]        = useState(true);
+  const [error,            setError]            = useState('');
+  const [lastUpdated,      setLastUpdated]      = useState(null);
+  const [activeTab,        setActiveTab]        = useState('overview');
+  const [mobileMenuOpen,   setMobileMenuOpen]   = useState(false);
+  const [processingReport, setProcessingReport] = useState(null);
+  const [adminNotes,       setAdminNotes]       = useState({});
+
+  // Use a ref for the interval so it never re-registers on tab change
+  const intervalRef = useRef(null);
+
+  // ── Fetch pending count for sidebar badge (always, regardless of tab) ──────
+  const fetchPendingCount = useCallback(async () => {
+    try {
+      const token = getToken();
+      if (!token) return;
+      const res  = await fetch(`${API_URL}/api/reports/stats/summary`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setPendingCount(Number(data.stats?.pending) || 0);
+    } catch {
+      // silent — badge is non-critical
+    }
+  }, []);
+
+  // ── Fetch reports list (used by Reports tab + after approve/reject) ─────────
   const fetchReports = useCallback(async () => {
     try {
       const data = await getReports('pending', 100);
       setReports(data.reports || []);
+      setPendingCount(data.reports?.length ?? 0);
     } catch (err) {
       console.error('[Admin] Fetch reports error:', err);
     }
   }, []);
 
+  // ── Fetch main dashboard data ────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
     try {
-      const token = sessionStorage.getItem('accessToken');
+      const token = getToken();
       if (!token) {
         window.location.href = '/';
         return;
       }
-      
+
       const headers = {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        Authorization: `Bearer ${token}`,
       };
-      
+
       const [statsRes, usersRes, activityRes] = await Promise.all([
-        fetch(`${API_URL}/admin/stats`, { headers }),
-        fetch(`${API_URL}/admin/users`, { headers }),
-        fetch(`${API_URL}/admin/activity`, { headers })
+        fetch(`${API_URL}/admin/stats`,    { headers }),
+        fetch(`${API_URL}/admin/users`,    { headers }),
+        fetch(`${API_URL}/admin/activity`, { headers }),
       ]);
-      
-      if (statsRes.status === 401 || usersRes.status === 401 || activityRes.status === 401) {
+
+      // Any 401 means token expired — redirect to login
+      if ([statsRes, usersRes, activityRes].some(r => r.status === 401)) {
         sessionStorage.removeItem('accessToken');
         sessionStorage.removeItem('refreshToken');
         sessionStorage.removeItem('user');
         window.location.href = '/';
         return;
       }
-      
-      const statsData = await statsRes.json();
-      const usersData = await usersRes.json();
-      const activityData = await activityRes.json();
-      
+
+      const [statsData, usersData, activityData] = await Promise.all([
+        statsRes.json(),
+        usersRes.json(),
+        activityRes.json(),
+      ]);
+
       const parsedActivity = (activityData.activity || []).map(item => {
         let parsedMeta = {};
         try {
           if (item.metadata) {
-            parsedMeta = typeof item.metadata === 'string' ? JSON.parse(item.metadata) : item.metadata;
+            parsedMeta = typeof item.metadata === 'string'
+              ? JSON.parse(item.metadata)
+              : item.metadata;
           }
-        } catch (e) {}
+        } catch { /* ignore malformed metadata */ }
         return { ...item, parsedMetadata: parsedMeta };
       });
-      
+
       setStats(statsData);
       setUsers(usersData.users || []);
       setActivity(parsedActivity);
       setLastUpdated(new Date());
       setError('');
-      
-      // Fetch reports if on reports tab
-      if (activeTab === 'reports') {
-        await fetchReports();
-      }
+
+      // Always refresh pending count so sidebar badge is accurate
+      await fetchPendingCount();
     } catch (err) {
       console.error('[Admin] Fetch error:', err);
       setError('Failed to load dashboard data');
     } finally {
       setIsLoading(false);
     }
-  }, [fetchReports, activeTab]);
+  }, [fetchPendingCount]);
 
-  const handleApproveReport = async (reportId) => {
-    setProcessingReport(reportId);
-    try {
-      await updateReportStatus(reportId, 'approved', adminNotes[reportId] || '');
-      await fetchReports();
-      // Refresh stats to update pending count
-      fetchData();
-      setAdminNotes(prev => ({ ...prev, [reportId]: '' }));
-    } catch (err) {
-      setError(err.message || 'Failed to approve report');
-    } finally {
-      setProcessingReport(null);
-    }
-  };
-
-  const handleRejectReport = async (reportId) => {
-    setProcessingReport(reportId);
-    try {
-      await updateReportStatus(reportId, 'rejected', adminNotes[reportId] || '');
-      await fetchReports();
-      fetchData();
-      setAdminNotes(prev => ({ ...prev, [reportId]: '' }));
-    } catch (err) {
-      setError(err.message || 'Failed to reject report');
-    } finally {
-      setProcessingReport(null);
-    }
-  };
-
+  // ── Initial load + stable 30-second poll (never re-registers) ───────────────
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
-  }, [fetchData]);
+    intervalRef.current = setInterval(fetchData, 30_000);
+    return () => clearInterval(intervalRef.current);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // fetchData is stable (no deps change) so the empty array is safe here
 
-  // Refetch reports when switching to reports tab
+  // ── Load reports when switching to Reports tab ───────────────────────────────
   useEffect(() => {
-    if (activeTab === 'reports') {
-      fetchReports();
-    }
+    if (activeTab === 'reports') fetchReports();
   }, [activeTab, fetchReports]);
 
-  const formatNumber = (num) => {
-    if (!num || num === 0) return '0';
-    if (num > 1000000) return `${(num / 1000000).toFixed(1)}M`;
-    if (num > 1000) return `${(num / 1000).toFixed(1)}K`;
-    return num.toString();
-  };
-
-  const getActivityDisplay = (activity) => {
-    const meta = activity.parsedMetadata;
-    switch (activity.activity_type) {
-      case 'route_calculated':
-        return `🗺️ Route: ${meta.start_location || '?'} → ${meta.end_location || '?'} (${meta.profile_used || 'standard'})`;
-      case 'search':
-        return `🔍 Searched: "${meta.query || '?'}" → ${meta.selected_result || '?'}`;
-      case 'login':
-        return `🔐 Logged in from ${meta.browser || 'device'}`;
-      case 'register':
-        return `📝 New user registered: ${meta.email || ''}`;
-      default:
-        return activity.activity_type;
+  // ── Approve / Reject ─────────────────────────────────────────────────────────
+  const handleUpdateReport = useCallback(async (reportId, status) => {
+    setProcessingReport(reportId);
+    setError(''); // clear any previous error
+    try {
+      await updateReportStatus(reportId, status, adminNotes[reportId] || '');
+      setAdminNotes(prev => ({ ...prev, [reportId]: '' }));
+      // Refresh both the list and the sidebar badge
+      await fetchReports();
+      // Non-blocking stats refresh — we don't need to await this
+      fetchData();
+    } catch (err) {
+      setError(err.message || `Failed to ${status} report`);
+    } finally {
+      setProcessingReport(null);
     }
+  }, [adminNotes, fetchReports, fetchData]);
+
+  const handleApproveReport = (id) => handleUpdateReport(id, 'approved');
+  const handleRejectReport  = (id) => handleUpdateReport(id, 'rejected');
+
+  const switchTab = (tab) => {
+    setActiveTab(tab);
+    setMobileMenuOpen(false);
+    setError(''); // clear errors on tab switch
   };
 
-  const formatCoordinate = (lat, lng) => {
-    const numLat = typeof lat === 'number' ? lat : parseFloat(lat);
-    const numLng = typeof lng === 'number' ? lng : parseFloat(lng);
-    if (isNaN(numLat) || isNaN(numLng)) return 'Invalid coordinates';
-    return `${numLat.toFixed(6)}, ${numLng.toFixed(6)}`;
-  };
-
+  // ── Loading state ─────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
       <div className="admin-loading">
@@ -296,17 +310,25 @@ export default function AdminDashboard() {
     );
   }
 
+  const tabTitle = {
+    overview: 'Dashboard',
+    reports:  'Accessibility Reports',
+    users:    'User Management',
+    activity: 'Activity Log',
+  }[activeTab] ?? 'Dashboard';
+
   return (
     <div className="admin-dashboard">
-      {/* Mobile Menu Button */}
-      <button 
+      {/* Mobile menu toggle */}
+      <button
         className="admin-mobile-menu-btn"
-        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        onClick={() => setMobileMenuOpen(o => !o)}
+        aria-label="Toggle menu"
       >
         {mobileMenuOpen ? <Icons.Close /> : <Icons.Menu />}
       </button>
 
-      {/* Sidebar */}
+      {/* ── Sidebar ──────────────────────────────────────────────────────────── */}
       <aside className={`admin-sidebar ${mobileMenuOpen ? 'open' : ''}`}>
         <div className="admin-sidebar-header">
           <div className="admin-logo">
@@ -317,39 +339,26 @@ export default function AdminDashboard() {
           </div>
           <p className="admin-sidebar-subtitle">Admin Portal</p>
         </div>
-        
+
         <nav className="admin-nav">
-          <button 
-            className={`admin-nav-item ${activeTab === 'overview' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('overview'); setMobileMenuOpen(false); }}
-          >
-            <Icons.Dashboard />
-            <span>Overview</span>
-          </button>
-          <button 
-            className={`admin-nav-item ${activeTab === 'reports' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('reports'); setMobileMenuOpen(false); }}
-          >
-            <Icons.Flag />
-            <span>Reports</span>
-            {reports.length > 0 && <span className="report-badge">{reports.length}</span>}
-          </button>
-          <button 
-            className={`admin-nav-item ${activeTab === 'users' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('users'); setMobileMenuOpen(false); }}
-          >
-            <Icons.Users />
-            <span>Users</span>
-          </button>
-          <button 
-            className={`admin-nav-item ${activeTab === 'activity' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('activity'); setMobileMenuOpen(false); }}
-          >
-            <Icons.Activity />
-            <span>Activity</span>
-          </button>
+          {[
+            { key: 'overview',  label: 'Overview', Icon: Icons.Dashboard },
+            { key: 'reports',   label: 'Reports',  Icon: Icons.Flag,     badge: pendingCount },
+            { key: 'users',     label: 'Users',    Icon: Icons.Users },
+            { key: 'activity',  label: 'Activity', Icon: Icons.Activity },
+          ].map(({ key, label, Icon, badge }) => (
+            <button
+              key={key}
+              className={`admin-nav-item ${activeTab === key ? 'active' : ''}`}
+              onClick={() => switchTab(key)}
+            >
+              <Icon />
+              <span>{label}</span>
+              {badge > 0 && <span className="report-badge">{badge}</span>}
+            </button>
+          ))}
         </nav>
-        
+
         <div className="admin-sidebar-footer">
           <div className="admin-user-info">
             <div className="admin-user-avatar">
@@ -367,11 +376,11 @@ export default function AdminDashboard() {
         </div>
       </aside>
 
-      {/* Main Content */}
+      {/* ── Main content ─────────────────────────────────────────────────────── */}
       <main className="admin-main">
         <div className="admin-main-header">
           <div>
-            <h1>{activeTab === 'overview' ? 'Dashboard' : activeTab === 'reports' ? 'Accessibility Reports' : activeTab === 'users' ? 'User Management' : 'Activity Log'}</h1>
+            <h1>{tabTitle}</h1>
             <p>Welcome back, {user?.username || 'Admin'}</p>
           </div>
           <div className="admin-header-actions">
@@ -389,18 +398,22 @@ export default function AdminDashboard() {
           <div className="admin-error">
             <Icons.AlertIcon />
             <span>{error}</span>
+            <button
+              className="admin-error-dismiss"
+              onClick={() => setError('')}
+              aria-label="Dismiss error"
+            >
+              <Icons.X />
+            </button>
           </div>
         )}
 
-        {/* Overview Tab - UNCHANGED */}
+        {/* ── Overview ───────────────────────────────────────────────────────── */}
         {activeTab === 'overview' && (
           <>
-            {/* Stats Grid */}
             <div className="admin-stats-grid">
               <div className="stat-card">
-                <div className="stat-card-icon blue">
-                  <Icons.UsersIcon />
-                </div>
+                <div className="stat-card-icon blue"><Icons.UsersIcon /></div>
                 <div className="stat-card-content">
                   <span className="stat-card-value">{formatNumber(stats?.users?.total)}</span>
                   <span className="stat-card-label">Total Users</span>
@@ -411,9 +424,7 @@ export default function AdminDashboard() {
               </div>
 
               <div className="stat-card">
-                <div className="stat-card-icon green">
-                  <Icons.TrendingUp />
-                </div>
+                <div className="stat-card-icon green"><Icons.TrendingUp /></div>
                 <div className="stat-card-content">
                   <span className="stat-card-value">{stats?.users?.activeToday || 0}</span>
                   <span className="stat-card-label">Active Today</span>
@@ -424,9 +435,7 @@ export default function AdminDashboard() {
               </div>
 
               <div className="stat-card">
-                <div className="stat-card-icon purple">
-                  <Icons.RouteIcon />
-                </div>
+                <div className="stat-card-icon purple"><Icons.RouteIcon /></div>
                 <div className="stat-card-content">
                   <span className="stat-card-value">{stats?.routes?.today || 0}</span>
                   <span className="stat-card-label">Routes Today</span>
@@ -437,19 +446,15 @@ export default function AdminDashboard() {
               </div>
 
               <div className="stat-card">
-                <div className="stat-card-icon orange">
-                  <Icons.Activity />
-                </div>
+                <div className="stat-card-icon orange"><Icons.Activity /></div>
                 <div className="stat-card-content">
-                  <span className="stat-card-value">{reports.length}</span>
+                  <span className="stat-card-value">{pendingCount}</span>
                   <span className="stat-card-label">Pending Reports</span>
                 </div>
               </div>
             </div>
 
-            {/* Two Column Layout */}
             <div className="admin-two-col">
-              {/* Route Preferences */}
               <div className="admin-card">
                 <h3>Route Preferences</h3>
                 <div className="profile-stats">
@@ -459,25 +464,30 @@ export default function AdminDashboard() {
                         <div className="profile-bar-header">
                           <span className="profile-name">{p.profile_used}</span>
                           <span className="profile-percent">
-                            {stats.routes?.total ? ((p.count / stats.routes.total) * 100).toFixed(0) : 0}%
+                            {stats.routes?.total
+                              ? ((p.count / stats.routes.total) * 100).toFixed(0)
+                              : 0}%
                           </span>
                         </div>
                         <div className="progress-bar">
-                          <div 
+                          <div
                             className="progress-fill"
-                            style={{ width: stats.routes?.total ? `${(p.count / stats.routes.total) * 100}%` : '0%' }}
+                            style={{
+                              width: stats.routes?.total
+                                ? `${(p.count / stats.routes.total) * 100}%`
+                                : '0%'
+                            }}
                           />
                         </div>
                         <div className="profile-count">{p.count} routes</div>
                       </div>
                     ))
                   ) : (
-                    <div className="no-data">No route data yet. Users need to calculate routes.</div>
+                    <div className="no-data">No route data yet.</div>
                   )}
                 </div>
               </div>
 
-              {/* Top Destinations */}
               <div className="admin-card">
                 <h3>Top Destinations</h3>
                 <div className="destinations-list">
@@ -496,7 +506,6 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Security Stats */}
             <div className="admin-card full-width">
               <h3>Security Overview (Last 24h)</h3>
               <div className="security-stats-grid">
@@ -517,7 +526,6 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Recent Activity Feed */}
             <div className="admin-card full-width">
               <h3>Recent Activity</h3>
               <div className="activity-timeline">
@@ -534,46 +542,49 @@ export default function AdminDashboard() {
                   </div>
                 ))}
                 {activity.length === 0 && (
-                  <div className="no-data">No activity yet. Users need to interact with the app.</div>
+                  <div className="no-data">No activity yet.</div>
                 )}
               </div>
             </div>
           </>
         )}
 
-        {/* REPORTS TAB - NEW */}
+        {/* ── Reports ────────────────────────────────────────────────────────── */}
         {activeTab === 'reports' && (
           <div className="admin-card full-width">
             <div className="admin-table-header">
               <h3>Pending Accessibility Reports</h3>
               <span className="admin-table-stats">{reports.length} report(s) awaiting review</span>
             </div>
-            
+
             {reports.length === 0 ? (
-              <div className="no-data">
-                <div style={{ textAlign: 'center', padding: '48px 20px' }}>
-                  <div style={{ fontSize: '48px', marginBottom: '12px' }}>✅</div>
-                  <p>No pending reports. All clear!</p>
-                </div>
+              <div className="no-data" style={{ textAlign: 'center', padding: '48px 20px' }}>
+                <div style={{ fontSize: '48px', marginBottom: '12px' }}>✅</div>
+                <p>No pending reports. All clear!</p>
               </div>
             ) : (
               <div className="reports-list">
                 {reports.map((report) => {
                   const severity = SEVERITY_CONFIG[report.severity] || SEVERITY_CONFIG[2];
+                  const isProcessing = processingReport === report.id;
+
                   return (
                     <div key={report.id} className="report-item">
                       <div className="report-item-header">
                         <div className="report-item-left">
                           <span className="report-id">#{report.id}</span>
-                          <span className="report-type">{ISSUE_TYPE_LABELS[report.issue_type] || report.issue_type}</span>
-                        </div>
-                        <div className="report-item-right">
-                          <span className="report-severity" style={{ backgroundColor: severity.bg, color: severity.color }}>
-                            {severity.label}
+                          <span className="report-type">
+                            {ISSUE_TYPE_LABELS[report.issue_type] || report.issue_type}
                           </span>
                         </div>
+                        <span
+                          className="report-severity"
+                          style={{ backgroundColor: severity.bg, color: severity.color }}
+                        >
+                          {severity.label}
+                        </span>
                       </div>
-                      
+
                       <div className="report-item-details">
                         <div className="report-detail-row">
                           <span className="report-detail-label">Location:</span>
@@ -581,14 +592,14 @@ export default function AdminDashboard() {
                             {formatCoordinate(report.lat, report.lng)}
                           </span>
                         </div>
-                        
+
                         {report.location_name && (
                           <div className="report-detail-row">
                             <span className="report-detail-label">Place:</span>
                             <span className="report-detail-value">{report.location_name}</span>
                           </div>
                         )}
-                        
+
                         {report.custom_description && (
                           <div className="report-detail-row">
                             <span className="report-detail-label">Description:</span>
@@ -597,38 +608,41 @@ export default function AdminDashboard() {
                             </span>
                           </div>
                         )}
-                        
+
                         <div className="report-detail-row">
                           <span className="report-detail-label">Reported:</span>
                           <span className="report-detail-value">
                             {new Date(report.created_at).toLocaleString()}
                           </span>
                         </div>
-                        
+
                         <div className="report-actions">
                           <textarea
                             className="report-notes-input"
                             placeholder="Add admin notes (optional)..."
                             value={adminNotes[report.id] || ''}
-                            onChange={(e) => setAdminNotes(prev => ({ ...prev, [report.id]: e.target.value }))}
+                            onChange={(e) =>
+                              setAdminNotes(prev => ({ ...prev, [report.id]: e.target.value }))
+                            }
                             rows={2}
+                            disabled={isProcessing}
                           />
                           <div className="report-action-buttons">
                             <button
                               className="report-btn reject-btn"
                               onClick={() => handleRejectReport(report.id)}
-                              disabled={processingReport === report.id}
+                              disabled={isProcessing}
                             >
                               <Icons.X />
-                              {processingReport === report.id ? 'Processing...' : 'Reject'}
+                              {isProcessing ? 'Processing...' : 'Reject'}
                             </button>
                             <button
                               className="report-btn approve-btn"
                               onClick={() => handleApproveReport(report.id)}
-                              disabled={processingReport === report.id}
+                              disabled={isProcessing}
                             >
                               <Icons.Check />
-                              {processingReport === report.id ? 'Processing...' : 'Approve'}
+                              {isProcessing ? 'Processing...' : 'Approve'}
                             </button>
                           </div>
                         </div>
@@ -641,7 +655,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Users Tab - UNCHANGED */}
+        {/* ── Users ──────────────────────────────────────────────────────────── */}
         {activeTab === 'users' && (
           <div className="admin-card full-width">
             <div className="admin-table-header">
@@ -683,7 +697,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Activity Tab - UNCHANGED */}
+        {/* ── Activity ───────────────────────────────────────────────────────── */}
         {activeTab === 'activity' && (
           <div className="admin-card full-width">
             <div className="admin-table-header">
