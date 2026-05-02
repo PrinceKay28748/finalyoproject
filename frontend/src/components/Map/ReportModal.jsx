@@ -101,7 +101,6 @@ export default function ReportModal({ isOpen, onClose, onSubmit, defaultLocation
       
       setSuccess(true);
       setIsSubmitting(false);
-      // No auto-close - user must click Cancel or X button
 
     } catch (err) {
       console.error('[ReportModal] Submit error:', err);
@@ -120,103 +119,92 @@ export default function ReportModal({ isOpen, onClose, onSubmit, defaultLocation
           <button className="report-modal-close" onClick={handleClose}>✕</button>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          {/* Location preview */}
-          <div className="report-location-preview">
-            <span className="report-location-icon">📍</span>
-            <div className="report-location-info">
-              <span className="report-location-label">Location</span>
-              <span className="report-location-coords">
-                {location ? `${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}` : 'Select location on map'}
-              </span>
-              {locationName && <span className="report-location-name">{locationName}</span>}
-            </div>
+        {/* Success Popup - replaces form content */}
+        {success ? (
+          <div className="report-success-popup">
+            <div className="success-checkmark">✓</div>
+            <h3>Report Submitted!</h3>
+            <p>Thank you for helping improve campus accessibility.</p>
+            <p className="success-note">Admin will review your report shortly.</p>
+            <button className="success-close-btn" onClick={handleClose}>
+              Close
+            </button>
           </div>
-
-          {/* Issue type selection */}
-          <div className="report-form-group">
-            <label className="report-label">What's the problem?</label>
-            <div className="report-issue-grid">
-              {ISSUE_TYPES.map((issue) => (
-                <button
-                  key={issue.value}
-                  type="button"
-                  className={`report-issue-btn ${selectedIssue === issue.value ? 'active' : ''}`}
-                  onClick={() => setSelectedIssue(issue.value)}
-                >
-                  <span className="report-issue-icon">{issue.icon}</span>
-                  <span className="report-issue-label">{issue.label}</span>
-                </button>
-              ))}
+        ) : (
+          <form onSubmit={handleSubmit}>
+            {/* Location preview */}
+            <div className="report-location-preview">
+              <span className="report-location-icon">📍</span>
+              <div className="report-location-info">
+                <span className="report-location-label">Location</span>
+                <span className="report-location-coords">
+                  {location ? `${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}` : 'Select location on map'}
+                </span>
+                {locationName && <span className="report-location-name">{locationName}</span>}
+              </div>
             </div>
-          </div>
 
-          {/* Custom description for "other" */}
-          {selectedIssue === 'other' && (
+            {/* Issue type selection */}
             <div className="report-form-group">
-              <label className="report-label">Describe the issue</label>
-              <textarea
-                className="report-textarea"
-                rows={3}
-                placeholder="What happened? Where exactly? ..."
-                value={customDescription}
-                onChange={(e) => setCustomDescription(e.target.value)}
-              />
+              <label className="report-label">What's the problem?</label>
+              <div className="report-issue-grid">
+                {ISSUE_TYPES.map((issue) => (
+                  <button
+                    key={issue.value}
+                    type="button"
+                    className={`report-issue-btn ${selectedIssue === issue.value ? 'active' : ''}`}
+                    onClick={() => setSelectedIssue(issue.value)}
+                  >
+                    <span className="report-issue-icon">{issue.icon}</span>
+                    <span className="report-issue-label">{issue.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
-          )}
 
-          {/* Severity selection */}
-          <div className="report-form-group">
-            <label className="report-label">How severe?</label>
-            <div className="report-severity-grid">
-              {SEVERITY_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  className={`report-severity-btn ${severity === opt.value ? 'active' : ''}`}
-                  onClick={() => setSeverity(opt.value)}
-                >
-                  <div className="report-severity-dot" style={{ backgroundColor: opt.color }} />
-                  <div className="report-severity-info">
-                    <span className="report-severity-label">{opt.label}</span>
-                    <span className="report-severity-desc">{opt.description}</span>
-                  </div>
-                </button>
-              ))}
+            {/* Custom description for "other" */}
+            {selectedIssue === 'other' && (
+              <div className="report-form-group">
+                <label className="report-label">Describe the issue</label>
+                <textarea
+                  className="report-textarea"
+                  rows={3}
+                  placeholder="What happened? Where exactly? ..."
+                  value={customDescription}
+                  onChange={(e) => setCustomDescription(e.target.value)}
+                />
+              </div>
+            )}
+
+            {/* Severity selection */}
+            <div className="report-form-group">
+              <label className="report-label">How severe?</label>
+              <div className="report-severity-grid">
+                {SEVERITY_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    className={`report-severity-btn ${severity === opt.value ? 'active' : ''}`}
+                    onClick={() => setSeverity(opt.value)}
+                  >
+                    <div className="report-severity-dot" style={{ backgroundColor: opt.color }} />
+                    <div className="report-severity-info">
+                      <span className="report-severity-label">{opt.label}</span>
+                      <span className="report-severity-desc">{opt.description}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* Error message */}
-          {error && (
-            <div className="report-error">
-              <span>⚠️</span> {error}
-            </div>
-          )}
+            {/* Error message */}
+            {error && (
+              <div className="report-error">
+                <span>⚠️</span> {error}
+              </div>
+            )}
 
-          {/* Success message with close button */}
-          {success && (
-            <div className="report-success">
-              <span>✓</span> Report submitted! Admin will review it shortly.
-              <button
-                type="button"
-                onClick={handleClose}
-                style={{
-                  marginLeft: '12px',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '16px',
-                  color: '#22c55e'
-                }}
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
-          )}
-
-          {/* Actions - hide when success */}
-          {!success && (
+            {/* Actions */}
             <div className="report-actions">
               <button type="button" className="report-btn report-btn-secondary" onClick={handleClose}>
                 Cancel
@@ -229,17 +217,8 @@ export default function ReportModal({ isOpen, onClose, onSubmit, defaultLocation
                 {isSubmitting ? 'Submitting...' : 'Submit report'}
               </button>
             </div>
-          )}
-
-          {/* Show only Cancel button after success */}
-          {success && (
-            <div className="report-actions">
-              <button type="button" className="report-btn report-btn-secondary" onClick={handleClose}>
-                Close
-              </button>
-            </div>
-          )}
-        </form>
+          </form>
+        )}
 
         <div className="report-note">
           <p>📍 Reports are manually verified by admins before affecting route calculations.</p>
