@@ -1,17 +1,16 @@
 // backend/src/routes/auth.js
-// Supabase Auth - Backend only verifies tokens, no registration/login
+// Supabase Auth - Backend only verifies tokens and syncs users
 
 import express from 'express';
 import { verifyToken } from '../middleware/auth.js';
 import { query } from '../config/db.js';
-import { APIError } from '../utils/errorHandler.js';
 
 const router = express.Router();
 
 // ─── Get Profile (from your users table using Supabase UUID) ────────────────
 router.get('/me', verifyToken, async (req, res) => {
   try {
-    const { userId } = req.user; // This is the UUID from Supabase Auth
+    const { userId } = req.user;
 
     const result = await query(
       `SELECT u.id, u.email, u.username, u.created_at, u.is_admin,
@@ -79,8 +78,7 @@ router.delete('/me', verifyToken, async (req, res) => {
   }
 });
 
-// ─── Check if user exists in your users table, create if not ────────────────
-// This is called by frontend after Supabase login to sync the user
+// ─── Sync user from Supabase to your users table ────────────────────────────
 router.post('/sync', verifyToken, async (req, res) => {
   try {
     const { userId, email } = req.user;
@@ -109,7 +107,7 @@ router.post('/sync', verifyToken, async (req, res) => {
 
     // Get the user
     const userResult = await query(
-      'SELECT id, email, username, is_admin FROM users WHERE id = ?',
+      'SELECT id, email, username, is_admin, created_at FROM users WHERE id = ?',
       [userId]
     );
 
