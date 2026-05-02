@@ -1,5 +1,5 @@
 // frontend/src/hooks/useAuth.js
-// Authentication hook - Supabase Auth version
+// Authentication hook - Supabase Auth version (no OAuth)
 
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
@@ -42,7 +42,6 @@ export function useAuth() {
     const initializeAuth = async () => {
       setIsLoading(true);
       
-      // Get current session from Supabase
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError) {
@@ -55,7 +54,6 @@ export function useAuth() {
         const supabaseUser = session.user;
         const accessToken = session.access_token;
         
-        // Sync with backend to get user profile (is_admin, preferences, etc.)
         const backendUser = await syncUserWithBackend(supabaseUser, accessToken);
         
         if (backendUser) {
@@ -80,7 +78,6 @@ export function useAuth() {
 
     initializeAuth();
 
-    // Listen for auth changes (login/logout from Supabase)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('[useAuth] Auth state changed:', event);
@@ -141,10 +138,8 @@ export function useAuth() {
       }
 
       if (data?.user) {
-        // Wait a moment for the trigger to create the user in your users table
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        // Now sync to get the backend user profile
         const accessToken = data.session?.access_token;
         if (accessToken) {
           const backendUser = await syncUserWithBackend(data.user, accessToken);
@@ -256,37 +251,6 @@ export function useAuth() {
     return user?.is_admin === 1 || user?.is_admin === true;
   }, [user]);
 
-  // OAuth login methods
-  const signInWithGoogle = useCallback(async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`
-      }
-    });
-    
-    if (error) {
-      console.error('[useAuth] Google sign in error:', error);
-      return { success: false, error: error.message };
-    }
-    return { success: true };
-  }, []);
-
-  const signInWithGithub = useCallback(async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'github',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`
-      }
-    });
-    
-    if (error) {
-      console.error('[useAuth] GitHub sign in error:', error);
-      return { success: false, error: error.message };
-    }
-    return { success: true };
-  }, []);
-
   return {
     user,
     isAuthenticated,
@@ -297,7 +261,5 @@ export function useAuth() {
     logout,
     getAuthHeader,
     isAdmin,
-    signInWithGoogle,
-    signInWithGithub,
   };
 }
