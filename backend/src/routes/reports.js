@@ -2,7 +2,7 @@
 import express from 'express';
 import { query } from '../config/db.js';
 import { verifyToken } from '../middleware/auth.js';
-import { sendReportNotification, sendReportResolutionEmail } from '../services/emailService.js';
+// import { sendReportNotification, sendReportResolutionEmail } from '../services/emailService.js';
 
 const router = express.Router();
 
@@ -23,7 +23,6 @@ router.post('/', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'Severity must be between 1 and 3' });
     }
 
-    // Keep userId as UUID string - DO NOT convert to integer
     const userId = req.user.userId;
     if (!userId) {
       return res.status(400).json({ error: 'Valid user ID not found in token' });
@@ -45,17 +44,10 @@ router.post('/', verifyToken, async (req, res) => {
 
     const newReport = result.rows[0];
 
-    // Send email notification to admin
-    try {
-      const userResult = await query(
-        'SELECT email FROM users WHERE id = $1 AND deleted_at IS NULL',
-        [userId]
-      );
-      await sendReportNotification({ ...newReport, email: userResult.rows[0]?.email || null });
-      console.log('[Reports] Admin notification sent for report #', newReport.id);
-    } catch (emailError) {
-      console.error('[Reports] Admin notification failed:', emailError.message);
-    }
+    // EMAIL DISABLED - Render free tier blocks SMTP
+    // Notify admin would happen here, but skipped for now
+    console.log('[Reports] Report #', newReport.id, 'submitted by user:', userId);
+    console.log('[Reports] Email notification skipped (SMTP blocked on Render free tier)');
 
     res.status(201).json({
       success: true,
@@ -76,7 +68,6 @@ router.get('/', verifyToken, async (req, res) => {
   try {
     const { status = 'pending', limit = 50, offset = 0 } = req.query;
 
-    // Keep userId as UUID string
     const userId = req.user.userId;
     if (!userId) {
       return res.status(400).json({ error: 'Valid user ID not found' });
@@ -219,7 +210,6 @@ router.patch('/:id', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'Invalid status. Must be approved, rejected, or resolved' });
     }
 
-    // Admin check
     const userCheck = await query(
       'SELECT is_admin FROM users WHERE id = $1 AND deleted_at IS NULL',
       [userId]
@@ -243,18 +233,6 @@ router.patch('/:id', verifyToken, async (req, res) => {
     const originalReport = reportResult.rows[0];
     const oldStatus = originalReport.status;
 
-    // Fetch submitter email
-    let submitterEmail = null;
-    try {
-      const emailResult = await query(
-        'SELECT email FROM users WHERE id = $1 AND deleted_at IS NULL',
-        [originalReport.submitted_by]
-      );
-      submitterEmail = emailResult.rows[0]?.email || null;
-    } catch (e) {
-      console.warn('[Reports] Could not fetch submitter email:', e.message);
-    }
-
     // Update the report
     const updateResult = await query(
       `UPDATE accessibility_reports
@@ -272,18 +250,10 @@ router.patch('/:id', verifyToken, async (req, res) => {
       return res.status(404).json({ error: 'Report not found or already deleted' });
     }
 
-    // Send resolution email when status actually changes
+    // EMAIL DISABLED - Render free tier blocks SMTP
+    // User notification would happen here, but skipped for now
     if (oldStatus !== status && (status === 'approved' || status === 'rejected')) {
-      try {
-        await sendReportResolutionEmail(
-          { ...originalReport, email: submitterEmail },
-          status,
-          admin_notes
-        );
-        console.log(`[Reports] Resolution email sent — report #${reportId} ${status}`);
-      } catch (emailError) {
-        console.error('[Reports] Resolution email failed:', emailError.message);
-      }
+      console.log(`[Reports] Report #${reportId} ${status} - Email notification skipped (SMTP blocked)`);
     }
 
     res.json({
