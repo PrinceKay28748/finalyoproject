@@ -1,0 +1,78 @@
+// frontend/src/AppRouter.jsx
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuthContext } from './context/AuthContext';
+import AuthPage from './components/Auth/AuthPage';
+import AuthCallback from './pages/AuthCallback';
+import AdminDashboard from './components/Admin/AdminDashboard';
+import App from './App';
+
+// Protected route wrapper
+function ProtectedRoute({ children }) {
+  const { isAuthenticated, isLoading } = useAuthContext();
+  
+  if (isLoading) {
+    return (
+      <div className="map-loader">
+        <div className="map-loader-spinner" />
+        <p>Loading...</p>
+      </div>
+    );
+  }
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return children;
+}
+
+// Admin route wrapper
+function AdminRoute({ children }) {
+  const { isAuthenticated, isLoading, isAdmin } = useAuthContext();
+  
+  if (isLoading) {
+    return (
+      <div className="map-loader">
+        <div className="map-loader-spinner" />
+        <p>Loading...</p>
+      </div>
+    );
+  }
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  if (!isAdmin()) {
+    return <Navigate to="/" replace />;
+  }
+  
+  return children;
+}
+
+export default function AppRouter() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<AuthPage />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route 
+          path="/admin" 
+          element={
+            <AdminRoute>
+              <AdminDashboard />
+            </AdminRoute>
+          } 
+        />
+        <Route 
+          path="/" 
+          element={
+            <ProtectedRoute>
+              <App />
+            </ProtectedRoute>
+          } 
+        />
+      </Routes>
+    </BrowserRouter>
+  );
+}
