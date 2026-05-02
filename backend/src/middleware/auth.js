@@ -35,13 +35,11 @@ export function verifyToken(req, res, next) {
       }
     } catch (decodeErr) {
       // Not a Supabase token, continue to custom verification
-      console.log('[Auth] Not a Supabase token, trying custom verification');
     }
     
     // Fallback: Verify with your custom JWT secret (for existing tokens)
     const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
     req.user = decoded;
-    console.log('[Auth] Custom JWT token accepted for user:', decoded.email);
     next();
     
   } catch (error) {
