@@ -75,7 +75,6 @@ export default function ReportModal({ isOpen, onClose, onSubmit, defaultLocation
     setSuccess(false);
     setIsSubmitting(true);
 
-    // Validation
     if (!location || !location.lat || !location.lng) {
       setError('Location is required. Please try again.');
       setIsSubmitting(false);
@@ -89,14 +88,6 @@ export default function ReportModal({ isOpen, onClose, onSubmit, defaultLocation
     }
 
     try {
-      console.log('[ReportModal] Submitting report:', {
-        lat: location.lat,
-        lng: location.lng,
-        location_name: locationName,
-        issue_type: selectedIssue,
-        severity: severity
-      });
-
       const result = await submitReport({
         lat: location.lat,
         lng: location.lng,
@@ -110,12 +101,8 @@ export default function ReportModal({ isOpen, onClose, onSubmit, defaultLocation
       
       setSuccess(true);
       setIsSubmitting(false);
-      
-      // Close modal after 2 seconds on success
-      setTimeout(() => {
-        handleClose();
-      }, 2000);
-      
+      // No auto-close - user must click Cancel or X button
+
     } catch (err) {
       console.error('[ReportModal] Submit error:', err);
       setError(err.message || 'Failed to submit report');
@@ -206,26 +193,52 @@ export default function ReportModal({ isOpen, onClose, onSubmit, defaultLocation
             </div>
           )}
 
-          {/* Success message */}
+          {/* Success message with close button */}
           {success && (
             <div className="report-success">
               <span>✓</span> Report submitted! Admin will review it shortly.
+              <button
+                type="button"
+                onClick={handleClose}
+                style={{
+                  marginLeft: '12px',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  color: '#22c55e'
+                }}
+                aria-label="Close"
+              >
+                ✕
+              </button>
             </div>
           )}
 
-          {/* Actions */}
-          <div className="report-actions">
-            <button type="button" className="report-btn report-btn-secondary" onClick={handleClose}>
-              Cancel
-            </button>
-            <button 
-              type="submit" 
-              className="report-btn report-btn-primary" 
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Submitting...' : 'Submit report'}
-            </button>
-          </div>
+          {/* Actions - hide when success */}
+          {!success && (
+            <div className="report-actions">
+              <button type="button" className="report-btn report-btn-secondary" onClick={handleClose}>
+                Cancel
+              </button>
+              <button 
+                type="submit" 
+                className="report-btn report-btn-primary" 
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Submitting...' : 'Submit report'}
+              </button>
+            </div>
+          )}
+
+          {/* Show only Cancel button after success */}
+          {success && (
+            <div className="report-actions">
+              <button type="button" className="report-btn report-btn-secondary" onClick={handleClose}>
+                Close
+              </button>
+            </div>
+          )}
         </form>
 
         <div className="report-note">
