@@ -513,3 +513,50 @@
   .auth-form-header    { margin-bottom: 32px; }
   .form-group-split    { margin-bottom: 24px; }
 }
+
+/* Resend button */
+.auth-resend-btn {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.auth-resend-btn:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.auth-resend-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Info message for resend status */
+.auth-info-split {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.auth-info-split.success {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+}
+
+.auth-info-split.error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+}
