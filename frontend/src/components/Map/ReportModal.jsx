@@ -34,7 +34,6 @@ export default function ReportModal({ isOpen, onClose, onSubmit, defaultLocation
   useEffect(() => {
     if (defaultLocation) {
       setLocation(defaultLocation);
-      // Optionally reverse geocode to get location name
       if (defaultLocation.lat && defaultLocation.lng) {
         fetchLocationName(defaultLocation.lat, defaultLocation.lng);
       }
@@ -56,12 +55,27 @@ export default function ReportModal({ isOpen, onClose, onSubmit, defaultLocation
     }
   };
 
+  const resetForm = () => {
+    setSelectedIssue('blocked_ramp');
+    setCustomDescription('');
+    setSeverity(2);
+    setError('');
+    setSuccess(false);
+    setIsSubmitting(false);
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess(false);
     setIsSubmitting(true);
 
+    // Validation
     if (!location || !location.lat || !location.lng) {
       setError('Location is required. Please try again.');
       setIsSubmitting(false);
@@ -75,7 +89,15 @@ export default function ReportModal({ isOpen, onClose, onSubmit, defaultLocation
     }
 
     try {
-      await submitReport({
+      console.log('[ReportModal] Submitting report:', {
+        lat: location.lat,
+        lng: location.lng,
+        location_name: locationName,
+        issue_type: selectedIssue,
+        severity: severity
+      });
+
+      const result = await submitReport({
         lat: location.lat,
         lng: location.lng,
         location_name: locationName,
@@ -84,29 +106,21 @@ export default function ReportModal({ isOpen, onClose, onSubmit, defaultLocation
         severity: severity
       });
       
+      console.log('[ReportModal] Submit success:', result);
+      
       setSuccess(true);
+      setIsSubmitting(false);
+      
+      // Close modal after 2 seconds on success
       setTimeout(() => {
-        onClose();
-        setSuccess(false);
-        resetForm();
+        handleClose();
       }, 2000);
+      
     } catch (err) {
+      console.error('[ReportModal] Submit error:', err);
       setError(err.message || 'Failed to submit report');
-    } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const resetForm = () => {
-    setSelectedIssue('blocked_ramp');
-    setCustomDescription('');
-    setSeverity(2);
-    setError('');
-  };
-
-  const handleClose = () => {
-    resetForm();
-    onClose();
   };
 
   if (!isOpen) return null;
@@ -204,7 +218,11 @@ export default function ReportModal({ isOpen, onClose, onSubmit, defaultLocation
             <button type="button" className="report-btn report-btn-secondary" onClick={handleClose}>
               Cancel
             </button>
-            <button type="submit" className="report-btn report-btn-primary" disabled={isSubmitting}>
+            <button 
+              type="submit" 
+              className="report-btn report-btn-primary" 
+              disabled={isSubmitting}
+            >
               {isSubmitting ? 'Submitting...' : 'Submit report'}
             </button>
           </div>
