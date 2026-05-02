@@ -1,6 +1,7 @@
 // frontend/src/components/Auth/RegisterPage.jsx
 import { useState } from "react";
 import { useAuthContext } from "../../context/AuthContext";
+import { supabase } from "../../lib/supabase";
 import "./AuthPage.css";
 
 export default function RegisterPage({ onSwitchToLogin }) {
@@ -9,10 +10,13 @@ export default function RegisterPage({ onSwitchToLogin }) {
   const [password, setPassword] = useState("");
   const [passwordStrength, setPasswordStrength] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const [error, setError] = useState("");
+  const [resendMessage, setResendMessage] = useState("");
   const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [needsEmailConfirmation, setNeedsEmailConfirmation] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState("");
 
   const { register } = useAuthContext();
 
@@ -51,8 +55,8 @@ export default function RegisterPage({ onSwitchToLogin }) {
         setError(result.error || "Registration failed");
         setIsLoading(false);
       } else {
-        // Check if email confirmation is required
         if (result.needsEmailConfirmation) {
+          setRegisteredEmail(email);
           setNeedsEmailConfirmation(true);
         }
         setSuccess(true);
@@ -64,10 +68,32 @@ export default function RegisterPage({ onSwitchToLogin }) {
     }
   };
 
+  const handleResendEmail = async () => {
+    setIsResending(true);
+    setResendMessage("");
+    
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: registeredEmail
+      });
+      
+      if (error) {
+        setResendMessage(error.message);
+      } else {
+        setResendMessage("Confirmation email resent! Check your inbox.");
+      }
+    } catch (err) {
+      setResendMessage("Failed to resend. Please try again.");
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   const strengthLabels = ["Weak", "Fair", "Good", "Strong"];
   const strengthColors = ["#ef4444", "#f97316", "#eab308", "#22c55e"];
 
-  // If email confirmation is needed, show different message
+  // If email confirmation is needed, show different message with resend button
   if (needsEmailConfirmation) {
     return (
       <div className="auth-container-split">
@@ -85,10 +111,10 @@ export default function RegisterPage({ onSwitchToLogin }) {
         <div className="auth-form-panel">
           <div className="auth-form-header">
             <h2>Check your inbox</h2>
-            <p>We sent a confirmation link to {email}</p>
+            <p>We sent a confirmation link to {registeredEmail}</p>
           </div>
           
-          <div className="auth-success-split" style={{ marginBottom: '24px' }}>
+          <div className="auth-success-split" style={{ marginBottom: '16px' }}>
             <span className="success-icon">📧</span>
             <div className="success-text">
               <strong>Verify your email address</strong>
@@ -96,13 +122,32 @@ export default function RegisterPage({ onSwitchToLogin }) {
             </div>
           </div>
 
-          <button
-            type="button"
-            className="auth-secondary-split"
-            onClick={onSwitchToLogin}
-          >
-            Back to Sign in
-          </button>
+          {resendMessage && (
+            <div className={`auth-info-split ${resendMessage.includes("Check") ? 'success' : 'error'}`}>
+              <span>{resendMessage.includes("Check") ? "✓" : "⚠️"}</span>
+              <span>{resendMessage}</span>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '16px' }}>
+            <button
+              type="button"
+              className="auth-secondary-split"
+              onClick={onSwitchToLogin}
+              style={{ flex: 1 }}
+            >
+              Back to Sign in
+            </button>
+            <button
+              type="button"
+              className="auth-resend-btn"
+              onClick={handleResendEmail}
+              disabled={isResending}
+              style={{ flex: 1 }}
+            >
+              {isResending ? 'Sending...' : 'Resend email'}
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -131,7 +176,7 @@ export default function RegisterPage({ onSwitchToLogin }) {
           <p>Join UG Navigator today</p>
         </div>
 
-        {/* SUCCESS STATE - No loading spinner, just success message */}
+        {/* SUCCESS STATE */}
         {success && (
           <div className="auth-success-split" role="status">
             <span className="success-icon">✓</span>
