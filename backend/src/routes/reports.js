@@ -6,7 +6,6 @@ import { sendReportNotification, sendReportResolutionEmail } from '../services/e
 
 const router = express.Router();
 
-// Helper function to safely convert to integer
 const toInt = (value) => {
   const num = parseInt(value, 10);
   return isNaN(num) ? null : num;
@@ -17,73 +16,47 @@ const toInt = (value) => {
 // =============================================
 router.post('/', verifyToken, async (req, res) => {
   try {
-    const {
-      lat,
-      lng,
-      location_name,
-      issue_type,
-      custom_description,
-      severity
-    } = req.body;
+    const { lat, lng, location_name, issue_type, custom_description, severity } = req.body;
 
-    // Validate required fields
-    if (!lat || !lng) {
-      return res.status(400).json({ error: 'Latitude and longitude are required' });
-    }
+    if (!lat || !lng)   return res.status(400).json({ error: 'Latitude and longitude are required' });
+    if (!issue_type)    return res.status(400).json({ error: 'Issue type is required' });
+    if (severity < 1 || severity > 3) return res.status(400).json({ error: 'Severity must be between 1 and 3' });
 
-    if (!issue_type) {
-      return res.status(400).json({ error: 'Issue type is required' });
-    }
-
-    if (severity < 1 || severity > 3) {
-      return res.status(400).json({ error: 'Severity must be between 1 and 3' });
-    }
-
-    // Get user ID from token and convert to integer
     const userId = toInt(req.user.userId);
-    
-    if (!userId) {
-      return res.status(400).json({ error: 'Valid user ID not found in token' });
-    }
+    if (!userId) return res.status(400).json({ error: 'Valid user ID not found in token' });
 
-    // Convert lat/lng/severity to proper numbers
-    const parsedLat = parseFloat(lat);
-    const parsedLng = parseFloat(lng);
+    const parsedLat      = parseFloat(lat);
+    const parsedLng      = parseFloat(lng);
     const parsedSeverity = parseInt(severity, 10);
 
-    // Insert the report
     const result = await query(
-      `INSERT INTO accessibility_reports 
-       (submitted_by, lat, lng, location_name, issue_type, custom_description, severity, status, created_at)
-       VALUES ($1::integer, $2::numeric, $3::numeric, $4::text, $5::text, $6::text, $7::integer, 'pending', CURRENT_TIMESTAMP)
-       RETURNING id, submitted_by, lat, lng, location_name, issue_type, custom_description, severity, status, created_at`,
+      `INSERT INTO accessibility_reports
+         (submitted_by, lat, lng, location_name, issue_type, custom_description, severity, status, created_at)
+       VALUES
+         ($1, $2, $3, $4, $5, $6, $7, 'pending', CURRENT_TIMESTAMP)
+       RETURNING id, submitted_by, lat, lng, location_name, issue_type,
+                 custom_description, severity, status, created_at`,
       [userId, parsedLat, parsedLng, location_name || null, issue_type, custom_description || null, parsedSeverity]
     );
 
     const newReport = result.rows[0];
 
-    // Send email notification to admin
+    // Email admin — fire and forget
     try {
       const userResult = await query(
-        'SELECT email FROM users WHERE id = $1::integer AND deleted_at IS NULL',
+        'SELECT email FROM users WHERE id = $1 AND deleted_at IS NULL',
         [userId]
       );
-      
-      const reportWithEmail = {
-        ...newReport,
-        email: userResult.rows[0]?.email || null
-      };
-      
-      await sendReportNotification(reportWithEmail);
+      await sendReportNotification({ ...newReport, email: userResult.rows[0]?.email || null });
       console.log('[Reports] Admin notification sent for report #', newReport.id);
     } catch (emailError) {
-      console.error('[Reports] Failed to send admin notification:', emailError.message);
+      console.error('[Reports] Admin notification failed:', emailError.message);
     }
 
     res.status(201).json({
       success: true,
       message: 'Report submitted successfully. Admin will review it shortly.',
-      report: newReport
+      report: newReport,
     });
 
   } catch (error) {
@@ -98,53 +71,80 @@ router.post('/', verifyToken, async (req, res) => {
 router.get('/', verifyToken, async (req, res) => {
   try {
     const { status = 'pending', limit = 50, offset = 0 } = req.query;
-    
+
     const userId = toInt(req.user.userId);
-    
-    if (!userId) {
-      return res.status(400).json({ error: 'Valid user ID not found' });
-    }
-    
-    // Check if user is admin
+    if (!userId) return res.status(400).json({ error: 'Valid user ID not found' });
+
     const userCheck = await query(
-      'SELECT is_admin FROM users WHERE id = $1::integer AND deleted_at IS NULL',
+      'SELECT is_admin FROM users WHERE id = $1 AND deleted_at IS NULL',
       [userId]
     );
-    
-    if (!userCheck.rows[0]?.is_admin) {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-    
-    const parsedLimit = parseInt(limit, 10);
+    if (!userCheck.rows[0]?.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+    const parsedLimit  = parseInt(limit,  10);
     const parsedOffset = parseInt(offset, 10);
-    
-    let statusFilter = '';
-    const params = [parsedLimit, parsedOffset];
-    
+
+    // Build query — status filter is optional
+    let sql    = `SELECT id, submitted_by, lat, lng, location_name, issue_type,
+                         custom_description, severity, status, admin_notes,
+                         reviewed_by, reviewed_at, created_at, updated_at
+                  FROM accessibility_reports
+                  WHERE deleted_at IS NULL`;
+    const params = [];
+
     if (status !== 'all') {
-      statusFilter = 'AND status = $3::text';
       params.push(status);
+      sql += ` AND status = $${params.length}`;
     }
-    
-    const result = await query(
-      `SELECT id, submitted_by, lat, lng, location_name, issue_type, 
-              custom_description, severity, status, admin_notes, 
-              reviewed_by, reviewed_at, created_at, updated_at
-       FROM accessibility_reports
-       WHERE deleted_at IS NULL ${statusFilter}
-       ORDER BY created_at DESC
-       LIMIT $1::integer OFFSET $2::integer`,
-      params
-    );
-    
+
+    params.push(parsedLimit, parsedOffset);
+    sql += ` ORDER BY created_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`;
+
+    const result = await query(sql, params);
+
     res.json({
       success: true,
       reports: result.rows,
-      pagination: { limit: parsedLimit, offset: parsedOffset }
+      pagination: { limit: parsedLimit, offset: parsedOffset },
     });
-    
+
   } catch (error) {
     console.error('[Reports] Fetch error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =============================================
+// GET /api/reports/stats/summary - Admin stats
+// Must be defined BEFORE /:id or Express matches "stats" as an id param
+// =============================================
+router.get('/stats/summary', verifyToken, async (req, res) => {
+  try {
+    const userId = toInt(req.user.userId);
+    if (!userId) return res.status(400).json({ error: 'Valid user ID not found' });
+
+    const userCheck = await query(
+      'SELECT is_admin FROM users WHERE id = $1 AND deleted_at IS NULL',
+      [userId]
+    );
+    if (!userCheck.rows[0]?.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+    const result = await query(
+      `SELECT
+         COUNT(*)                                          AS total,
+         COUNT(CASE WHEN status = 'pending'  THEN 1 END)  AS pending,
+         COUNT(CASE WHEN status = 'approved' THEN 1 END)  AS approved,
+         COUNT(CASE WHEN status = 'rejected' THEN 1 END)  AS rejected,
+         COUNT(CASE WHEN status = 'resolved' THEN 1 END)  AS resolved,
+         COALESCE(ROUND(AVG(severity)::numeric, 2), 0)    AS avg_severity
+       FROM accessibility_reports
+       WHERE deleted_at IS NULL`
+    );
+
+    res.json({ success: true, stats: result.rows[0] });
+
+  } catch (error) {
+    console.error('[Reports] Stats error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -154,200 +154,162 @@ router.get('/', verifyToken, async (req, res) => {
 // =============================================
 router.get('/:id', verifyToken, async (req, res) => {
   try {
-    const { id } = req.params;
-    const userId = toInt(req.user.userId);
-    const reportId = toInt(id);
-    
-    if (!userId || !reportId) {
-      return res.status(400).json({ error: 'Invalid ID format' });
-    }
-    
+    const userId   = toInt(req.user.userId);
+    const reportId = toInt(req.params.id);
+
+    if (!userId || !reportId) return res.status(400).json({ error: 'Invalid ID format' });
+
     const result = await query(
-      `SELECT id, submitted_by, lat, lng, location_name, issue_type, 
-              custom_description, severity, status, admin_notes, 
+      `SELECT id, submitted_by, lat, lng, location_name, issue_type,
+              custom_description, severity, status, admin_notes,
               reviewed_by, reviewed_at, created_at, updated_at
        FROM accessibility_reports
-       WHERE id = $1::integer AND deleted_at IS NULL`,
+       WHERE id = $1 AND deleted_at IS NULL`,
       [reportId]
     );
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Report not found' });
-    }
-    
-    // Check if user is admin or report owner
-    const isAdmin = await query(
-      'SELECT is_admin FROM users WHERE id = $1::integer',
+
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Report not found' });
+
+    const isAdminCheck = await query(
+      'SELECT is_admin FROM users WHERE id = $1',
       [userId]
     );
-    
-    if (!isAdmin.rows[0]?.is_admin && result.rows[0].submitted_by !== userId) {
+
+    if (!isAdminCheck.rows[0]?.is_admin && result.rows[0].submitted_by !== userId) {
       return res.status(403).json({ error: 'Access denied' });
     }
-    
+
     res.json({ success: true, report: result.rows[0] });
-    
+
   } catch (error) {
     console.error('[Reports] Fetch one error:', error);
     res.status(500).json({ error: error.message });
   }
 });
-// PATCH /api/reports/:id - Update report status (admin only)
+
+// =============================================
+// PATCH /api/reports/:id - Approve / reject (admin only)
+// =============================================
 router.patch('/:id', verifyToken, async (req, res) => {
   try {
-    const { id } = req.params;
     const { status, admin_notes } = req.body;
-    
-    // FORCE everything to integer
-    const userId = Number(req.user.userId);
-    const reportId = Number(id);
-    
-    if (isNaN(userId) || isNaN(reportId)) {
-      return res.status(400).json({ error: 'Invalid ID format' });
-    }
-    
+    const userId   = toInt(req.user.userId);
+    const reportId = toInt(req.params.id);
+
+    if (!userId || !reportId) return res.status(400).json({ error: 'Invalid ID format' });
+
     if (!['approved', 'rejected', 'resolved'].includes(status)) {
-      return res.status(400).json({ error: 'Invalid status' });
+      return res.status(400).json({ error: 'Invalid status. Must be approved, rejected, or resolved' });
     }
-    
-    // Check if user is admin
+
+    // Admin check
     const userCheck = await query(
-      'SELECT is_admin FROM users WHERE id = ? AND deleted_at IS NULL',
+      'SELECT is_admin FROM users WHERE id = $1 AND deleted_at IS NULL',
       [userId]
     );
-    
-    if (!userCheck.rows[0]?.is_admin) {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-    
-    // Get original report with user email
+    if (!userCheck.rows[0]?.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+    // Fetch report + submitter email in one query.
+    // We avoid a JOIN on users.id because users.id may still be UUID in Supabase
+    // while submitted_by is INTEGER — instead we fetch the report first, then
+    // look up the email separately using the integer submitted_by value.
     const reportResult = await query(
-      `SELECT r.*, u.email 
-       FROM accessibility_reports r
-       LEFT JOIN users u ON r.submitted_by = u.id
-       WHERE r.id = ? AND r.deleted_at IS NULL`,
+      `SELECT id, submitted_by, status, location_name, issue_type, custom_description, severity
+       FROM accessibility_reports
+       WHERE id = $1 AND deleted_at IS NULL`,
       [reportId]
     );
-    
-    if (reportResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Report not found' });
-    }
-    
+
+    if (reportResult.rows.length === 0) return res.status(404).json({ error: 'Report not found' });
+
     const originalReport = reportResult.rows[0];
-    const oldStatus = originalReport.status;
-    
-    // UPDATE with NO type casting - let the driver handle it
+    const oldStatus      = originalReport.status;
+
+    // Fetch submitter email separately — avoids the uuid = integer JOIN error
+    let submitterEmail = null;
+    try {
+      const emailResult = await query(
+        'SELECT email FROM users WHERE id = $1 AND deleted_at IS NULL',
+        [toInt(originalReport.submitted_by)]
+      );
+      submitterEmail = emailResult.rows[0]?.email || null;
+    } catch (e) {
+      console.warn('[Reports] Could not fetch submitter email:', e.message);
+    }
+
+    // Update the report
     const updateResult = await query(
-      `UPDATE accessibility_reports 
-       SET status = ?,
-           admin_notes = COALESCE(?, admin_notes),
-           reviewed_by = ?,
+      `UPDATE accessibility_reports
+       SET status      = $1,
+           admin_notes = COALESCE($2, admin_notes),
+           reviewed_by = $3,
            reviewed_at = CURRENT_TIMESTAMP,
-           updated_at = CURRENT_TIMESTAMP
-       WHERE id = ? AND deleted_at IS NULL
+           updated_at  = CURRENT_TIMESTAMP
+       WHERE id = $4 AND deleted_at IS NULL
        RETURNING id, status, admin_notes, reviewed_at`,
       [status, admin_notes || null, userId, reportId]
     );
-    
+
+    if (updateResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Report not found or already deleted' });
+    }
+
+    // Send resolution email when status actually changes
     if (oldStatus !== status && (status === 'approved' || status === 'rejected')) {
       try {
-        await sendReportResolutionEmail(originalReport, status, admin_notes);
+        await sendReportResolutionEmail(
+          { ...originalReport, email: submitterEmail },
+          status,
+          admin_notes
+        );
+        console.log(`[Reports] Resolution email sent — report #${reportId} ${status}`);
       } catch (emailError) {
-        console.error('[Reports] Email error:', emailError.message);
+        console.error('[Reports] Resolution email failed:', emailError.message);
       }
     }
-    
+
     res.json({
       success: true,
       message: `Report ${status}`,
-      report: updateResult.rows[0]
+      report: updateResult.rows[0],
     });
-    
+
   } catch (error) {
     console.error('[Reports] Update error:', error);
     res.status(500).json({ error: error.message });
   }
 });
+
 // =============================================
-// DELETE /api/reports/:id - Soft delete report (admin only)
+// DELETE /api/reports/:id - Soft delete (admin only)
 // =============================================
 router.delete('/:id', verifyToken, async (req, res) => {
   try {
-    const { id } = req.params;
-    const userId = toInt(req.user.userId);
-    const reportId = toInt(id);
-    
-    if (!userId || !reportId) {
-      return res.status(400).json({ error: 'Invalid ID format' });
-    }
-    
-    // Check if user is admin
+    const userId   = toInt(req.user.userId);
+    const reportId = toInt(req.params.id);
+
+    if (!userId || !reportId) return res.status(400).json({ error: 'Invalid ID format' });
+
     const userCheck = await query(
-      'SELECT is_admin FROM users WHERE id = $1::integer AND deleted_at IS NULL',
+      'SELECT is_admin FROM users WHERE id = $1 AND deleted_at IS NULL',
       [userId]
     );
-    
-    if (!userCheck.rows[0]?.is_admin) {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-    
+    if (!userCheck.rows[0]?.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
     const result = await query(
-      `UPDATE accessibility_reports 
+      `UPDATE accessibility_reports
        SET deleted_at = CURRENT_TIMESTAMP
-       WHERE id = $1::integer AND deleted_at IS NULL
+       WHERE id = $1 AND deleted_at IS NULL
        RETURNING id`,
       [reportId]
     );
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Report not found' });
-    }
-    
+
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Report not found' });
+
     res.json({ success: true, message: 'Report deleted successfully' });
-    
+
   } catch (error) {
     console.error('[Reports] Delete error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// =============================================
-// GET /api/reports/stats/summary - Get report stats (admin only)
-// =============================================
-router.get('/stats/summary', verifyToken, async (req, res) => {
-  try {
-    const userId = toInt(req.user.userId);
-    
-    if (!userId) {
-      return res.status(400).json({ error: 'Valid user ID not found' });
-    }
-    
-    // Check if user is admin
-    const userCheck = await query(
-      'SELECT is_admin FROM users WHERE id = $1::integer AND deleted_at IS NULL',
-      [userId]
-    );
-    
-    if (!userCheck.rows[0]?.is_admin) {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-    
-    const result = await query(
-      `SELECT 
-         COUNT(*) as total,
-         COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
-         COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved,
-         COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected,
-         COUNT(CASE WHEN status = 'resolved' THEN 1 END) as resolved,
-         COALESCE(ROUND(AVG(severity)::numeric, 2), 0) as avg_severity
-       FROM accessibility_reports
-       WHERE deleted_at IS NULL`
-    );
-    
-    res.json({ success: true, stats: result.rows[0] });
-    
-  } catch (error) {
-    console.error('[Reports] Stats error:', error);
     res.status(500).json({ error: error.message });
   }
 });

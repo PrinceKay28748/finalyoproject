@@ -1,18 +1,16 @@
-// backend/src/config/db.js - FIXED VERSION
-
+// backend/src/config/db.js
 import dotenv from 'dotenv';
 dotenv.config();
 
 const isProduction = process.env.NODE_ENV === 'production';
-
 let query, closePool;
 
 if (isProduction) {
+  // ── PostgreSQL (Supabase on Render) ────────────────────────────────────────
   const { default: pkg } = await import('pg');
   const { Pool } = pkg;
 
   const connectionString = process.env.DATABASE_URL;
-
   if (!connectionString) {
     console.error('❌ DATABASE_URL is not defined in production');
     process.exit(1);
@@ -23,29 +21,29 @@ if (isProduction) {
     ssl: { rejectUnauthorized: false },
     max: 20,
     idleTimeoutMillis: 30000,
-    family: 4,
+    family: 4, // force IPv4 — Render free tier blocks IPv6
   });
 
   console.log('✅ Connected to Supabase PostgreSQL (Production)');
 
-  // RESTORED: convert ? to $1, $2, etc. for PostgreSQL
-  function convertPlaceholders(sql, params) {
-    if (!params || params.length === 0) return sql;
-    let result = sql;
-    for (let i = 1; i <= params.length; i++) {
-      result = result.replace('?', `$${i}`);
-    }
-    return result;
+  // Convert ? placeholders to $1, $2, $3 … for PostgreSQL.
+  // Uses a counter so each ? maps to a unique $N — the previous
+  // implementation used String.replace('?', ...) which only ever
+  // replaced the FIRST occurrence, producing $1, $1, $1 for multi-param queries.
+  function convertPlaceholders(sql) {
+    let i = 0;
+    return sql.replace(/\?/g, () => `$${++i}`);
   }
 
   query = async (sql, params = []) => {
     try {
-      const convertedSql = convertPlaceholders(sql, params);
+      const convertedSql = convertPlaceholders(sql);
       const result = await pool.query(convertedSql, params);
       return { rows: result.rows };
     } catch (error) {
       console.error('[DB] Query error:', error.message);
-      console.error('[DB] SQL:', sql);
+      console.error('[DB] Original SQL:', sql);
+      console.error('[DB] Converted SQL:', convertPlaceholders(sql));
       console.error('[DB] Params:', params);
       throw error;
     }
@@ -56,21 +54,21 @@ if (isProduction) {
   };
 
 } else {
-  // DEVELOPMENT: SQLite
+  // ── SQLite (Development) ───────────────────────────────────────────────────
   const sqlite3 = await import('sqlite3');
   const { open } = await import('sqlite');
   const { default: path } = await import('path');
   const { fileURLToPath } = await import('url');
 
   const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
-  const dbPath = path.join(__dirname, '../../ug_campus_nav.db');
+  const __dirname  = path.dirname(__filename);
+  const dbPath     = path.join(__dirname, '../../ug_campus_nav.db');
 
   console.log(`[DB] Using SQLite at: ${dbPath}`);
 
   const db = await open({
     filename: dbPath,
-    driver: sqlite3.default.Database,
+    driver:   sqlite3.default.Database,
   });
 
   console.log('✅ Connected to SQLite (Development)');
