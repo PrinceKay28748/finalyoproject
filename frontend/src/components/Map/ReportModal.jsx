@@ -116,7 +116,10 @@ export default function ReportModal({ isOpen, onClose, onSubmit, defaultLocation
       <div className="report-modal" onClick={(e) => e.stopPropagation()}>
         <div className="report-modal-header">
           <h2>Report accessibility issue</h2>
-          <button className="report-modal-close" onClick={handleClose}>✕</button>
+          {/* Only show X button when NOT in success state */}
+          {!success && (
+            <button className="report-modal-close" onClick={handleClose}>✕</button>
+          )}
         </div>
 
         {/* Success Popup - replaces form content */}
