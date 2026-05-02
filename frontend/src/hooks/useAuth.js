@@ -1,154 +1,247 @@
 // frontend/src/hooks/useAuth.js
-// Authentication hook - manages login state and tokens
+// Authentication hook - Supabase Auth version
 
 import { useState, useCallback, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 import { API_URL } from '../config';
 
 export function useAuth() {
-  const [user, setUser]                     = useState(null);
+  const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading]           = useState(true);  // only true during session restore
-  const [error, setError]                   = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Restore session from storage on mount — this is the ONLY time isLoading should be true
-  useEffect(() => {
-    const storedUser  = sessionStorage.getItem('user');
-    const storedToken = sessionStorage.getItem('accessToken');
+  // Helper to sync user with your backend's users table
+  const syncUserWithBackend = useCallback(async (supabaseUser, accessToken) => {
+    try {
+      const response = await fetch(`${API_URL}/auth/sync`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({
+          username: supabaseUser.user_metadata?.username || supabaseUser.email.split('@')[0]
+        })
+      });
 
-    if (storedUser && storedToken) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-        setIsAuthenticated(true);
-        console.log('[useAuth] Session restored:', parsedUser.email);
-      } catch (err) {
-        console.warn('[useAuth] Failed to parse stored user:', err);
-        sessionStorage.removeItem('user');
-        sessionStorage.removeItem('accessToken');
-        sessionStorage.removeItem('refreshToken');
+      if (!response.ok) {
+        throw new Error('Failed to sync user with backend');
       }
-    }
 
-    // Session restore complete — never set isLoading again from login/register
-    setIsLoading(false);
+      const data = await response.json();
+      return data.user;
+    } catch (err) {
+      console.error('[useAuth] Sync error:', err);
+      return null;
+    }
   }, []);
 
-  // Extracts the most useful error message from any API response shape
-  function extractError(data, fallback) {
-    if (data?.error)   return data.error;
-    if (data?.message) return data.message;
-    if (Array.isArray(data?.errors) && data.errors.length > 0) {
-      return data.errors.map(e => e.msg || e.message).join(', ');
-    }
-    return fallback;
-  }
+  // Restore session from Supabase on mount
+  useEffect(() => {
+    const initializeAuth = async () => {
+      setIsLoading(true);
+      
+      // Get current session from Supabase
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('[useAuth] Session error:', sessionError);
+        setIsLoading(false);
+        return;
+      }
 
-  // Register — does NOT touch isLoading (component manages its own loading state)
+      if (session) {
+        const supabaseUser = session.user;
+        const accessToken = session.access_token;
+        
+        // Sync with backend to get user profile (is_admin, preferences, etc.)
+        const backendUser = await syncUserWithBackend(supabaseUser, accessToken);
+        
+        if (backendUser) {
+          const userData = {
+            id: backendUser.id,
+            email: backendUser.email,
+            username: backendUser.username,
+            is_admin: backendUser.is_admin || 0,
+            created_at: backendUser.created_at,
+          };
+          
+          sessionStorage.setItem('accessToken', accessToken);
+          sessionStorage.setItem('user', JSON.stringify(userData));
+          
+          setUser(userData);
+          setIsAuthenticated(true);
+        }
+      }
+      
+      setIsLoading(false);
+    };
+
+    initializeAuth();
+
+    // Listen for auth changes (login/logout from Supabase)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('[useAuth] Auth state changed:', event);
+        
+        if (event === 'SIGNED_IN' && session) {
+          const supabaseUser = session.user;
+          const accessToken = session.access_token;
+          
+          const backendUser = await syncUserWithBackend(supabaseUser, accessToken);
+          
+          if (backendUser) {
+            const userData = {
+              id: backendUser.id,
+              email: backendUser.email,
+              username: backendUser.username,
+              is_admin: backendUser.is_admin || 0,
+              created_at: backendUser.created_at,
+            };
+            
+            sessionStorage.setItem('accessToken', accessToken);
+            sessionStorage.setItem('user', JSON.stringify(userData));
+            
+            setUser(userData);
+            setIsAuthenticated(true);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          sessionStorage.removeItem('accessToken');
+          sessionStorage.removeItem('user');
+          setUser(null);
+          setIsAuthenticated(false);
+        }
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [syncUserWithBackend]);
+
+  // Register with Supabase
   const register = useCallback(async (email, username, password) => {
     try {
-      const response = await fetch(`${API_URL}/auth/register`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ email, username, password }),
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            username: username,
+          }
+        }
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
+      if (signUpError) {
         return {
           success: false,
-          error: extractError(data, 'Registration failed — please try again'),
+          error: signUpError.message
         };
       }
 
-      const userData = { ...data.user, is_admin: data.user.is_admin || 0 };
-
-      sessionStorage.setItem('accessToken',  data.accessToken);
-      sessionStorage.setItem('refreshToken', data.refreshToken);
-      sessionStorage.setItem('user',         JSON.stringify(userData));
-
-      setUser(userData);
-      setIsAuthenticated(true);
-
-      console.log('[useAuth] Registration successful:', userData.email);
-      return { success: true };
-
+      if (data?.user) {
+        // Wait a moment for the trigger to create the user in your users table
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Now sync to get the backend user profile
+        const accessToken = data.session?.access_token;
+        if (accessToken) {
+          const backendUser = await syncUserWithBackend(data.user, accessToken);
+          
+          if (backendUser) {
+            const userData = {
+              id: backendUser.id,
+              email: backendUser.email,
+              username: backendUser.username,
+              is_admin: backendUser.is_admin || 0,
+              created_at: backendUser.created_at,
+            };
+            
+            sessionStorage.setItem('accessToken', accessToken);
+            sessionStorage.setItem('user', JSON.stringify(userData));
+            
+            setUser(userData);
+            setIsAuthenticated(true);
+          }
+        }
+        
+        console.log('[useAuth] Registration successful:', email);
+        return { success: true };
+      }
+      
+      return { success: false, error: 'Registration failed' };
     } catch (err) {
-      console.error('[useAuth] Register network error:', err);
+      console.error('[useAuth] Register error:', err);
       return {
         success: false,
         error: 'Could not connect to server — check your connection',
       };
     }
-  }, []);
+  }, [syncUserWithBackend]);
 
-  // Login — does NOT touch isLoading (component manages its own loading state)
+  // Login with Supabase
   const login = useCallback(async (email, password) => {
     try {
-      const response = await fetch(`${API_URL}/auth/login`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ email, password }),
+      const { data, error: loginError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
+      if (loginError) {
         return {
           success: false,
-          error: extractError(data, 'Invalid email or password'),
+          error: loginError.message
         };
       }
 
-      const userData = {
-        id:         data.user.id,
-        email:      data.user.email,
-        username:   data.user.username,
-        is_admin:   data.user.is_admin || 0,
-        created_at: data.user.created_at,
-      };
-
-      sessionStorage.setItem('accessToken',  data.accessToken);
-      sessionStorage.setItem('refreshToken', data.refreshToken);
-      sessionStorage.setItem('user',         JSON.stringify(userData));
-
-      setUser(userData);
-      setIsAuthenticated(true);
-
-      console.log('[useAuth] Login successful:', userData.email);
-      return { success: true };
-
+      if (data?.user && data?.session) {
+        const supabaseUser = data.user;
+        const accessToken = data.session.access_token;
+        
+        const backendUser = await syncUserWithBackend(supabaseUser, accessToken);
+        
+        if (backendUser) {
+          const userData = {
+            id: backendUser.id,
+            email: backendUser.email,
+            username: backendUser.username,
+            is_admin: backendUser.is_admin || 0,
+            created_at: backendUser.created_at,
+          };
+          
+          sessionStorage.setItem('accessToken', accessToken);
+          sessionStorage.setItem('user', JSON.stringify(userData));
+          
+          setUser(userData);
+          setIsAuthenticated(true);
+        }
+        
+        console.log('[useAuth] Login successful:', email);
+        return { success: true };
+      }
+      
+      return { success: false, error: 'Login failed' };
     } catch (err) {
-      console.error('[useAuth] Login network error:', err);
+      console.error('[useAuth] Login error:', err);
       return {
         success: false,
         error: 'Could not connect to server — check your connection',
       };
     }
-  }, []);
+  }, [syncUserWithBackend]);
 
-  // Logout — notifies backend then clears local session
+  // Logout from Supabase
   const logout = useCallback(async () => {
-    const token = sessionStorage.getItem('accessToken');
-
-    if (token) {
-      try {
-        await fetch(`${API_URL}/auth/logout`, {
-          method:  'POST',
-          headers: {
-            'Content-Type':  'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-      } catch (err) {
-        console.warn('[useAuth] Logout notification failed:', err);
-      }
+    const { error } = await supabase.auth.signOut();
+    
+    if (error) {
+      console.warn('[useAuth] Logout error:', error);
     }
-
+    
     sessionStorage.removeItem('accessToken');
-    sessionStorage.removeItem('refreshToken');
     sessionStorage.removeItem('user');
-
+    
     setUser(null);
     setIsAuthenticated(false);
     console.log('[useAuth] Logout complete');
@@ -163,15 +256,48 @@ export function useAuth() {
     return user?.is_admin === 1 || user?.is_admin === true;
   }, [user]);
 
+  // OAuth login methods
+  const signInWithGoogle = useCallback(async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`
+      }
+    });
+    
+    if (error) {
+      console.error('[useAuth] Google sign in error:', error);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  }, []);
+
+  const signInWithGithub = useCallback(async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'github',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`
+      }
+    });
+    
+    if (error) {
+      console.error('[useAuth] GitHub sign in error:', error);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  }, []);
+
   return {
     user,
     isAuthenticated,
-    isLoading,   // only true during initial session restore
+    isLoading,
     error,
     register,
     login,
     logout,
     getAuthHeader,
     isAdmin,
+    signInWithGoogle,
+    signInWithGithub,
   };
 }

@@ -1,397 +1,123 @@
-// src/routes/auth.js
+// backend/src/routes/auth.js
+// Supabase Auth - Backend only verifies tokens, no registration/login
+
 import express from 'express';
-import bcrypt from 'bcryptjs';
-import crypto from 'crypto';
-import { sendPasswordResetEmail } from '../services/emailService.js';
+import { verifyToken } from '../middleware/auth.js';
 import { query } from '../config/db.js';
-import {
-    verifyToken,
-    verifyRefreshToken,
-    createAccessToken,
-    createRefreshToken
-} from '../middleware/auth.js';
-import {
-    validateRegister,
-    validateLogin,
-    validatePreferences,
-    handleValidationErrors
-} from '../middleware/validation.js';
-import { APIError, logAudit } from '../utils/errorHandler.js';
+import { APIError } from '../utils/errorHandler.js';
 
 const router = express.Router();
-const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS) || 10;
 
-function getClientIP(req) {
-    return req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress;
-}
-
-// ─── Register ───────────────────────────────────────────────────────────────
-router.post('/register', validateRegister, handleValidationErrors, async (req, res) => {
-    const ip = getClientIP(req);
-    const userAgent = req.headers['user-agent'];
-
-    try {
-        const { email, username, password } = req.body;
-
-        const existingUser = await query(
-            'SELECT id FROM users WHERE email = ? OR username = ?',
-            [email, username]
-        );
-
-        if (existingUser.rows.length > 0) {
-            await logAudit(query, null, 'REGISTER_FAILED_DUPLICATE', ip, userAgent, false, 'Email or username exists');
-            throw new APIError('Email or username already registered', 409);
-        }
-
-        const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-
-        // RETURNING id works in PostgreSQL — this is the fix for userId being null
-        const result = await query(
-            `INSERT INTO users (email, username, password_hash)
-             VALUES (?, ?, ?)
-             RETURNING id`,
-            [email, username, passwordHash]
-        );
-
-        const userId = result.rows[0].id;
-
-        await query(
-            `INSERT INTO user_preferences (user_id) VALUES (?)`,
-            [userId]
-        );
-
-        const accessToken = createAccessToken(userId, email);
-        const refreshToken = createRefreshToken(userId, email);
-
-        const refreshTokenHash = await bcrypt.hash(refreshToken, 5);
-        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-
-        await query(
-            `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
-             VALUES (?, ?, ?)`,
-            [userId, refreshTokenHash, expiresAt.toISOString()]
-        );
-
-        await logAudit(query, userId, 'REGISTER_SUCCESS', ip, userAgent, true);
-
-        res.status(201).json({
-            message: 'User registered successfully',
-            user: { id: userId, email, username, is_admin: 0 },
-            accessToken,
-            refreshToken
-        });
-    } catch (error) {
-        if (error instanceof APIError) {
-            return res.status(error.statusCode).json({ error: error.message });
-        }
-        console.error('[Auth Register]', error.message);
-        res.status(500).json({ error: 'Registration failed' });
-    }
-});
-
-// ─── Login ──────────────────────────────────────────────────────────────────
-router.post('/login', validateLogin, handleValidationErrors, async (req, res) => {
-    const ip = getClientIP(req);
-    const userAgent = req.headers['user-agent'];
-
-    try {
-        const { email, password } = req.body;
-
-        const result = await query(
-            'SELECT id, email, username, password_hash, is_admin FROM users WHERE email = ? AND deleted_at IS NULL',
-            [email]
-        );
-
-        if (result.rows.length === 0) {
-            await logAudit(query, null, 'LOGIN_FAILED_NOT_FOUND', ip, userAgent, false, 'User not found');
-            throw new APIError('Invalid email or password', 401);
-        }
-
-        const user = result.rows[0];
-
-        const passwordMatch = await bcrypt.compare(password, user.password_hash);
-        if (!passwordMatch) {
-            await logAudit(query, user.id, 'LOGIN_FAILED_INVALID_PASSWORD', ip, userAgent, false, 'Invalid password');
-            throw new APIError('Invalid email or password', 401);
-        }
-
-        const accessToken = createAccessToken(user.id, user.email);
-        const refreshToken = createRefreshToken(user.id, user.email);
-
-        const refreshTokenHash = await bcrypt.hash(refreshToken, 5);
-        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-
-        await query(
-            `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
-             VALUES (?, ?, ?)`,
-            [user.id, refreshTokenHash, expiresAt.toISOString()]
-        );
-
-        await logAudit(query, user.id, 'LOGIN_SUCCESS', ip, userAgent, true);
-
-        res.json({
-            message: 'Logged in successfully',
-            user: { id: user.id, email: user.email, username: user.username, is_admin: user.is_admin || 0 },
-            accessToken,
-            refreshToken
-        });
-    } catch (error) {
-        if (error instanceof APIError) {
-            return res.status(error.statusCode).json({ error: error.message });
-        }
-        console.error('[Auth Login]', error.message);
-        res.status(500).json({ error: 'Login failed' });
-    }
-});
-
-// ─── Refresh Token ──────────────────────────────────────────────────────────
-router.post('/refresh', verifyRefreshToken, async (req, res) => {
-    try {
-        const { userId, email } = req.user;
-
-        // NOW() instead of SQLite's datetime('now')
-        const result = await query(
-            `SELECT id FROM refresh_tokens 
-             WHERE user_id = ? AND expires_at > NOW() AND revoked_at IS NULL`,
-            [userId]
-        );
-
-        if (result.rows.length === 0) {
-            throw new APIError('Refresh token expired or revoked', 401);
-        }
-
-        const accessToken = createAccessToken(userId, email);
-        res.json({ accessToken });
-    } catch (error) {
-        if (error instanceof APIError) {
-            return res.status(error.statusCode).json({ error: error.message });
-        }
-        res.status(500).json({ error: 'Token refresh failed' });
-    }
-});
-
-// ─── Logout ─────────────────────────────────────────────────────────────────
-router.post('/logout', verifyToken, async (req, res) => {
-    try {
-        const { userId } = req.user;
-
-        await query(
-            `UPDATE refresh_tokens SET revoked_at = CURRENT_TIMESTAMP
-             WHERE user_id = ? AND revoked_at IS NULL`,
-            [userId]
-        );
-
-        res.json({ message: 'Logged out successfully' });
-    } catch (error) {
-        console.error('[Auth Logout]', error.message);
-        res.status(500).json({ error: 'Logout failed' });
-    }
-});
-
-// ─── Get Profile ─────────────────────────────────────────────────────────────
+// ─── Get Profile (from your users table using Supabase UUID) ────────────────
 router.get('/me', verifyToken, async (req, res) => {
-    try {
-        const { userId } = req.user;
+  try {
+    const { userId } = req.user; // This is the UUID from Supabase Auth
 
-        const result = await query(
-            `SELECT u.id, u.email, u.username, u.created_at, u.is_admin,
-                    p.active_profile, p.dark_mode, p.notifications_enabled
-             FROM users u
-             LEFT JOIN user_preferences p ON u.id = p.user_id
-             WHERE u.id = ? AND u.deleted_at IS NULL`,
-            [userId]
-        );
+    const result = await query(
+      `SELECT u.id, u.email, u.username, u.created_at, u.is_admin,
+              p.active_profile, p.dark_mode, p.notifications_enabled
+       FROM users u
+       LEFT JOIN user_preferences p ON u.id = p.user_id
+       WHERE u.id = ? AND u.deleted_at IS NULL`,
+      [userId]
+    );
 
-        if (result.rows.length === 0) {
-            throw new APIError('User not found', 404);
-        }
-
-        res.json({ user: result.rows[0] });
-    } catch (error) {
-        if (error instanceof APIError) {
-            return res.status(error.statusCode).json({ error: error.message });
-        }
-        res.status(500).json({ error: 'Failed to fetch user' });
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User profile not found' });
     }
+
+    res.json({ user: result.rows[0] });
+  } catch (error) {
+    console.error('[Auth Me]', error.message);
+    res.status(500).json({ error: 'Failed to fetch user' });
+  }
 });
 
 // ─── Update Preferences ──────────────────────────────────────────────────────
-router.patch('/preferences', verifyToken, validatePreferences, handleValidationErrors, async (req, res) => {
-    try {
-        const { userId } = req.user;
-        const { activeProfile, darkMode, notificationsEnabled } = req.body;
+router.patch('/preferences', verifyToken, async (req, res) => {
+  try {
+    const { userId } = req.user;
+    const { activeProfile, darkMode, notificationsEnabled } = req.body;
 
-        await query(
-            `UPDATE user_preferences 
-             SET active_profile = COALESCE(?, active_profile),
-                 dark_mode = COALESCE(?, dark_mode),
-                 notifications_enabled = COALESCE(?, notifications_enabled),
-                 updated_at = CURRENT_TIMESTAMP
-             WHERE user_id = ?`,
-            [activeProfile || null, darkMode !== undefined ? darkMode : null, notificationsEnabled !== undefined ? notificationsEnabled : null, userId]
-        );
+    await query(
+      `UPDATE user_preferences 
+       SET active_profile = COALESCE(?, active_profile),
+           dark_mode = COALESCE(?, dark_mode),
+           notifications_enabled = COALESCE(?, notifications_enabled),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE user_id = ?`,
+      [activeProfile || null, darkMode !== undefined ? darkMode : null, 
+       notificationsEnabled !== undefined ? notificationsEnabled : null, userId]
+    );
 
-        const prefs = await query(
-            'SELECT * FROM user_preferences WHERE user_id = ?',
-            [userId]
-        );
+    const prefs = await query(
+      'SELECT * FROM user_preferences WHERE user_id = ?',
+      [userId]
+    );
 
-        res.json({ message: 'Preferences updated', preferences: prefs.rows[0] });
-    } catch (error) {
-        console.error('[Auth Preferences]', error.message);
-        res.status(500).json({ error: 'Failed to update preferences' });
-    }
+    res.json({ message: 'Preferences updated', preferences: prefs.rows[0] });
+  } catch (error) {
+    console.error('[Auth Preferences]', error.message);
+    res.status(500).json({ error: 'Failed to update preferences' });
+  }
 });
 
-// ─── Delete Account ──────────────────────────────────────────────────────────
+// ─── Delete Account (soft delete in your users table) ───────────────────────
 router.delete('/me', verifyToken, async (req, res) => {
-    try {
-        const { userId } = req.user;
+  try {
+    const { userId } = req.user;
 
-        await query(
-            `UPDATE users SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?`,
-            [userId]
-        );
+    await query(
+      `UPDATE users SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [userId]
+    );
 
-        await query(
-            `UPDATE refresh_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = ?`,
-            [userId]
-        );
-
-        res.json({ message: 'Account deleted successfully' });
-    } catch (error) {
-        console.error('[Auth Delete]', error.message);
-        res.status(500).json({ error: 'Failed to delete account' });
-    }
+    res.json({ message: 'Account deleted successfully' });
+  } catch (error) {
+    console.error('[Auth Delete]', error.message);
+    res.status(500).json({ error: 'Failed to delete account' });
+  }
 });
 
-// ─── Forgot Password ─────────────────────────────────────────────────────────
-router.post('/forgot-password', async (req, res) => {
-    const ip = getClientIP(req);
-    const userAgent = req.headers['user-agent'];
+// ─── Check if user exists in your users table, create if not ────────────────
+// This is called by frontend after Supabase login to sync the user
+router.post('/sync', verifyToken, async (req, res) => {
+  try {
+    const { userId, email } = req.user;
+    const { username } = req.body;
 
-    try {
-        const { email } = req.body;
+    // Check if user exists in your users table
+    const existing = await query(
+      'SELECT * FROM users WHERE id = ? AND deleted_at IS NULL',
+      [userId]
+    );
 
-        if (!email) {
-            return res.status(400).json({ error: 'Email is required' });
-        }
+    if (existing.rows.length === 0) {
+      // Create user in your table
+      await query(
+        `INSERT INTO users (id, email, username, is_admin)
+         VALUES (?, ?, ?, ?)`,
+        [userId, email, username || email.split('@')[0], 0]
+      );
 
-        const userResult = await query(
-            'SELECT id, email, username, is_admin FROM users WHERE email = ? AND deleted_at IS NULL',
-            [email.toLowerCase()]
-        );
-
-        if (userResult.rows.length === 0) {
-            await logAudit(query, null, 'FORGOT_PASSWORD_EMAIL_NOT_FOUND', ip, userAgent, false, 'Email not found');
-            return res.status(404).json({ error: 'No account found with this email address' });
-        }
-
-        const user = userResult.rows[0];
-
-        if (user.is_admin !== 1) {
-            const rateCheck = await query(
-                `SELECT COUNT(*) as count FROM password_resets 
-                 WHERE user_id = ? AND created_at > NOW() - INTERVAL '1 hour'`,
-                [user.id]
-            );
-
-            if (parseInt(rateCheck.rows[0].count) >= 3) {
-                return res.status(429).json({ error: 'Too many requests. Please try again later.' });
-            }
-        }
-
-        const token = crypto.randomBytes(32).toString('hex');
-        const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-        const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
-
-        await query(
-            `INSERT INTO password_resets (user_id, token_hash, expires_at)
-             VALUES (?, ?, ?)`,
-            [user.id, tokenHash, expiresAt.toISOString()]
-        );
-
-        const frontendUrl = process.env.FRONTEND_URL || 'https://ugnavigator.onrender.com';
-        const emailResult = await sendPasswordResetEmail(email, token, frontendUrl);
-
-        if (!emailResult.success) {
-            console.error('[ForgotPassword] Email failed:', emailResult.error);
-            return res.status(500).json({ error: 'Failed to send reset email. Please try again.' });
-        }
-
-        await logAudit(query, user.id, 'FORGOT_PASSWORD_EMAIL_SENT', ip, userAgent, true);
-
-        res.json({ message: 'Password reset email sent. Check your inbox.', email });
-
-    } catch (error) {
-        console.error('[ForgotPassword] Error:', error.message);
-        res.status(500).json({ error: 'Failed to process request' });
+      // Create default preferences
+      await query(
+        `INSERT INTO user_preferences (user_id) VALUES (?)`,
+        [userId]
+      );
     }
-});
 
-// ─── Reset Password ──────────────────────────────────────────────────────────
-router.post('/reset-password', async (req, res) => {
-    const ip = getClientIP(req);
-    const userAgent = req.headers['user-agent'];
+    // Get the user
+    const userResult = await query(
+      'SELECT id, email, username, is_admin FROM users WHERE id = ?',
+      [userId]
+    );
 
-    try {
-        const { token, newPassword } = req.body;
-
-        if (!token || !newPassword) {
-            return res.status(400).json({ error: 'Token and new password are required' });
-        }
-
-        if (newPassword.length < 8) {
-            return res.status(400).json({ error: 'Password must be at least 8 characters' });
-        }
-
-        const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-
-        const resetResult = await query(
-            `SELECT pr.user_id, pr.token_hash, pr.expires_at, pr.used_at, u.email, u.username
-             FROM password_resets pr
-             JOIN users u ON pr.user_id = u.id
-             WHERE pr.token_hash = ? AND pr.used_at IS NULL`,
-            [tokenHash]
-        );
-
-        if (resetResult.rows.length === 0) {
-            await logAudit(query, null, 'RESET_PASSWORD_INVALID_TOKEN', ip, userAgent, false, 'Token not found');
-            return res.status(400).json({ error: 'Invalid or expired reset link' });
-        }
-
-        const reset = resetResult.rows[0];
-
-        if (new Date(reset.expires_at) < new Date()) {
-            await logAudit(query, reset.user_id, 'RESET_PASSWORD_TOKEN_EXPIRED', ip, userAgent, false, 'Token expired');
-            return res.status(400).json({ error: 'Reset link has expired. Please request a new one.' });
-        }
-
-        const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
-
-        await query(
-            'UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-            [passwordHash, reset.user_id]
-        );
-
-        await query(
-            'UPDATE password_resets SET used_at = CURRENT_TIMESTAMP WHERE token_hash = ?',
-            [tokenHash]
-        );
-
-        await query(
-            'UPDATE refresh_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = ? AND revoked_at IS NULL',
-            [reset.user_id]
-        );
-
-        await logAudit(query, reset.user_id, 'RESET_PASSWORD_SUCCESS', ip, userAgent, true);
-
-        res.json({ message: 'Password reset successfully. You can now log in with your new password.' });
-
-    } catch (error) {
-        console.error('[ResetPassword] Error:', error.message);
-        res.status(500).json({ error: 'Failed to reset password' });
-    }
+    res.json({ user: userResult.rows[0] });
+  } catch (error) {
+    console.error('[Auth Sync]', error.message);
+    res.status(500).json({ error: 'Failed to sync user' });
+  }
 });
 
 export default router;

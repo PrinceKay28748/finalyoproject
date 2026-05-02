@@ -1,20 +1,17 @@
-// App.jsx
+// frontend/src/App.jsx - Simplified (no auth guards, no admin route)
 import { useState, useCallback, lazy, Suspense, useEffect, useRef } from "react";
-import AuthPage from "./components/Auth/AuthPage";
-import { useGeolocation }          from "./hooks/useGeolocation";
-import { useRealtimeRoutes, ROUTE_PROFILES } from "./hooks/useRealtimeRoutes";
+import { useGeolocation } from "./hooks/useGeolocation";
+import { useRealtimeRoutes } from "./hooks/useRealtimeRoutes";
 import { geocode, reverseGeocode } from "./services/geocoding";
 import { findNearestNode } from "./services/routing";
 import { buildGraph } from "./services/graphBuilder";
 import { loadPreferences, savePreferences, loadRouteState, saveRouteState, clearRouteState } from "./services/preferencesStore";
 import { logRouteCalculated, logSearch, logLogin } from "./services/analyticsLogger";
-import NavPanel                    from "./components/Panel/NavPanel";
-import ErrorBoundary              from "./components/ErrorBoundary";
-import OfflineIndicator           from "./components/OfflineIndicator";
-import ProtectedRoute             from "./components/ProtectedRoute";
-import { useAuthContext }         from "./context/AuthContext";
-import AdminDashboard             from './components/Admin/AdminDashboard';
-import ReportModal                from './components/Map/ReportModal';
+import NavPanel from "./components/Panel/NavPanel";
+import ErrorBoundary from "./components/ErrorBoundary";
+import OfflineIndicator from "./components/OfflineIndicator";
+import { useAuthContext } from "./context/AuthContext";
+import ReportModal from './components/Map/ReportModal';
 import "./index.css";
 
 const MapView = lazy(() => import("./components/Map/MapView"));
@@ -29,47 +26,42 @@ function MapLoader() {
 }
 
 export default function App() {
-  const { user, isAuthenticated, isLoading: authLoading } = useAuthContext();
+  const { user, logLogin } = useAuthContext();
 
-  const [startPoint, setStartPoint]           = useState(null);
-  const [destPoint, setDestPoint]             = useState(null);
-  const [startText, setStartText]             = useState("");
-  const [destText, setDestText]               = useState("");
-  const [flyTarget, setFlyTarget]             = useState(null);
-  const [darkMode, setDarkMode]               = useState(false);
-  const [markersVisible, setMarkersVisible]   = useState(false);
+  const [startPoint, setStartPoint] = useState(null);
+  const [destPoint, setDestPoint] = useState(null);
+  const [startText, setStartText] = useState("");
+  const [destText, setDestText] = useState("");
+  const [flyTarget, setFlyTarget] = useState(null);
+  const [darkMode, setDarkMode] = useState(false);
+  const [markersVisible, setMarkersVisible] = useState(false);
   const [waitingForStart, setWaitingForStart] = useState(false);
-  const [isResolving, setIsResolving]         = useState(false);
-  const [activeProfile, setActiveProfile]     = useState("standard");
-  const [vehicleMode, setVehicleMode]         = useState("walk");
+  const [isResolving, setIsResolving] = useState(false);
+  const [activeProfile, setActiveProfile] = useState("standard");
+  const [vehicleMode, setVehicleMode] = useState("walk");
   const [lastLoggedRoute, setLastLoggedRoute] = useState(null);
 
   const [isRouteLocked, setIsRouteLocked] = useState(false);
   const [isNavExpanded, setIsNavExpanded] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
-  const [customStartPoint, setCustomStartPoint]   = useState(null);
+  const [customStartPoint, setCustomStartPoint] = useState(null);
   const [useCustomLocation, setUseCustomLocation] = useState(false);
-  const [isSharedLocation, setIsSharedLocation]   = useState(false);
-  const [isLegendExpanded, setIsLegendExpanded]   = useState(true);
+  const [isSharedLocation, setIsSharedLocation] = useState(false);
+  const [isLegendExpanded, setIsLegendExpanded] = useState(true);
 
-  // Heatmap toggle — persisted in preferences
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [selectedHour, setSelectedHour] = useState(undefined);
 
-  // Report modal state
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportLocation, setReportLocation] = useState(null);
 
-  const [graph, setGraph]               = useState(null);
+  const [graph, setGraph] = useState(null);
   const [graphLoading, setGraphLoading] = useState(true);
 
   const legendCollapseRef = useRef(null);
 
   const { location: currentLocation, accuracy, error: locationError } = useGeolocation();
-
-  const isAdmin      = user?.is_admin === 1 || user?.is_admin === true;
-  const isAdminRoute = window.location.pathname === '/admin';
 
   // ── Restore route state ──────────────────────────────────────────────────
   useEffect(() => {
@@ -146,8 +138,8 @@ export default function App() {
 
   // ── Log login ────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (isAuthenticated && user) logLogin();
-  }, [isAuthenticated, user]);
+    if (user && logLogin) logLogin();
+  }, [user, logLogin]);
 
   // ── Save preferences (includes heatmap toggle) ───────────────────────────
   useEffect(() => {
@@ -379,7 +371,6 @@ export default function App() {
 
   // ── Report modal handlers ────────────────────────────────────────────────
   const handleOpenReportModal = useCallback(() => {
-    // Use current map center or GPS location as default report location
     const mapContainer = document.querySelector('.leaflet-container');
     let defaultLocation = null;
     
@@ -400,9 +391,7 @@ export default function App() {
   };
 
   const handleSubmitReport = async (reportData) => {
-    // Will be implemented in the report service
     console.log('[App] Submitting report:', reportData);
-    // Close modal after successful submission
     setIsReportModalOpen(false);
     setReportLocation(null);
   };
@@ -411,108 +400,89 @@ export default function App() {
     (effectiveStartPoint || effectiveStartText.trim().length > 0) &&
     (destPoint           || destText.trim().length > 0);
 
-  // ── Auth / admin guards ───────────────────────────────────────────────────
-  if (authLoading) {
-    return (
-      <div className="map-loader">
-        <div className="map-loader-spinner" />
-        <p>Loading...</p>
-      </div>
-    );
-  }
-
-  if (isAdminRoute) {
-    if (!isAuthenticated) return <AuthPage />;
-    if (!isAdmin)         { window.location.href = '/'; return null; }
-    return <AdminDashboard />;
-  }
-
   return (
-    <ProtectedRoute>
-      <ErrorBoundary>
-        <OfflineIndicator />
-        <div className={`ug-root${darkMode ? " dark" : ""}`}>
-          <NavPanel
+    <ErrorBoundary>
+      <OfflineIndicator />
+      <div className={`ug-root${darkMode ? " dark" : ""}`}>
+        <NavPanel
+          startText={effectiveStartText}
+          destText={destText}
+          onStartTextChange={setStartText}
+          onDestTextChange={setDestText}
+          onStartSelect={handleStartSelect}
+          onDestSelect={handleDestSelect}
+          onUseCurrentLocation={handleUseCurrentLocation}
+          onUseCustomLocation={handleUseCustomLocation}
+          hasCustomLocation={!!customStartPoint}
+          isUsingCustomLocation={useCustomLocation}
+          onSwap={handleSwap}
+          onShowOnMap={handleShowOnMap}
+          onReset={handleReset}
+          hasCurrentLocation={!!currentLocation}
+          canShow={canShow}
+          isResolving={isResolving || isRouting}
+          markersVisible={markersVisible}
+          accuracy={accuracy}
+          locationError={locationError}
+          darkMode={darkMode}
+          onToggleDarkMode={() => setDarkMode((d) => !d)}
+          activeProfile={activeProfile}
+          onProfileChange={setActiveProfile}
+          vehicleMode={vehicleMode}
+          onVehicleModeChange={setVehicleMode}
+          isExpanded={isNavExpanded}
+          onExpandRequest={handleNavExpandRequest}
+        />
+
+        <Suspense fallback={<MapLoader />}>
+          <MapView
+            currentLocation={currentLocation}
+            accuracy={accuracy}
+            customStartPoint={customStartPoint}
+            startPoint={effectiveStartPoint}
+            destPoint={destPoint}
             startText={effectiveStartText}
             destText={destText}
-            onStartTextChange={setStartText}
-            onDestTextChange={setDestText}
-            onStartSelect={handleStartSelect}
-            onDestSelect={handleDestSelect}
-            onUseCurrentLocation={handleUseCurrentLocation}
-            onUseCustomLocation={handleUseCustomLocation}
-            hasCustomLocation={!!customStartPoint}
-            isUsingCustomLocation={useCustomLocation}
-            onSwap={handleSwap}
-            onShowOnMap={handleShowOnMap}
-            onReset={handleReset}
-            hasCurrentLocation={!!currentLocation}
-            canShow={canShow}
-            isResolving={isResolving || isRouting}
             markersVisible={markersVisible}
-            accuracy={accuracy}
-            locationError={locationError}
+            flyTarget={flyTarget}
             darkMode={darkMode}
-            onToggleDarkMode={() => setDarkMode((d) => !d)}
+            waitingForStart={waitingForStart}
+            primaryRoute={primaryRoute}
+            alternativeRoutes={alternativeRoutes}
+            allRoutes={routes}
+            isRouting={isRouting}
+            isRerouting={isRerouting}
+            deviationDetected={deviationDetected}
+            warnings={warnings}
             activeProfile={activeProfile}
-            onProfileChange={setActiveProfile}
             vehicleMode={vehicleMode}
+            useCustomLocation={useCustomLocation}
+            isSharedLocation={isSharedLocation}
+            isLegendExpanded={isLegendExpanded}
+            onLegendExpandedChange={setIsLegendExpanded}
+            onProfileChange={setActiveProfile}
             onVehicleModeChange={setVehicleMode}
-            isExpanded={isNavExpanded}
-            onExpandRequest={handleNavExpandRequest}
+            onMapClick={handleMapClick}
+            onCustomLocationDragEnd={handleCustomLocationDragEnd}
+            onRecenter={handleRecenter}
+            isRouteLocked={isRouteLocked}
+            registerLegendCollapse={registerLegendCollapse}
+            showHeatmap={showHeatmap}
+            onToggleHeatmap={() => setShowHeatmap(h => !h)}
+            selectedHour={selectedHour}
+            onSelectedHourChange={setSelectedHour}
+            onOpenReportModal={handleOpenReportModal}
           />
+        </Suspense>
 
-          <Suspense fallback={<MapLoader />}>
-            <MapView
-              currentLocation={currentLocation}
-              accuracy={accuracy}
-              customStartPoint={customStartPoint}
-              startPoint={effectiveStartPoint}
-              destPoint={destPoint}
-              startText={effectiveStartText}
-              destText={destText}
-              markersVisible={markersVisible}
-              flyTarget={flyTarget}
-              darkMode={darkMode}
-              waitingForStart={waitingForStart}
-              primaryRoute={primaryRoute}
-              alternativeRoutes={alternativeRoutes}
-              allRoutes={routes}
-              isRouting={isRouting}
-              isRerouting={isRerouting}
-              deviationDetected={deviationDetected}
-              warnings={warnings}
-              activeProfile={activeProfile}
-              vehicleMode={vehicleMode}
-              useCustomLocation={useCustomLocation}
-              isSharedLocation={isSharedLocation}
-              isLegendExpanded={isLegendExpanded}
-              onLegendExpandedChange={setIsLegendExpanded}
-              onProfileChange={setActiveProfile}
-              onVehicleModeChange={setVehicleMode}
-              onMapClick={handleMapClick}
-              onCustomLocationDragEnd={handleCustomLocationDragEnd}
-              onRecenter={handleRecenter}
-              isRouteLocked={isRouteLocked}
-              registerLegendCollapse={registerLegendCollapse}
-              showHeatmap={showHeatmap}
-              onToggleHeatmap={() => setShowHeatmap(h => !h)}
-              selectedHour={selectedHour}
-              onSelectedHourChange={setSelectedHour}
-              onOpenReportModal={handleOpenReportModal}
-            />
-          </Suspense>
-
-          {/* Report Modal */}
-          <ReportModal
-            isOpen={isReportModalOpen}
-            onClose={handleCloseReportModal}
-            onSubmit={handleSubmitReport}
-            defaultLocation={reportLocation}
-            user={user}
-          />
-        </div>
-      </ErrorBoundary>
-    </ProtectedRoute>
+        <ReportModal
+          isOpen={isReportModalOpen}
+          onClose={handleCloseReportModal}
+          onSubmit={handleSubmitReport}
+          defaultLocation={reportLocation}
+          user={user}
+        />
+      </div>
+    </ErrorBoundary>
   );
 }
