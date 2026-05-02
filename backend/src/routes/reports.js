@@ -192,29 +192,27 @@ router.get('/:id', verifyToken, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
-// =============================================
 // PATCH /api/reports/:id - Update report status (admin only)
-// =============================================
 router.patch('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { status, admin_notes } = req.body;
-    const userId = toInt(req.user.userId);
-    const reportId = toInt(id);
     
-    if (!userId || !reportId) {
+    // FORCE everything to integer
+    const userId = Number(req.user.userId);
+    const reportId = Number(id);
+    
+    if (isNaN(userId) || isNaN(reportId)) {
       return res.status(400).json({ error: 'Invalid ID format' });
     }
     
-    // Validate status
     if (!['approved', 'rejected', 'resolved'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
     
     // Check if user is admin
     const userCheck = await query(
-      'SELECT is_admin FROM users WHERE id = $1::integer AND deleted_at IS NULL',
+      'SELECT is_admin FROM users WHERE id = ? AND deleted_at IS NULL',
       [userId]
     );
     
@@ -222,12 +220,12 @@ router.patch('/:id', verifyToken, async (req, res) => {
       return res.status(403).json({ error: 'Admin access required' });
     }
     
-    // First, get the original report with user email
+    // Get original report with user email
     const reportResult = await query(
       `SELECT r.*, u.email 
        FROM accessibility_reports r
        LEFT JOIN users u ON r.submitted_by = u.id
-       WHERE r.id = $1::integer AND r.deleted_at IS NULL`,
+       WHERE r.id = ? AND r.deleted_at IS NULL`,
       [reportId]
     );
     
@@ -238,27 +236,24 @@ router.patch('/:id', verifyToken, async (req, res) => {
     const originalReport = reportResult.rows[0];
     const oldStatus = originalReport.status;
     
-    // Update the report status with explicit type casting
+    // UPDATE with NO type casting - let the driver handle it
     const updateResult = await query(
       `UPDATE accessibility_reports 
-       SET status = $1::text, 
-           admin_notes = COALESCE($2::text, admin_notes),
-           reviewed_by = $3::integer,
+       SET status = ?,
+           admin_notes = COALESCE(?, admin_notes),
+           reviewed_by = ?,
            reviewed_at = CURRENT_TIMESTAMP,
-           updated_at = CURRENT_TIMESTAMP,
-           resolved_at = CASE WHEN $1::text = 'resolved' THEN CURRENT_TIMESTAMP ELSE resolved_at END
-       WHERE id = $4::integer AND deleted_at IS NULL
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = ? AND deleted_at IS NULL
        RETURNING id, status, admin_notes, reviewed_at`,
       [status, admin_notes || null, userId, reportId]
     );
     
-    // Send email notification to user if status changed significantly
     if (oldStatus !== status && (status === 'approved' || status === 'rejected')) {
       try {
         await sendReportResolutionEmail(originalReport, status, admin_notes);
-        console.log('[Reports] Resolution email sent to user for report #', reportId);
       } catch (emailError) {
-        console.error('[Reports] Failed to send resolution email:', emailError.message);
+        console.error('[Reports] Email error:', emailError.message);
       }
     }
     
@@ -273,7 +268,6 @@ router.patch('/:id', verifyToken, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
 // =============================================
 // DELETE /api/reports/:id - Soft delete report (admin only)
 // =============================================
