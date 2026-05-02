@@ -57,21 +57,6 @@ async function processLocationIQQueue() {
   }
 }
 
-// ─── Helper to check if email belongs to admin ──────────────────────────────
-const isAdminEmail = async (email) => {
-  if (!email) return false;
-  try {
-    const result = await query(
-      'SELECT is_admin FROM users WHERE email = ? AND deleted_at IS NULL',
-      [email.toLowerCase()]
-    );
-    return result.rows.length > 0 && result.rows[0].is_admin === 1;
-  } catch (err) {
-    console.error('[RateLimit] Error checking admin status:', err.message);
-    return false;
-  }
-};
-
 // ─── Security Middleware ─────────────────────────────────────────────────────
 app.use(helmet());
 
@@ -85,30 +70,6 @@ app.use(cors({
   methods: ['GET', 'POST', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-
-const loginLimiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 5,
-  standardHeaders: true,
-  legacyHeaders: false,
-  skip: async (req) => {
-    const email = req.body?.email;
-    if (email) {
-      const isAdmin = await isAdminEmail(email);
-      if (isAdmin) {
-        console.log('[RateLimit] Bypassing rate limit for admin email:', email);
-        return true;
-      }
-    }
-    return false;
-  },
-  handler: (req, res) => {
-    res.status(429).json({
-      success: false,
-      error: 'Too many login attempts, please try again later'
-    });
-  }
-});
 
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -162,11 +123,11 @@ app.get('/api/locationiq/search', (req, res) => {
     `https://us1.locationiq.com/v1/search.php` +
     `?q=${encodeURIComponent(searchQuery)}` +
     `&format=json` +
-    `&limit=10` +           // fetch more — geocoding.js radius-filters down to 5
+    `&limit=10` +
     `&countrycodes=gh` +
-    `&addressdetails=1` +   // returns address.suburb, address.neighbourhood, etc.
-    `&viewbox=${UG_VIEWBOX}` + // biases results toward UG campus area
-    `&bounded=0` +          // soft bias, not hard clip — avoids zero-result edge cases
+    `&addressdetails=1` +
+    `&viewbox=${UG_VIEWBOX}` +
+    `&bounded=0` +
     `&key=${process.env.LOCATIONIQ_API_KEY}`;
 
   locationIQQueue.push({ url, res });
@@ -197,8 +158,6 @@ app.use('/api/reports', reportsRoutes);
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
 app.use('/admin', adminRoutes);
-app.use('/auth/login', loginLimiter);
-app.use('/auth/register', generalLimiter);
 app.use('/auth', authRoutes);
 app.use('/analytics/heatmap', heatmapRouter);
 app.use('/analytics', analyticsRoutes);
@@ -219,17 +178,14 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 ╔════════════════════════════════════════════════════════════╗
 ║                                                            ║
 ║    UG Campus Navigation API                               ║
-║    🔐 Zero-Trust Authentication Backend                    ║
+║    🔐 Supabase Auth - JWT Verification Only               ║
 ║    Server running on 0.0.0.0:${PORT} (all interfaces)        ║
 ║                                                            ║
 ║    Endpoints:                                              ║
-║    • POST   /auth/register   - Create account              ║
-║    • POST   /auth/login      - Login                       ║
-║    • POST   /auth/refresh    - Refresh token               ║
-║    • POST   /auth/logout     - Logout                      ║
 ║    • GET    /auth/me         - Get profile                 ║
 ║    • PATCH  /auth/preferences - Update preferences        ║
 ║    • DELETE /auth/me         - Delete account              ║
+║    • POST   /auth/sync       - Sync user from Supabase    ║
 ║    • GET    /health          - Health check                ║
 ║    • GET    /admin/*         - Admin dashboard            ║
 ║    • GET    /api/locationiq/* - LocationIQ proxy          ║
