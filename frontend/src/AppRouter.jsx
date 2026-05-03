@@ -4,6 +4,7 @@ import { useAuthContext } from './context/AuthContext';
 import AuthPage from './components/Auth/AuthPage';
 import AuthCallback from './pages/AuthCallback';
 import AdminDashboard from './components/Admin/AdminDashboard';
+import ResetPasswordPage from './components/Auth/ResetPasswordPage';
 import App from './App';
 
 // Protected route wrapper
@@ -54,8 +55,12 @@ export default function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Public routes */}
         <Route path="/login" element={<AuthPage />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        
+        {/* Protected routes */}
         <Route 
           path="/admin" 
           element={

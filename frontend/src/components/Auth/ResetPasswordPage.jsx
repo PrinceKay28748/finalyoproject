@@ -6,7 +6,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import "./AuthPage.css";
 
-export default function ResetPasswordPage({ onComplete }) {
+export default function ResetPasswordPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordStrength, setPasswordStrength] = useState(0);
@@ -14,28 +14,48 @@ export default function ResetPasswordPage({ onComplete }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [hasValidSession, setHasValidSession] = useState(true);
+  const [isValidSession, setIsValidSession] = useState(false);
+  const [checking, setChecking] = useState(true);
   
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Check for valid session from Supabase hash
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        setHasValidSession(false);
+      setChecking(true);
+      
+      // Get the session from Supabase
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('[ResetPassword] Session error:', sessionError);
+        setIsValidSession(false);
+        setChecking(false);
+        return;
       }
+      
+      if (session) {
+        setIsValidSession(true);
+      } else {
+        // Check if we have a hash in the URL (Supabase returns token in hash)
+        const hash = location.hash;
+        if (hash && hash.includes('access_token')) {
+          // The session will be set automatically by Supabase
+          // Wait a moment and check again
+          setTimeout(async () => {
+            const { data: { session: retrySession } } = await supabase.auth.getSession();
+            setIsValidSession(!!retrySession);
+            setChecking(false);
+          }, 1000);
+        } else {
+          setIsValidSession(false);
+          setChecking(false);
+        }
+      }
+      setChecking(false);
     };
+    
     checkSession();
-  }, []);
-
-  // Check if we have a valid hash fragment from Supabase
-  useEffect(() => {
-    const hash = location.hash;
-    if (!hash || !hash.includes('access_token')) {
-      console.log('[ResetPassword] Waiting for token from URL');
-    }
   }, [location]);
 
   const checkPasswordStrength = (pwd) => {
@@ -82,11 +102,7 @@ export default function ResetPasswordPage({ onComplete }) {
       } else {
         setSuccess(true);
         setTimeout(() => {
-          if (onComplete) {
-            onComplete();
-          } else {
-            navigate('/login');
-          }
+          navigate('/login');
         }, 2000);
       }
     } catch (err) {
@@ -96,8 +112,27 @@ export default function ResetPasswordPage({ onComplete }) {
     }
   };
 
+  // Show loading state
+  if (checking) {
+    return (
+      <div className="auth-container-split">
+        <div className="auth-hero">
+          <div className="auth-hero-bg">UG</div>
+          <img src="/icon-512.png" alt="UG Navigator" width={80} height={80} />
+          <h1>Loading...</h1>
+        </div>
+        <div className="auth-form-panel">
+          <div className="auth-form-header">
+            <h2>Please wait</h2>
+            <p>Verifying your reset link...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Show error if no valid session
-  if (!hasValidSession) {
+  if (!isValidSession) {
     return (
       <div className="auth-container-split">
         <div className="auth-hero">
@@ -238,10 +273,7 @@ export default function ResetPasswordPage({ onComplete }) {
         <button
           type="button"
           className="auth-secondary-split"
-          onClick={() => {
-            if (onComplete) onComplete();
-            else navigate('/login');
-          }}
+          onClick={() => navigate('/login')}
           disabled={isLoading}
         >
           ← Back to login
