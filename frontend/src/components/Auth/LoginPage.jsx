@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthContext } from "../../context/AuthContext";
-import { supabase } from "../../lib/supabase";
 import "./AuthPage.css";
 
 export default function LoginPage({ onSwitchToRegister, onForgotPassword }) {
@@ -11,8 +10,6 @@ export default function LoginPage({ onSwitchToRegister, onForgotPassword }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [resetMessage, setResetMessage] = useState("");
-  const [isResetting, setIsResetting] = useState(false);
 
   const { login } = useAuthContext();
   const navigate = useNavigate();
@@ -20,7 +17,6 @@ export default function LoginPage({ onSwitchToRegister, onForgotPassword }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    setResetMessage("");
     setIsLoading(true);
 
     try {
@@ -36,29 +32,6 @@ export default function LoginPage({ onSwitchToRegister, onForgotPassword }) {
       setError(err.message || "Login failed");
       setIsLoading(false);
     }
-  };
-
-  const handleForgotPassword = async () => {
-    if (!email) {
-      setError("Please enter your email address first");
-      return;
-    }
-
-    setIsResetting(true);
-    setError("");
-    setResetMessage("");
-
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-
-    if (error) {
-      setError(error.message);
-    } else {
-      setResetMessage(`Password reset email sent to ${email}! Check your inbox.`);
-    }
-
-    setIsResetting(false);
   };
 
   const getTimeOfDay = () => {
@@ -93,13 +66,6 @@ export default function LoginPage({ onSwitchToRegister, onForgotPassword }) {
         {error && (
           <div className="auth-error-split" role="alert">
             <span className="error-message">{error}</span>
-          </div>
-        )}
-
-        {resetMessage && (
-          <div className="auth-success-split" role="status">
-            <span className="success-icon">📧</span>
-            <span className="success-message">{resetMessage}</span>
           </div>
         )}
 
@@ -143,11 +109,10 @@ export default function LoginPage({ onSwitchToRegister, onForgotPassword }) {
           <div className="forgot-password-link">
             <button
               type="button"
-              onClick={handleForgotPassword}
+              onClick={onForgotPassword}
               className="forgot-password-btn"
-              disabled={isResetting}
             >
-              {isResetting ? "Sending..." : "Forgot password?"}
+              Forgot password?
             </button>
           </div>
 
