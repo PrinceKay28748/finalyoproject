@@ -2,7 +2,7 @@
 // Reset Password Page — Enter new password (Supabase version)
 
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import "./AuthPage.css";
 
@@ -18,7 +18,6 @@ export default function ResetPasswordPage() {
   const [checking, setChecking] = useState(true);
   
   const navigate = useNavigate();
-  const location = useLocation();
 
   useEffect(() => {
     const checkSession = async () => {
@@ -35,28 +34,30 @@ export default function ResetPasswordPage() {
       }
       
       if (session) {
+        // User has a valid session from the email link
         setIsValidSession(true);
+        setChecking(false);
       } else {
-        // Check if we have a hash in the URL (Supabase returns token in hash)
-        const hash = location.hash;
-        if (hash && hash.includes('access_token')) {
-          // The session will be set automatically by Supabase
-          // Wait a moment and check again
-          setTimeout(async () => {
-            const { data: { session: retrySession } } = await supabase.auth.getSession();
-            setIsValidSession(!!retrySession);
-            setChecking(false);
-          }, 1000);
-        } else {
-          setIsValidSession(false);
-          setChecking(false);
-        }
+        // No session - maybe the link is invalid or expired
+        setIsValidSession(false);
+        setChecking(false);
       }
-      setChecking(false);
     };
     
+    // Also listen for auth changes (in case session is set after component mounts)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY' || (session && !isValidSession)) {
+        setIsValidSession(true);
+        setChecking(false);
+      }
+    });
+    
     checkSession();
-  }, [location]);
+    
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const checkPasswordStrength = (pwd) => {
     let strength = 0;
@@ -101,6 +102,8 @@ export default function ResetPasswordPage() {
         setError(error.message);
       } else {
         setSuccess(true);
+        // Sign out after password reset to force new login
+        await supabase.auth.signOut();
         setTimeout(() => {
           navigate('/login');
         }, 2000);
@@ -126,6 +129,9 @@ export default function ResetPasswordPage() {
             <h2>Please wait</h2>
             <p>Verifying your reset link...</p>
           </div>
+          <div className="loading-spinner" style={{ textAlign: 'center', padding: '20px' }}>
+            <div className="button-spinner-split" style={{ margin: '0 auto' }} />
+          </div>
         </div>
       </div>
     );
@@ -149,7 +155,15 @@ export default function ResetPasswordPage() {
           <button 
             type="button"
             className="auth-button-split"
+            onClick={() => navigate('/forgot-password')}
+          >
+            Request New Link
+          </button>
+          <button 
+            type="button"
+            className="auth-secondary-split"
             onClick={() => navigate('/login')}
+            style={{ marginTop: '12px' }}
           >
             Back to Login
           </button>
