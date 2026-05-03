@@ -1,11 +1,12 @@
 // frontend/src/components/Auth/ResetPasswordPage.jsx
-// Reset Password Page — Enter new password
+// Reset Password Page — Enter new password (Supabase version)
 
 import { useState, useEffect } from "react";
-import { API_URL } from "../../config";
+import { useNavigate, useLocation } from "react-router-dom";
+import { supabase } from "../../lib/supabase";
 import "./AuthPage.css";
 
-export default function ResetPasswordPage({ token, onComplete }) {
+export default function ResetPasswordPage({ onComplete }) {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordStrength, setPasswordStrength] = useState(0);
@@ -13,6 +14,29 @@ export default function ResetPasswordPage({ token, onComplete }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [hasValidSession, setHasValidSession] = useState(true);
+  
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Check for valid session from Supabase hash
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setHasValidSession(false);
+      }
+    };
+    checkSession();
+  }, []);
+
+  // Check if we have a valid hash fragment from Supabase
+  useEffect(() => {
+    const hash = location.hash;
+    if (!hash || !hash.includes('access_token')) {
+      console.log('[ResetPassword] Waiting for token from URL');
+    }
+  }, [location]);
 
   const checkPasswordStrength = (pwd) => {
     let strength = 0;
@@ -49,20 +73,20 @@ export default function ResetPasswordPage({ token, onComplete }) {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${API_URL}/auth/reset-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, newPassword: password }),
+      const { error } = await supabase.auth.updateUser({
+        password: password
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || "Failed to reset password");
+      if (error) {
+        setError(error.message);
       } else {
         setSuccess(true);
         setTimeout(() => {
-          onComplete();
+          if (onComplete) {
+            onComplete();
+          } else {
+            navigate('/login');
+          }
         }, 2000);
       }
     } catch (err) {
@@ -71,6 +95,33 @@ export default function ResetPasswordPage({ token, onComplete }) {
       setIsLoading(false);
     }
   };
+
+  // Show error if no valid session
+  if (!hasValidSession) {
+    return (
+      <div className="auth-container-split">
+        <div className="auth-hero">
+          <div className="auth-hero-bg">UG</div>
+          <img src="/icon-512.png" alt="UG Navigator" width={80} height={80} />
+          <h1>Invalid or<br />expired link</h1>
+          <p>Please request a new password reset link.</p>
+        </div>
+        <div className="auth-form-panel">
+          <div className="auth-form-header">
+            <h2>Link expired</h2>
+            <p>Password reset links are only valid for a limited time.</p>
+          </div>
+          <button 
+            type="button"
+            className="auth-button-split"
+            onClick={() => navigate('/login')}
+          >
+            Back to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const strengthLabels = ["Weak", "Fair", "Good", "Strong"];
   const strengthColors = ["#ef4444", "#f97316", "#eab308", "#22c55e"];
@@ -187,7 +238,10 @@ export default function ResetPasswordPage({ token, onComplete }) {
         <button
           type="button"
           className="auth-secondary-split"
-          onClick={onComplete}
+          onClick={() => {
+            if (onComplete) onComplete();
+            else navigate('/login');
+          }}
           disabled={isLoading}
         >
           ← Back to login
