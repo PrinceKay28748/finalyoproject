@@ -1,11 +1,9 @@
 // frontend/src/components/Auth/ForgotPasswordPage.jsx
-// Forgot Password Page — Request password reset email
+// Forgot Password Page — Request password reset email (Supabase version)
 
 import { useState } from 'react';
+import { supabase } from '../../lib/supabase';
 import './AuthPage.css';
-import { API_URL } from "../../config";
-
-// const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 export default function ForgotPasswordPage({ onBackToLogin }) {
   const [email, setEmail] = useState('');
@@ -20,16 +18,12 @@ export default function ForgotPasswordPage({ onBackToLogin }) {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${API_URL}/auth/forgot-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || 'Failed to send reset email');
+      if (error) {
+        setError(error.message);
       } else {
         setSuccess(true);
       }
@@ -61,15 +55,14 @@ export default function ForgotPasswordPage({ onBackToLogin }) {
         </div>
 
         <form onSubmit={handleSubmit}>
-          {/* ERROR DISPLAY - Red border */}
+          {/* ERROR DISPLAY */}
           {error && (
             <div className="auth-error-split" role="alert">
-           
               <span className="error-message">{error}</span>
             </div>
           )}
 
-          {/* SUCCESS DISPLAY - Green border */}
+          {/* SUCCESS DISPLAY */}
           {success && (
             <div className="auth-success-split" role="alert">
               <span className="success-icon">✓</span>

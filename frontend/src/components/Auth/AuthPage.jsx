@@ -1,7 +1,8 @@
 // frontend/src/components/Auth/AuthPage.jsx
 // Main authentication page - handles login/register/forgot-password
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import LoginPage from './LoginPage';
 import RegisterPage from './RegisterPage';
 import ForgotPasswordPage from './ForgotPasswordPage';
@@ -10,19 +11,25 @@ import './AuthPage.css';
 
 export default function AuthPage() {
   const [mode, setMode] = useState('login'); // login, register, forgot, reset
-  const [resetToken, setResetToken] = useState('');
+  const location = useLocation();
 
-  // Check URL for reset token on mount
-  useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
-    if (token) {
-      setResetToken(token);
+  // Check for reset mode from Supabase hash in URL
+  useEffect(() => {
+    // Supabase puts the access token in the URL hash for password reset
+    const hash = location.hash;
+    if (hash && hash.includes('access_token')) {
       setMode('reset');
-      // Clean URL without reload
-      window.history.replaceState({}, document.title, window.location.pathname);
+    } else {
+      // Also check query params for backward compatibility
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('token');
+      if (token) {
+        setMode('reset');
+        // Clean URL without reload
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
     }
-  }, []);
+  }, [location]);
 
   if (mode === 'login') {
     return (
@@ -52,7 +59,6 @@ export default function AuthPage() {
   if (mode === 'reset') {
     return (
       <ResetPasswordPage 
-        token={resetToken}
         onComplete={() => setMode('login')}
       />
     );
