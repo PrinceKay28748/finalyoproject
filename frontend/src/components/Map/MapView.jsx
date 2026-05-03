@@ -1,7 +1,7 @@
 // components/Map/MapView.jsx
 import { MapContainer, useMap, Polyline } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, memo } from "react";
 
 import TileLayerSwitcher from "./TileLayerSwitcher";
 import SmoothFly from "./SmoothFly";
@@ -27,8 +27,8 @@ import "./MapView.css";
 
 import { ROUTE_COLORS } from "../../function/utils/colors";
 
-// ── SmartFitBounds ────────────────────────────────────────────────────────────
-function SmartFitBounds({ startPoint, destPoint, visible }) {
+// ── SmartFitBounds (memoized to prevent re-renders) ────────────────────────────
+const SmartFitBounds = memo(function SmartFitBounds({ startPoint, destPoint, visible }) {
   const map = useMap();
 
   useEffect(() => {
@@ -82,7 +82,25 @@ function SmartFitBounds({ startPoint, destPoint, visible }) {
   }, [map, startPoint, destPoint, visible]);
 
   return null;
-}
+});
+
+// Memoized Polyline for alternate routes
+const MemoizedAlternateRoute = memo(function MemoizedAlternateRoute({ coords, color, weight, opacity }) {
+  if (!coords?.length) return null;
+  return (
+    <Polyline
+      positions={coords.map((c) => [c.lat, c.lng])}
+      color={color}
+      weight={weight}
+      opacity={opacity}
+      smoothFactor={2}
+      lineCap="round"
+      lineJoin="round"
+      className="alternative-route"
+      interactive={false}
+    />
+  );
+});
 
 // ── MapView ───────────────────────────────────────────────────────────────────
 export default function MapView({
@@ -117,12 +135,10 @@ export default function MapView({
   onRecenter,
   isRouteLocked = false,
   registerLegendCollapse,
-  // Heatmap
   showHeatmap = false,
   onToggleHeatmap,
   selectedHour,
   onSelectedHourChange,
-  // Report modal
   onOpenReportModal,
 }) {
   const showDestinationMarker = !!destPoint;
@@ -187,6 +203,7 @@ export default function MapView({
         minZoom={MIN_ZOOM}
         maxZoom={MAX_ZOOM}
         zoomControl={false}
+        preferCanvas={true}  // ← ENABLED: Faster Canvas rendering
         style={{ height: "100%", width: "100%" }}
       >
         <TileLayerSwitcher darkMode={darkMode} />
@@ -207,7 +224,6 @@ export default function MapView({
           visible={useCustomLocation && !!customStartPoint}
         />
 
-        {/* Heatmap overlay — inside map container (needs map context) */}
         <HeatmapLayer visible={showHeatmap} selectedHour={selectedHour} />
 
         {markersVisible && hasValidRoute && (
@@ -221,48 +237,24 @@ export default function MapView({
           />
         )}
 
-        {/* Alternative routes when no primary yet */}
-        {markersVisible && alternativeRoutes.length > 0 && !hasValidRoute && (
+        {/* Alternative routes - Improved visibility */}
+        {markersVisible && alternativeRoutes.length > 0 && (
           <>
             {alternativeRoutes.map((alt) => {
               const coords = alt.route?.coordinates;
               if (!coords?.length) return null;
+              // Use higher opacity and weight for better visibility
+              const isPrimaryVisible = hasValidRoute;
+              const opacity = isPrimaryVisible ? 0.65 : 0.85;
+              const weight = isPrimaryVisible ? 5 : 6;
+              
               return (
-                <Polyline
+                <MemoizedAlternateRoute
                   key={`alt-${alt.profile}-${alt.route?.totalDistance}`}
-                  positions={coords.map((c) => [c.lat, c.lng])}
+                  coords={coords}
                   color={ROUTE_COLORS[alt.profile]}
-                  weight={4}
-                  opacity={0.5}
-                  smoothFactor={2}
-                  lineCap="round"
-                  lineJoin="round"
-                  className="alternative-route"
-                  interactive={false}
-                />
-              );
-            })}
-          </>
-        )}
-
-        {/* Alternative routes alongside primary */}
-        {markersVisible && hasValidRoute && (
-          <>
-            {alternativeRoutes.map((alt) => {
-              const coords = alt.route?.coordinates;
-              if (!coords?.length) return null;
-              return (
-                <Polyline
-                  key={`alt-${alt.profile}-${alt.route?.totalDistance}`}
-                  positions={coords.map((c) => [c.lat, c.lng])}
-                  color={ROUTE_COLORS[alt.profile]}
-                  weight={4}
-                  opacity={0.35}
-                  smoothFactor={2}
-                  lineCap="round"
-                  lineJoin="round"
-                  className="alternative-route"
-                  interactive={false}
+                  weight={weight}
+                  opacity={opacity}
                 />
               );
             })}
@@ -329,7 +321,7 @@ export default function MapView({
         🔥
       </button>
 
-      {/* Report button — accessibility issue reporting */}
+      {/* Report button */}
       <button
         className="map-report-btn"
         onClick={(e) => {
@@ -344,7 +336,6 @@ export default function MapView({
         <IconReport className="w-5 h-5" />
       </button>
 
-      {/* Heatmap Controls Panel — OUTSIDE map container, no interference */}
       <HeatmapControls
         visible={showHeatmap}
         onToggle={onToggleHeatmap}
