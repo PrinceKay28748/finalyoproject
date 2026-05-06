@@ -73,14 +73,6 @@ export function findNearestNode(graph, lat, lng, maxDistanceDegrees = 0.01) {
 
 /**
  * Finds the optimal path between two nodes using A* with turn penalties.
- *
- * Key change from the original: the priority queue carries
- *   { nodeId, incomingBearing }
- * instead of just nodeId. This lets calculateEdgeCost apply a turn penalty
- * every time the route changes direction sharply.
- *
- * The previous map stores { from: nodeId, bearing: number } so we can both
- * reconstruct the path AND know the bearing at each hop.
  */
 export function findShortestPath(
   graph,
@@ -111,26 +103,20 @@ export function findShortestPath(
       isFallback:      false,
       profile:         profileKey,
       vehicleMode,
+      roadNames:       [],
     };
   }
 
   const context = buildRouteContext();
   const profile = PROFILES[profileKey] || PROFILES.standard;
 
-  // Pre-compute goal bearing from every expanded node to destination.
-  // This is used for the direction-consistency penalty in calculateEdgeCost.
-  // Computed lazily per node during expansion to avoid upfront O(N) work.
-
   // Build edge lookup map once — O(E), then O(1) per lookup during traversal.
-  // We also store lat/lng on each edge entry so calculateEdgeCost can compute
-  // the outgoing bearing without a separate node lookup.
   const edgeMap = {};
   for (const edge of graph.edges) {
     const fromNode = nodes[edge.from];
     const toNode   = nodes[edge.to];
     if (!fromNode || !toNode) continue;
 
-    // Enrich edge with coordinate data for bearing calculations
     const enriched = {
       ...edge,
       fromLat: fromNode.lat,
@@ -140,7 +126,6 @@ export function findShortestPath(
     };
 
     edgeMap[`${edge.from}-${edge.to}`] = enriched;
-    // Reverse edge: swap from/to coordinates so bearing is correct
     edgeMap[`${edge.to}-${edge.from}`] = {
       ...enriched,
       from:    edge.to,
@@ -152,11 +137,9 @@ export function findShortestPath(
     };
   }
 
-  // ── A* with min-heap ──────────────────────────────────────────────────────
-  // State per queue entry: { nodeId, incomingBearing }
-  // incomingBearing = null at the start node (no incoming edge)
+  // A* with min-heap
   const gScore   = {};
-  const previous = {}; // nodeId → { from: nodeId, bearing: number }
+  const previous = {};
   const visited  = new Set();
   const heap     = new MinHeap();
 
@@ -170,7 +153,6 @@ export function findShortestPath(
     nodes[startNodeId].lat, nodes[startNodeId].lng,
     endNode.lat, endNode.lng
   );
-  // Queue entry format: { nodeId, incomingBearing }
   heap.push({ nodeId: startNodeId, incomingBearing: null }, startH);
 
   let nodesExplored = 0;
@@ -186,7 +168,6 @@ export function findShortestPath(
       break;
     }
 
-    // A node may be pushed multiple times with different costs — skip stale entries
     if (visited.has(current)) continue;
     visited.add(current);
 
@@ -194,7 +175,6 @@ export function findShortestPath(
     const currentG   = gScore[current];
     const currentNode = nodes[current];
 
-    // Goal bearing from this node — used for direction-consistency penalty
     const goalBearing = getBearing(
       currentNode.lat, currentNode.lng,
       endNode.lat, endNode.lng
@@ -216,8 +196,6 @@ export function findShortestPath(
         toLng:    nodes[neighbor.nodeId]?.lng ?? currentNode.lng,
       };
 
-      // Outgoing bearing of this edge (used both for turn penalty and to pass
-      // forward as the next node's incomingBearing)
       const outgoingBearing = getBearing(
         edge.fromLat, edge.fromLng,
         edge.toLat,   edge.toLng
@@ -230,8 +208,8 @@ export function findShortestPath(
         context.vehicleRestricted,
         context.currentHour,
         vehicleMode,
-        incomingBearing,   // direction we arrived from (null at start)
-        goalBearing        // direction toward destination
+        incomingBearing,
+        goalBearing
       );
 
       const tentativeG = currentG + edgeCost;
@@ -253,7 +231,7 @@ export function findShortestPath(
     }
   }
 
-  // ── No path found ─────────────────────────────────────────────────────────
+  // No path found
   if (gScore[endNodeId] === Infinity) {
     const s          = nodes[startNodeId];
     const e          = nodes[endNodeId];
@@ -270,6 +248,7 @@ export function findShortestPath(
         profile:         profileKey,
         vehicleMode,
         context,
+        roadNames:       [],
       };
     }
 
@@ -277,13 +256,24 @@ export function findShortestPath(
     return null;
   }
 
-  // ── Reconstruct path ──────────────────────────────────────────────────────
+  // Reconstruct path
   const pathNodeIds = [];
   let current = endNodeId;
   while (current !== null) {
     pathNodeIds.unshift(current);
     const prev = previous[current];
     current = prev ? prev.from : null;
+  }
+
+  // Extract road names for each segment
+  const roadNames = [];
+  for (let i = 0; i < pathNodeIds.length - 1; i++) {
+    const fromId = pathNodeIds[i];
+    const toId = pathNodeIds[i + 1];
+    const edgeKey = `${fromId}-${toId}`;
+    const edge = edgeMap[edgeKey];
+    const roadName = edge?.tags?.name || null;
+    roadNames.push(roadName);
   }
 
   // Physical distance (unweighted) for display
@@ -312,6 +302,7 @@ export function findShortestPath(
     profile:         profileKey,
     vehicleMode,
     context,
+    roadNames, // ← ROAD NAMES FOR DIRECTIONS
   };
 }
 
