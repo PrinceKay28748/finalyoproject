@@ -44,28 +44,70 @@ function formatTravelTime(meters, vehicleMode = "walk") {
   return m === 0 ? `${h} hr` : `${h} hr ${m} min`;
 }
 
-// Get maneuver icon
-function getManeuverIcon(maneuver) {
-  switch (maneuver) {
-    case "straight":
-      return "↑";
-    case "slight-right":
-      return "↗";
-    case "turn-right":
-      return "→";
-    case "sharp-right":
-      return "↘";
-    case "slight-left":
-      return "↖";
-    case "turn-left":
-      return "←";
-    case "sharp-left":
-      return "↙";
-    case "destination":
-      return "📍";
-    default:
-      return "•";
-  }
+// Professional SVG icons for directions (no emojis)
+const DirectionIcon = {
+  start: () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polygon points="12 6 12 18" />
+      <polygon points="8 10 12 6 16 10" />
+    </svg>
+  ),
+  straight: () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="4" x2="12" y2="20" />
+      <polyline points="16 16 12 20 8 16" />
+    </svg>
+  ),
+  "slight-right": () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 7 L14 7 L14 14" />
+      <path d="M14 7 L20 13 L14 19" />
+    </svg>
+  ),
+  "turn-right": () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 19 L5 11 L14 11" />
+      <path d="M10 6 L14 11 L10 16" />
+    </svg>
+  ),
+  "sharp-right": () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 19 L5 9 L15 9" />
+      <polyline points="11 5 15 9 11 13" />
+    </svg>
+  ),
+  "slight-left": () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 7 L10 7 L10 14" />
+      <path d="M10 7 L4 13 L10 19" />
+    </svg>
+  ),
+  "turn-left": () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 19 L19 11 L10 11" />
+      <path d="M14 6 L10 11 L14 16" />
+    </svg>
+  ),
+  "sharp-left": () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 19 L19 9 L9 9" />
+      <polyline points="13 5 9 9 13 13" />
+    </svg>
+  ),
+  destination: () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <circle cx="12" cy="12" r="3" fill="#22c55e" />
+    </svg>
+  ),
+};
+
+// Helper function to get icon based on maneuver
+function getDirectionIcon(maneuver, isFirst, isLast) {
+  if (isFirst) return <DirectionIcon.start />;
+  if (isLast) return <DirectionIcon.destination />;
+  return DirectionIcon[maneuver] || DirectionIcon.straight;
 }
 
 // Get current traffic level
@@ -589,7 +631,7 @@ const Legend = forwardRef(function Legend(
           )}
 
           {/* ============================================ */}
-          {/* Directions panel with better instructions */}
+          {/* Directions panel with professional SVG icons */}
           {directions.length > 0 && (
             <div className="legend-directions-section">
               <div className="legend-directions-header">
@@ -606,9 +648,7 @@ const Legend = forwardRef(function Legend(
                     className={`legend-direction-step ${currentStepIndex === idx ? "legend-direction-step--active" : ""} ${step.isDestination ? "legend-direction-step--destination" : ""}`}
                   >
                     <div className="direction-icon">
-                      <span className="direction-arrow">
-                        {step.icon || getManeuverIcon(step.maneuver)}
-                      </span>
+                      {getDirectionIcon(step.maneuver, idx === 0, step.isDestination)}
                     </div>
                     <div className="direction-content">
                       <div className="direction-instruction">
