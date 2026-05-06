@@ -1,4 +1,3 @@
-// components/Legend/Legend.jsx
 import { useState, useRef, useEffect, useImperativeHandle, forwardRef } from "react";
 import {
   IconMap,
@@ -12,6 +11,7 @@ import {
   IconWarning,
   IconInfo,
 } from "../ui/icon";
+import { useVoiceGuidance } from "../../hooks/useVoiceGuidance";
 import "./Legend.css";
 import "./LegendProfile.css";
 
@@ -121,7 +121,11 @@ const Legend = forwardRef(function Legend({
   const dragVelocity = useRef(0);
   const lastDragTime = useRef(0);
   const sheetRef = useRef(null);
+  const headerRef = useRef(null);
   const peekHeight = 70;
+
+  // Voice guidance
+  const { isVoiceEnabled, toggleVoice, speak, speakTurn } = useVoiceGuidance();
 
   useImperativeHandle(ref, () => ({
     collapse: () => {
@@ -141,6 +145,15 @@ const Legend = forwardRef(function Legend({
     onExpandedChange?.(expanded);
   }, [expanded, onExpandedChange]);
 
+  // Announce route when it loads and voice is enabled
+  useEffect(() => {
+    if (isVoiceEnabled && route && route.totalDistance) {
+      const distance = formatDistance(route.totalDistance);
+      const time = formatTravelTime(route.totalDistance, vehicleMode);
+      speak(`Route calculated. ${distance}, about ${time}.`);
+    }
+  }, [route, isVoiceEnabled, vehicleMode, speak]);
+
   const traffic = getTrafficInfo();
 
   const handleShareLocation = () => {
@@ -159,7 +172,7 @@ const Legend = forwardRef(function Legend({
     alert("Location link copied! Share it with your friends.");
   };
 
-  // Drag handlers
+  // Drag handlers - now triggered from the entire header
   const handleDragStart = (e) => {
     e.stopPropagation();
     e.preventDefault();
@@ -228,6 +241,7 @@ const Legend = forwardRef(function Legend({
     setIsDragging(false);
   };
 
+  // Set up drag event listeners
   useEffect(() => {
     if (!isDragging) {
       document.body.classList.remove("dragging-legend");
@@ -289,7 +303,6 @@ const Legend = forwardRef(function Legend({
   const RulerIcon = IconRuler;
   const ShareIcon = IconShare;
 
-  // Get vehicle display info
   const vehicleDisplay = {
     walk: { icon: "🚶", label: "Walk" },
     car: { icon: "🚗", label: "Drive" },
@@ -302,32 +315,36 @@ const Legend = forwardRef(function Legend({
       ref={sheetRef}
       className={`legend-sheet ${expanded ? "legend-sheet--expanded" : "legend-sheet--peek"}`}
     >
+      {/* Entire header is now draggable - includes handle and peek area */}
       <div
-        className="legend-handle-wrap"
+        ref={headerRef}
+        className="legend-drag-header"
         onMouseDown={handleDragStart}
         onTouchStart={handleDragStart}
         style={{ touchAction: "none", cursor: "grab" }}
       >
-        <div className="legend-handle" />
-      </div>
+        <div className="legend-handle-wrap">
+          <div className="legend-handle" />
+        </div>
 
-      <div className="legend-peek">
-        <div className="legend-peek-dots">
-          <span className="peek-dot peek-dot--start" />
-          <div className="peek-dot-line" />
-          <span className="peek-dot peek-dot--dest" />
-        </div>
-        <div className="legend-peek-text">
-          <span className="peek-from">{startText || "Start"}</span>
-          <span className="peek-arrow">→</span>
-          <span className="peek-to">{destText || "Destination"}</span>
-        </div>
-        {hasRoute && (
-          <div className="legend-peek-time">
-            <span className="peek-time-value">{estimatedTime}</span>
-            <span className="peek-time-label">{currentVehicle.label}</span>
+        <div className="legend-peek">
+          <div className="legend-peek-dots">
+            <span className="peek-dot peek-dot--start" />
+            <div className="peek-dot-line" />
+            <span className="peek-dot peek-dot--dest" />
           </div>
-        )}
+          <div className="legend-peek-text">
+            <span className="peek-from">{startText || "Start"}</span>
+            <span className="peek-arrow">→</span>
+            <span className="peek-to">{destText || "Destination"}</span>
+          </div>
+          {hasRoute && (
+            <div className="legend-peek-time">
+              <span className="peek-time-value">{estimatedTime}</span>
+              <span className="peek-time-label">{currentVehicle.label}</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {expanded && (
@@ -362,6 +379,19 @@ const Legend = forwardRef(function Legend({
               );
             })}
           </div>
+
+          {/* Voice Guidance Toggle Button */}
+          <button
+            className={`legend-voice-btn ${isVoiceEnabled ? "legend-voice-btn--active" : ""}`}
+            onClick={toggleVoice}
+            title={isVoiceEnabled ? "Disable voice guidance" : "Enable voice guidance"}
+          >
+            <span className="voice-icon">🔊</span>
+            <span className="voice-text">
+              {isVoiceEnabled ? "Voice guidance ON" : "Voice guidance OFF"}
+            </span>
+            <span className="voice-status">{isVoiceEnabled ? "🔊" : "🔇"}</span>
+          </button>
 
           <div className="legend-divider" />
 

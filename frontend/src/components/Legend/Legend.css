@@ -808,3 +808,85 @@ body.dragging-legend .leaflet-container {
   position: relative;
   z-index: 10;
 }
+
+/* Voice Guidance Button */
+.legend-voice-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 16px;
+  margin: 8px 0 4px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 40px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.legend-voice-btn:hover {
+  background: var(--hover-bg);
+  transform: translateY(-1px);
+}
+
+.legend-voice-btn:active {
+  transform: translateY(0);
+}
+
+.legend-voice-btn--active {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: #22c55e;
+  color: #22c55e;
+}
+
+.voice-icon {
+  font-size: 16px;
+  margin-right: 8px;
+}
+
+.voice-text {
+  flex: 1;
+  text-align: left;
+}
+
+.voice-status {
+  font-size: 14px;
+}
+
+/* Dark mode voice button */
+.ug-root.dark .legend-voice-btn {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f3f4f6;
+}
+
+.ug-root.dark .legend-voice-btn--active {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: #22c55e;
+  color: #22c55e;
+}
+
+/* Expanded draggable header */
+.legend-drag-header {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  border-radius: 24px 24px 0 0;
+  transition: background 0.2s ease;
+}
+
+.legend-drag-header:active {
+  cursor: grabbing;
+}
+
+.legend-drag-header.dragging {
+  cursor: grabbing;
+}
+
+/* Dark mode header drag */
+.ug-root.dark .legend-drag-header:active {
+  background: rgba(255, 255, 255, 0.05);
+}
