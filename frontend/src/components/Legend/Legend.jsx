@@ -44,7 +44,7 @@ function formatTravelTime(meters, vehicleMode = "walk") {
   return m === 0 ? `${h} hr` : `${h} hr ${m} min`;
 }
 
-// Professional SVG icons for directions (no emojis)
+// Professional SVG icons for directions (corrected paths)
 const DirectionIcon = {
   start: () => (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -61,8 +61,8 @@ const DirectionIcon = {
   ),
   "slight-right": () => (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M7 7 L14 7 L14 14" />
-      <path d="M14 7 L20 13 L14 19" />
+      <path d="M7 17 L14 17 L14 10" />
+      <path d="M14 17 L19 12 L14 7" />
     </svg>
   ),
   "turn-right": () => (
@@ -79,8 +79,8 @@ const DirectionIcon = {
   ),
   "slight-left": () => (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 7 L10 7 L10 14" />
-      <path d="M10 7 L4 13 L10 19" />
+      <path d="M17 17 L10 17 L10 10" />
+      <path d="M10 17 L5 12 L10 7" />
     </svg>
   ),
   "turn-left": () => (
