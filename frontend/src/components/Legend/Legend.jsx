@@ -12,6 +12,7 @@ import {
   IconInfo,
 } from "../ui/icon";
 import { useVoiceGuidance } from "../../hooks/useVoiceGuidance";
+import { generateDirections } from "../../services/directions";
 import "./Legend.css";
 import "./LegendProfile.css";
 
@@ -35,6 +36,21 @@ function formatTravelTime(meters, vehicleMode = 'walk') {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   return m === 0 ? `${h} hr` : `${h} hr ${m} min`;
+}
+
+// Get maneuver icon
+function getManeuverIcon(maneuver) {
+  switch (maneuver) {
+    case "straight": return "↑";
+    case "slight-right": return "↗";
+    case "turn-right": return "→";
+    case "sharp-right": return "↘";
+    case "slight-left": return "↖";
+    case "turn-left": return "←";
+    case "sharp-left": return "↙";
+    case "destination": return "📍";
+    default: return "•";
+  }
 }
 
 // Get current traffic level
@@ -115,6 +131,8 @@ const Legend = forwardRef(function Legend({
 }, ref) {
   const [expanded, setExpanded] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
+  const [directions, setDirections] = useState([]);
+  const [currentStepIndex, setCurrentStepIndex] = useState(-1);
   const dragStartY = useRef(0);
   const dragCurrentY = useRef(0);
   const dragStartExpanded = useRef(true);
@@ -123,9 +141,71 @@ const Legend = forwardRef(function Legend({
   const sheetRef = useRef(null);
   const headerRef = useRef(null);
   const peekHeight = 70;
+  const directionsRef = useRef(null);
 
   // Voice guidance
   const { isVoiceEnabled, toggleVoice, speak, speakTurn } = useVoiceGuidance();
+
+  // Generate directions when route changes
+  useEffect(() => {
+    if (route?.coordinates?.length > 0) {
+      const dirs = generateDirections(route.coordinates);
+      setDirections(dirs);
+      setCurrentStepIndex(-1);
+    } else {
+      setDirections([]);
+      setCurrentStepIndex(-1);
+    }
+  }, [route]);
+
+  // Auto-scroll to current step
+  useEffect(() => {
+    if (currentStepIndex >= 0 && directionsRef.current) {
+      const stepElement = directionsRef.current.querySelector(`[data-step-index="${currentStepIndex}"]`);
+      if (stepElement) {
+        stepElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+  }, [currentStepIndex]);
+
+  // Update current step based on user position
+  useEffect(() => {
+    if (!currentLocation || !route?.coordinates?.length || directions.length === 0) return;
+    
+    // Find closest point on route
+    const { distanceFromStart } = (() => {
+      let minDist = Infinity;
+      let closestIndex = 0;
+      for (let i = 0; i < route.coordinates.length; i++) {
+        const point = route.coordinates[i];
+        const latDiff = point.lat - currentLocation.lat;
+        const lngDiff = point.lng - currentLocation.lng;
+        const dist = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff) * 111319;
+        if (dist < minDist) {
+          minDist = dist;
+          closestIndex = i;
+        }
+      }
+      // Calculate distance from start (simplified)
+      let distFromStart = 0;
+      for (let i = 1; i <= closestIndex; i++) {
+        const a = route.coordinates[i-1];
+        const b = route.coordinates[i];
+        const latDiff = a.lat - b.lat;
+        const lngDiff = a.lng - b.lng;
+        distFromStart += Math.sqrt(latDiff * latDiff + lngDiff * lngDiff) * 111319;
+      }
+      return { distanceFromStart: distFromStart };
+    })();
+    
+    // Find which step the user is on
+    for (let i = 0; i < directions.length; i++) {
+      if (directions[i].distance > distanceFromStart || directions[i].isDestination) {
+        setCurrentStepIndex(i);
+        break;
+      }
+    }
+  }, [currentLocation, route, directions]);
 
   useImperativeHandle(ref, () => ({
     collapse: () => {
@@ -172,7 +252,7 @@ const Legend = forwardRef(function Legend({
     alert("Location link copied! Share it with your friends.");
   };
 
-  // Drag handlers - now triggered from the entire header
+  // Drag handlers
   const handleDragStart = (e) => {
     e.stopPropagation();
     e.preventDefault();
@@ -241,7 +321,6 @@ const Legend = forwardRef(function Legend({
     setIsDragging(false);
   };
 
-  // Set up drag event listeners
   useEffect(() => {
     if (!isDragging) {
       document.body.classList.remove("dragging-legend");
@@ -315,7 +394,7 @@ const Legend = forwardRef(function Legend({
       ref={sheetRef}
       className={`legend-sheet ${expanded ? "legend-sheet--expanded" : "legend-sheet--peek"}`}
     >
-      {/* Entire header is now draggable - includes handle and peek area */}
+      {/* Entire header is now draggable */}
       <div
         ref={headerRef}
         className="legend-drag-header"
@@ -386,7 +465,6 @@ const Legend = forwardRef(function Legend({
             onClick={toggleVoice}
             title={isVoiceEnabled ? "Disable voice guidance" : "Enable voice guidance"}
           >
-            
             <span className="voice-text">
               {isVoiceEnabled ? "Voice guidance ON" : "Voice guidance OFF"}
             </span>
@@ -395,6 +473,7 @@ const Legend = forwardRef(function Legend({
 
           <div className="legend-divider" />
 
+          {/* Stats Grid */}
           {hasRoute && (
             <>
               <div className="legend-stats-grid">
@@ -445,6 +524,40 @@ const Legend = forwardRef(function Legend({
                 </div>
               </div>
             </>
+          )}
+
+          {/* ============================================ */}
+          {/* TURN-BY-TURN DIRECTIONS PANEL (GOOGLE MAPS STYLE) */}
+          {/* ============================================ */}
+          {directions.length > 0 && (
+            <div className="legend-directions-section">
+              <div className="legend-directions-header">
+                <span className="directions-title">Turn-by-turn directions</span>
+                <span className="directions-steps-count">{directions.length} steps</span>
+              </div>
+              <div className="legend-directions-list" ref={directionsRef}>
+                {directions.map((step, idx) => (
+                  <div
+                    key={idx}
+                    data-step-index={idx}
+                    className={`legend-direction-step ${currentStepIndex === idx ? "legend-direction-step--active" : ""} ${step.isDestination ? "legend-direction-step--destination" : ""}`}
+                  >
+                    <div className="direction-icon">
+                      <span className="direction-arrow">{getManeuverIcon(step.maneuver)}</span>
+                    </div>
+                    <div className="direction-content">
+                      <div className="direction-instruction">{step.instruction}</div>
+                      {!step.isDestination && step.distance > 0 && (
+                        <div className="direction-distance">{formatDistance(step.distance)}</div>
+                      )}
+                    </div>
+                    {currentStepIndex === idx && (
+                      <div className="direction-active-indicator" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
 
           <button className="legend-share-btn" onClick={handleShareLocation}>
