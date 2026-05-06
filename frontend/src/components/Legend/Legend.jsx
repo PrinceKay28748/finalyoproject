@@ -103,11 +103,40 @@ const DirectionIcon = {
   ),
 };
 
-// Helper function to get icon based on maneuver
+// Fallback text arrows for any missing SVG icons
+function getFallbackArrow(maneuver) {
+  const arrowMap = {
+    'straight': '↑',
+    'slight-right': '↗',
+    'turn-right': '→',
+    'sharp-right': '↘',
+    'slight-left': '↖',
+    'turn-left': '←',
+    'sharp-left': '↙',
+    'destination': '📍',
+    'start': '🚗',
+  };
+  return arrowMap[maneuver] || '•';
+}
+
+// Helper function to get icon based on maneuver (with fallback)
 function getDirectionIcon(maneuver, isFirst, isLast) {
-  if (isFirst) return <DirectionIcon.start />;
-  if (isLast) return <DirectionIcon.destination />;
-  return DirectionIcon[maneuver] || DirectionIcon.straight;
+  if (isFirst) {
+    const StartIcon = DirectionIcon.start;
+    return <StartIcon />;
+  }
+  if (isLast) {
+    const DestIcon = DirectionIcon.destination;
+    return <DestIcon />;
+  }
+  
+  const IconComponent = DirectionIcon[maneuver];
+  if (IconComponent) {
+    return <IconComponent />;
+  }
+  
+  // Fallback to text arrow if SVG doesn't exist
+  return <span style={{ fontSize: '18px', fontWeight: 500 }}>{getFallbackArrow(maneuver)}</span>;
 }
 
 // Get current traffic level
@@ -215,7 +244,7 @@ const Legend = forwardRef(function Legend(
   // Voice guidance
   const { isVoiceEnabled, toggleVoice, speak, speakTurn } = useVoiceGuidance();
 
-  // Generate directions when route changes (with road names)
+  // Generate directions when route changes
   useEffect(() => {
     if (route?.coordinates?.length > 0) {
       const dirs = generateDirections(route.coordinates, route.roadNames || []);
@@ -485,7 +514,6 @@ const Legend = forwardRef(function Legend(
       ref={sheetRef}
       className={`legend-sheet ${expanded ? "legend-sheet--expanded" : "legend-sheet--peek"}`}
     >
-      {/* Entire header is now draggable */}
       <div
         ref={headerRef}
         className="legend-drag-header"
@@ -557,7 +585,6 @@ const Legend = forwardRef(function Legend(
             })}
           </div>
 
-          {/* Voice Guidance Toggle Button */}
           <button
             className={`legend-voice-btn ${isVoiceEnabled ? "legend-voice-btn--active" : ""}`}
             onClick={toggleVoice}
@@ -575,7 +602,6 @@ const Legend = forwardRef(function Legend(
 
           <div className="legend-divider" />
 
-          {/* Stats Grid */}
           {hasRoute && (
             <>
               <div className="legend-stats-grid">
@@ -630,8 +656,7 @@ const Legend = forwardRef(function Legend(
             </>
           )}
 
-          {/* ============================================ */}
-          {/* Directions panel with professional SVG icons */}
+          {/* Directions panel with fallback icons */}
           {directions.length > 0 && (
             <div className="legend-directions-section">
               <div className="legend-directions-header">
