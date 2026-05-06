@@ -386,7 +386,7 @@ const Legend = forwardRef(function Legend({
             onClick={toggleVoice}
             title={isVoiceEnabled ? "Disable voice guidance" : "Enable voice guidance"}
           >
-            <span className="voice-icon">🔊</span>
+            
             <span className="voice-text">
               {isVoiceEnabled ? "Voice guidance ON" : "Voice guidance OFF"}
             </span>
