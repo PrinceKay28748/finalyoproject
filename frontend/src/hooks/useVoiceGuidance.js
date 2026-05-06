@@ -11,7 +11,7 @@ export function useVoiceGuidance() {
   
   const synthesisRef = useRef(null);
   const queueRef = useRef([]);
-  isSpeakingRef = useRef(false);
+  const isSpeakingRef = useRef(false);  // FIXED: added 'const'
   const currentUtteranceRef = useRef(null);
 
   // Initialize speech synthesis
