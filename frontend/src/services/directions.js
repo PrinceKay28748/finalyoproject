@@ -1,5 +1,5 @@
 // services/directions.js
-// Generates turn-by-turn instructions from route coordinates
+// Generates turn-by-turn instructions from route coordinates with road names
 
 // Calculate bearing between two points (in degrees)
 function calculateBearing(lat1, lng1, lat2, lng2) {
@@ -45,44 +45,68 @@ function getManeuver(angleChange) {
   return "turn-left";
 }
 
-// Generate human-readable instruction
-function getInstruction(maneuver, roadName, distance) {
+// Generate natural language instruction with road name
+function getInstruction(maneuver, distance, roadName, isFirst, isLast) {
+  if (isFirst) {
+    return "Head toward your destination";
+  }
+  
+  if (isLast) {
+    return "You have arrived at your destination";
+  }
+  
   const roadText = roadName ? ` onto ${roadName}` : '';
   
-  switch (maneuver) {
-    case "straight":
-      return `Continue straight${roadText}`;
-    case "slight-right":
-      return `Bear right${roadText}`;
-    case "turn-right":
-      return `Turn right${roadText}`;
-    case "sharp-right":
-      return `Make a sharp right${roadText}`;
-    case "slight-left":
-      return `Bear left${roadText}`;
-    case "turn-left":
-      return `Turn left${roadText}`;
-    case "sharp-left":
-      return `Make a sharp left${roadText}`;
-    default:
-      return `Continue${roadText}`;
+  // Make distance natural
+  let distanceText = "";
+  if (distance > 0 && distance < 400) {
+    if (distance < 50) {
+      distanceText = "then immediately ";
+    } else if (distance < 150) {
+      distanceText = "in a short distance, ";
+    } else {
+      distanceText = `in about ${Math.round(distance / 10) * 10} meters, `;
+    }
+  } else if (distance >= 400) {
+    distanceText = `in ${(distance / 1000).toFixed(1)} kilometers, `;
   }
+  
+  const maneuverText = {
+    "straight": "continue straight",
+    "slight-right": "bear right",
+    "turn-right": "turn right",
+    "sharp-right": "make a sharp right turn",
+    "slight-left": "bear left",
+    "turn-left": "turn left",
+    "sharp-left": "make a sharp left turn",
+  }[maneuver] || "continue";
+  
+  return `${distanceText}${maneuverText}${roadText}`;
 }
 
-// Format distance for voice (natural language)
-function formatDistanceForVoice(meters) {
-  if (meters < 50) return "now";
-  if (meters < 200) return `in ${Math.round(meters)} meters`;
-  if (meters < 500) return `in about ${Math.round(meters / 10) * 10} meters`;
-  return `in ${(meters / 1000).toFixed(1)} kilometers`;
+// Get turn icon
+function getTurnIcon(maneuver, isFirst, isLast) {
+  if (isFirst) return "🚗";
+  if (isLast) return "📍";
+  switch (maneuver) {
+    case "straight": return "⬆️";
+    case "slight-right": return "↗️";
+    case "turn-right": return "➡️";
+    case "sharp-right": return "↘️";
+    case "slight-left": return "↖️";
+    case "turn-left": return "⬅️";
+    case "sharp-left": return "↙️";
+    default: return "•";
+  }
 }
 
 /**
  * Generate turn-by-turn instructions from route coordinates
  * @param {Array} coordinates - Array of {lat, lng} objects
+ * @param {Array} roadNames - Array of road names for each segment (optional)
  * @returns {Array} Instructions with distance, maneuver, and text
  */
-export function generateDirections(coordinates) {
+export function generateDirections(coordinates, roadNames = []) {
   if (!coordinates || coordinates.length < 2) return [];
   
   const instructions = [];
@@ -100,19 +124,27 @@ export function generateDirections(coordinates) {
       end: coordinates[i + 1],
       distance: dist,
       cumulativeStart: cumulativeDistance,
-      cumulativeEnd: cumulativeDistance + dist
+      cumulativeEnd: cumulativeDistance + dist,
+      roadName: roadNames[i] || null
     });
     cumulativeDistance += dist;
   }
   
   const totalDistance = cumulativeDistance;
   
+  // First instruction
+  instructions.push({
+    distance: 0,
+    maneuver: "start",
+    instruction: "Head toward your destination",
+    icon: "🚗",
+    cumulativeDistance: 0
+  });
+  
   // Detect turns by comparing bearing changes
   let lastBearing = null;
-  let currentSegmentStart = 0;
-  let currentRoadName = null;
   
-  for (let i = 0; i < segments.length; i++) {
+  for (let i = 0; i < segments.length - 1; i++) {
     const seg = segments[i];
     const bearing = calculateBearing(
       seg.start.lat, seg.start.lng,
@@ -126,25 +158,25 @@ export function generateDirections(coordinates) {
       
       const maneuver = getManeuver(angleChange);
       
-      // Only add instruction if it's not straight
-      if (maneuver !== "straight") {
+      // Only add instruction if it's not a small straight movement
+      if (Math.abs(angleChange) > 12) {
         const distanceToTurn = seg.cumulativeStart;
-        const instructionText = getInstruction(maneuver, currentRoadName, distanceToTurn);
+        const roadName = seg.roadName;
+        const instructionText = getInstruction(maneuver, distanceToTurn, roadName, false, false);
+        const icon = getTurnIcon(maneuver, false, false);
         
         instructions.push({
           distance: distanceToTurn,
           maneuver,
           instruction: instructionText,
+          icon,
           point: seg.start,
-          index: i
+          roadName
         });
       }
     }
     
     lastBearing = bearing;
-    currentSegmentStart = seg.cumulativeStart;
-    // Road name would come from OSM tags - placeholder
-    currentRoadName = null;
   }
   
   // Add destination instruction
@@ -152,8 +184,7 @@ export function generateDirections(coordinates) {
     distance: totalDistance,
     maneuver: "destination",
     instruction: "You have arrived at your destination",
-    point: coordinates[coordinates.length - 1],
-    index: segments.length,
+    icon: "📍",
     isDestination: true
   });
   
@@ -162,10 +193,6 @@ export function generateDirections(coordinates) {
 
 /**
  * Find the next upcoming turn based on current position
- * @param {Array} instructions - Turn instructions array
- * @param {number} distanceFromStart - Distance traveled along route
- * @param {number} lookaheadMeters - How far ahead to look for next turn
- * @returns {Object|null} Next turn instruction
  */
 export function findNextTurn(instructions, distanceFromStart, lookaheadMeters = 300) {
   for (let i = 0; i < instructions.length; i++) {
@@ -183,10 +210,6 @@ export function findNextTurn(instructions, distanceFromStart, lookaheadMeters = 
 
 /**
  * Check if user has reached destination
- * @param {number} distanceFromStart - Distance traveled
- * @param {number} totalDistance - Total route distance
- * @param {number} threshold - Distance threshold for arrival (default 30m)
- * @returns {boolean}
  */
 export function hasReachedDestination(distanceFromStart, totalDistance, threshold = 30) {
   return (totalDistance - distanceFromStart) <= threshold;
