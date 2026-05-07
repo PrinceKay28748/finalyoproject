@@ -278,10 +278,11 @@ export default function MapView({
           visible={markersVisible}
           isShared={isSharedLocation}
         />
-      </MapContainer>
 
-      {/* Weather Overlay - always-on, positioned between map and controls */}
-      <WeatherOverlay weather={weather} />
+        {/* Weather Overlay - INSIDE MapContainer (after all markers, before closing) */}
+        <WeatherOverlay weather={weather} />
+        
+      </MapContainer>
 
       {/* ── Map controls (OUTSIDE map container) ───────────────────────────── */}
       <div className="map-zoom-controls">
