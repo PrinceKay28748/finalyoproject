@@ -13,7 +13,9 @@ import RouteLayer from "./RouteLayer";
 import HeatmapLayer from "./HeatmapLayer";
 import HeatmapControls from "./HeatmapControls";
 import Legend from "../Legend/Legend";
+import WeatherOverlay from "./WeatherOverlay";
 import { IconReport } from "../ui/icon";
+import { useWeather } from "../../hooks/useWeather";
 import "../Legend/Legend.css";
 
 import {
@@ -148,6 +150,9 @@ export default function MapView({
   const legendRef = useRef(null);
   const [mapBounds, setMapBounds] = useState(null);
   const [map, setMap] = useState(null);
+  
+  // Weather hook
+  const { weather } = useWeather();
 
   useEffect(() => {
     if (registerLegendCollapse && legendRef.current) {
@@ -203,7 +208,7 @@ export default function MapView({
         minZoom={MIN_ZOOM}
         maxZoom={MAX_ZOOM}
         zoomControl={false}
-        preferCanvas={true}  // ← ENABLED: Faster Canvas rendering
+        preferCanvas={true}
         style={{ height: "100%", width: "100%" }}
       >
         <TileLayerSwitcher darkMode={darkMode} />
@@ -243,7 +248,6 @@ export default function MapView({
             {alternativeRoutes.map((alt) => {
               const coords = alt.route?.coordinates;
               if (!coords?.length) return null;
-              // Use higher opacity and weight for better visibility
               const isPrimaryVisible = hasValidRoute;
               const opacity = isPrimaryVisible ? 0.65 : 0.85;
               const weight = isPrimaryVisible ? 5 : 6;
@@ -275,6 +279,9 @@ export default function MapView({
           isShared={isSharedLocation}
         />
       </MapContainer>
+
+      {/* Weather Overlay - always-on, positioned between map and controls */}
+      <WeatherOverlay weather={weather} />
 
       {/* ── Map controls (OUTSIDE map container) ───────────────────────────── */}
       <div className="map-zoom-controls">
