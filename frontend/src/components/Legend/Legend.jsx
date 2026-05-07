@@ -19,6 +19,7 @@ import {
 } from "../ui/icon";
 import { useVoiceGuidance } from "../../hooks/useVoiceGuidance";
 import { generateDirections } from "../../services/directions";
+import WeatherBanner from "./WeatherBanner";
 import "./Legend.css";
 import "./LegendProfile.css";
 
@@ -599,6 +600,9 @@ const Legend = forwardRef(function Legend(
             </span>
             <span className="voice-status">{isVoiceEnabled ? "🔊" : "🔇"}</span>
           </button>
+
+          {/* Weather Banner - always visible */}
+          <WeatherBanner />
 
           <div className="legend-divider" />
 

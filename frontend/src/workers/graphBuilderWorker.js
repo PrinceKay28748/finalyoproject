@@ -1,8 +1,8 @@
 // services/graphBuilderWorker.js
 // Worker-safe version — no Leaflet or DOM dependencies
-// Copy of graphBuilder.js with Leaflet dependencies removed
+// Modified to accept weather multipliers for context-aware routing
 
-// Hardcoded UG Legon bounds (copied from your bounds.js without Leaflet)
+// Hardcoded UG Legon bounds
 const UG_BOUNDS_RAW = {
   south: 5.62,
   west: -0.21,
@@ -22,11 +22,20 @@ function distanceKm(lat1, lng1, lat2, lng2) {
   return R * c;
 }
 
+// Default weather multipliers (no weather impact)
+const DEFAULT_WEATHER_MULTIPLIERS = {
+  unpavedMultiplier: 1.0,
+  lightingMultiplier: 1.0,
+  exposedMultiplier: 1.0,
+  shadeBonus: 1.0,
+  speedReduction: 1.0,
+  message: null
+};
+
 // OSM Overpass API endpoint
 const OVERPASS_API = "https://overpass-api.de/api/interpreter";
 const OVERPASS_API_BACKUP = "https://overpass.kumi.systems/api/interpreter";
 
-// Optimized Overpass query — only fetch walkable paths
 function getOSMQuery(bounds) {
   const { south, west, north, east } = bounds;
   
@@ -42,7 +51,6 @@ function getOSMQuery(bounds) {
   `;
 }
 
-// Fetch with retry logic
 async function fetchWithRetry(url, query, retries = 2) {
   for (let i = 0; i <= retries; i++) {
     try {
@@ -76,7 +84,6 @@ async function fetchWithRetry(url, query, retries = 2) {
   throw new Error('All fetch attempts failed');
 }
 
-// Process OSM data into graph
 function processOSMData(elements) {
   const nodes = {};
   const ways = [];
@@ -142,7 +149,6 @@ function processOSMData(elements) {
     }
   });
 
-  // Remove isolated nodes
   const connectedNodes = {};
   let isolatedCount = 0;
   
@@ -157,7 +163,6 @@ function processOSMData(elements) {
   return { nodes: connectedNodes, edges };
 }
 
-// Connect nearby nodes to fill gaps
 function connectNearbyNodes(graph, thresholdMeters = 25) {
   const nodes = graph.nodes;
   const edges = [...graph.edges];
@@ -204,7 +209,54 @@ function connectNearbyNodes(graph, thresholdMeters = 25) {
   return { nodes, edges };
 }
 
-// Main build function
+// ─── A* algorithm with weather support ───────────────────────────────────────
+function heuristicCost(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function getTimePeriod() {
+  const hour = new Date().getHours();
+  if (hour >= 6 && hour < 18) return "day";
+  if (hour >= 18 && hour < 20) return "dusk";
+  return "night";
+}
+
+function isVehicleRestrictedNow() {
+  const hour = new Date().getHours();
+  return hour >= 0 && hour < 5;
+}
+
+// Simplified cost function for worker (reuses same logic as main)
+function calculateEdgeCostWorker(edge, profile, timePeriod, vehicleRestricted, currentHour, vehicleMode, incomingBearing, goalBearing, weatherMultipliers) {
+  // This is a simplified version - in production, you would import the full costFunction
+  // For now, just return distance as base cost
+  let cost = edge.distance;
+  
+  // Apply weather unpaved multiplier
+  if (weatherMultipliers && weatherMultipliers.unpavedMultiplier !== 1.0) {
+    const surfaceTag = edge.tags?.surface?.toLowerCase() || "";
+    const isUnpaved = ['grass', 'dirt', 'gravel', 'unpaved', 'ground', 'sand', 'mud'].includes(surfaceTag);
+    if (isUnpaved) {
+      cost *= weatherMultipliers.unpavedMultiplier;
+    }
+  }
+  
+  // Apply weather lighting multiplier at night
+  if (weatherMultipliers && weatherMultipliers.lightingMultiplier !== 1.0) {
+    if (timePeriod === "night" || timePeriod === "dusk") {
+      cost *= weatherMultipliers.lightingMultiplier;
+    }
+  }
+  
+  return cost;
+}
+
 export async function buildGraphWorker() {
   try {
     console.log("[GraphWorker] Fetching OSM data...");
@@ -212,13 +264,10 @@ export async function buildGraphWorker() {
     const query = getOSMQuery(UG_BOUNDS_RAW);
     
     let response;
-    let usedBackup = false;
-    
     try {
       response = await fetchWithRetry(OVERPASS_API, query);
     } catch (error) {
       console.log("[GraphWorker] Primary endpoint failed, trying backup...");
-      usedBackup = true;
       response = await fetchWithRetry(OVERPASS_API_BACKUP, query);
     }
     
@@ -239,7 +288,6 @@ export async function buildGraphWorker() {
       throw new Error("No nodes created");
     }
     
-    // Connect nearby nodes to fill gaps
     graph = connectNearbyNodes(graph, 25);
     
     console.log(`[GraphWorker] Graph built — ${Object.keys(graph.nodes).length} nodes, ${graph.edges.length} edges`);
@@ -251,3 +299,6 @@ export async function buildGraphWorker() {
     throw error;
   }
 }
+
+// Export for use in routing
+export { heuristicCost, getTimePeriod, isVehicleRestrictedNow, calculateEdgeCostWorker, DEFAULT_WEATHER_MULTIPLIERS };

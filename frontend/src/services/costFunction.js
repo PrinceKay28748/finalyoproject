@@ -52,6 +52,16 @@ export const VEHICLE_MODES = {
   }
 };
 
+// ─── Default weather multipliers (no weather impact) ──────────────────────────
+export const DEFAULT_WEATHER_MULTIPLIERS = {
+  unpavedMultiplier: 1.0,
+  lightingMultiplier: 1.0,
+  exposedMultiplier: 1.0,
+  shadeBonus: 1.0,
+  speedReduction: 1.0,
+  message: null
+};
+
 // ─── User profiles ────────────────────────────────────────────────────────────
 export const PROFILES = {
   standard: {
@@ -140,32 +150,28 @@ const INCLINE_PENALTIES = {
 };
 
 // ─── Highway base costs ───────────────────────────────────────────────────────
-// Walking-specific costs: pedestrian infrastructure is preferred, high-speed
-// roads are heavily penalised even if technically reachable.
-// These are base multipliers on distance before any other factor is applied.
 const HIGHWAY_BASE_COST_WALK = {
-  footway:        0.9,  // preferred — purpose-built for pedestrians
-  path:           0.9,  // preferred — informal but pedestrian-friendly
-  pedestrian:     0.85, // best — pedestrian-only zones
-  steps:          1.8,  // slow and tiring
-  cycleway:       1.05, // fine to walk on
-  living_street:  1.0,  // shared space, calm
-  residential:    1.1,  // neutral — low traffic
-  service:        1.2,  // slightly worse — vehicle access roads
-  track:          1.3,  // rough, usually unpaved
-  unclassified:   1.2,  // mixed use
+  footway:        0.9,
+  path:           0.9,
+  pedestrian:     0.85,
+  steps:          1.8,
+  cycleway:       1.05,
+  living_street:  1.0,
+  residential:    1.1,
+  service:        1.2,
+  track:          1.3,
+  unclassified:   1.2,
   tertiary_link:  1.3,
   secondary_link: 1.4,
-  tertiary:       1.5,  // getting unpleasant for walking
-  secondary:      2.0,  // busy road, avoid
-  primary:        3.0,  // strongly avoid — fast traffic, hostile to walkers
-  trunk:          9999, // impassable on foot
+  tertiary:       1.5,
+  secondary:      2.0,
+  primary:        3.0,
+  trunk:          9999,
   motorway:       9999,
   motorway_link:  9999,
-  connection:     1.1,  // auto-generated proximity connections from graphBuilder
+  connection:     1.1,
 };
 
-// Car/motorcycle use a simpler hierarchy — speed matters more than comfort
 const HIGHWAY_BASE_COST_VEHICLE = {
   footway:        9999,
   path:           9999,
@@ -189,8 +195,6 @@ const HIGHWAY_BASE_COST_VEHICLE = {
 };
 
 // ─── Campus core preference ───────────────────────────────────────────────────
-// 15% discount on known central campus roads to pull routes through the heart
-// of campus rather than around the perimeter.
 const CAMPUS_CORE_BONUS     = 0.85;
 const PERIMETER_ROAD_PENALTY = 1.2;
 
@@ -205,16 +209,6 @@ const PERIMETER_ROADS = [
 ];
 
 // ─── Turn penalty ─────────────────────────────────────────────────────────────
-// Added to the cost of an edge when the route changes direction sharply.
-// Expressed in metres so it's directly comparable to distance-based costs.
-// A 20m penalty means a U-turn is as expensive as walking an extra 20 metres.
-//
-// Why these values:
-//   - Slight turn  (<30°): free — natural path curvature
-//   - Moderate     (30–60°): 5m — minor deviation
-//   - Sharp        (60–120°): 15m — noticeable direction change
-//   - Very sharp   (120–150°): 30m — almost doubling back
-//   - U-turn       (>150°): 50m — actively penalises zigzag paths
 const TURN_PENALTIES_METRES = {
   slight:    0,
   moderate:  5,
@@ -223,10 +217,6 @@ const TURN_PENALTIES_METRES = {
   uturn:     50,
 };
 
-/**
- * Calculates the compass bearing from point A to point B (0–360°).
- * Used to detect direction changes between consecutive edges.
- */
 export function getBearing(lat1, lng1, lat2, lng2) {
   const dLng = (lng2 - lng1) * Math.PI / 180;
   const lat1R = lat1 * Math.PI / 180;
@@ -236,13 +226,7 @@ export function getBearing(lat1, lng1, lat2, lng2) {
   return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
 }
 
-/**
- * Returns the turn penalty in metres given an incoming and outgoing bearing.
- * The penalty is added to the weighted edge cost so it directly scales with
- * all the same multipliers as distance.
- */
 export function calculateTurnPenalty(incomingBearing, outgoingBearing) {
-  // Absolute angular difference, normalised to 0–180°
   const diff = Math.abs(((outgoingBearing - incomingBearing) + 540) % 360 - 180);
 
   if (diff < 30)  return TURN_PENALTIES_METRES.slight;
@@ -252,24 +236,10 @@ export function calculateTurnPenalty(incomingBearing, outgoingBearing) {
   return TURN_PENALTIES_METRES.uturn;
 }
 
-// ─── Direction consistency penalty ───────────────────────────────────────────
-// Penalises edges that point away from the overall start→destination bearing.
-// This is a soft preference — it does NOT override the heuristic but adds a
-// small cost when a step moves in the wrong direction.
-//
-// Max penalty: 20m for directly opposite direction.
-// This is intentionally gentle — we don't want to force straight lines when
-// the campus layout requires going around buildings.
 const MAX_DIRECTION_PENALTY_METRES = 20;
 
-/**
- * Returns a direction-consistency penalty in metres.
- * goalBearing: bearing from current node directly to destination
- * edgeBearing:  bearing of the edge being evaluated
- */
 export function calculateDirectionPenalty(goalBearing, edgeBearing) {
   const diff = Math.abs(((edgeBearing - goalBearing) + 540) % 360 - 180);
-  // Cosine falloff: 0° off = 0 penalty, 180° off = MAX penalty
   return MAX_DIRECTION_PENALTY_METRES * (1 - Math.cos(diff * Math.PI / 180)) / 2;
 }
 
@@ -344,15 +314,7 @@ export function getEstimatedTime(distanceMeters, vehicleMode) {
 
 /**
  * Calculates the weighted cost of traversing an edge.
- *
- * @param {Object} edge              - Graph edge with distance and tags
- * @param {Object} profile           - Routing profile with factor weights
- * @param {string} timePeriod        - 'day' | 'dusk' | 'night'
- * @param {boolean} vehicleRestricted - Whether vehicle gate restrictions apply
- * @param {number} currentHour       - 0–23
- * @param {string} vehicleMode       - 'walk' | 'car' | 'motorcycle'
- * @param {number|null} incomingBearing  - Bearing of the edge we arrived on (null at start)
- * @param {number|null} goalBearing      - Bearing from current node to destination (for direction penalty)
+ * Now includes weather multipliers for context-aware routing.
  */
 export function calculateEdgeCost(
   edge,
@@ -362,7 +324,8 @@ export function calculateEdgeCost(
   currentHour,
   vehicleMode = 'walk',
   incomingBearing = null,
-  goalBearing = null
+  goalBearing = null,
+  weatherMultipliers = DEFAULT_WEATHER_MULTIPLIERS
 ) {
   // Hard block for this vehicle mode
   if (!isEdgeAllowed(edge, vehicleMode)) {
@@ -375,17 +338,15 @@ export function calculateEdgeCost(
 
   const highwayType = tags.highway || edge.type || "residential";
 
-  // Select the right base cost table
   const baseCostTable = vehicleMode === 'walk'
     ? HIGHWAY_BASE_COST_WALK
     : HIGHWAY_BASE_COST_VEHICLE;
 
   const highwayCost = baseCostTable[highwayType] ?? 1.3;
 
-  // Hard impassable roads return early
   if (highwayCost >= 9999) return 9999 * distance;
 
-  // ── Campus road preference (walking only) ─────────────────────────────────
+  // ── Campus road preference ─────────────────────────────────────────────────
   let campusBonus = 1.0;
   if (vehicleMode === 'walk') {
     const roadName = tags.name || '';
@@ -429,21 +390,56 @@ export function calculateEdgeCost(
     if (gate?.requiresEcard) gateCost = 9999;
   }
 
-  // ── Base weighted distance ────────────────────────────────────────────────
+  // ── WEATHER MULTIPLIERS (NEW) ─────────────────────────────────────────────
+  let weatherSurfaceMultiplier = 1.0;
+  let weatherLightingMultiplier = 1.0;
+  let shadeCost = 1.0;
+  let exposedCost = 1.0;
+  
+  if (weatherMultipliers) {
+    // Check if this edge is unpaved
+    const isUnpaved = ['grass', 'dirt', 'gravel', 'unpaved', 'ground', 'sand', 'mud'].includes(surfaceTag);
+    if (isUnpaved) {
+      weatherSurfaceMultiplier = weatherMultipliers.unpavedMultiplier || 1.0;
+    }
+    
+    // Apply weather lighting multiplier
+    if (timePeriod === "night" || timePeriod === "dusk") {
+      weatherLightingMultiplier = weatherMultipliers.lightingMultiplier || 1.0;
+    }
+    
+    // Apply shade bonus for hot weather
+    const hasShade = tags?.shaded === 'yes' || tags?.trees === 'yes';
+    if (hasShade && weatherMultipliers.shadeBonus && weatherMultipliers.shadeBonus < 1.0) {
+      shadeCost = weatherMultipliers.shadeBonus;
+    }
+    
+    // Apply exposed penalty for open areas in rain/storm
+    const isExposed = tags?.sheltered === 'no' || tags?.trees === 'no';
+    if (isExposed) {
+      exposedCost = weatherMultipliers.exposedMultiplier || 1.0;
+    }
+  }
+
+  // Apply weather multipliers to surface and lighting
+  const surfaceCostWithWeather = surfaceCost * weatherSurfaceMultiplier;
+  const lightingCostWithWeather = lightingCost * weatherLightingMultiplier;
+
+  // ── Base weighted distance with weather ────────────────────────────────────
   const baseCost =
     distance *
     campusBonus *
     highwayCost *
-    surfaceCost *
+    surfaceCostWithWeather *
     inclineCost *
     sidewalkCost *
-    lightingCost *
+    lightingCostWithWeather *
     trafficCost *
-    gateCost;
+    gateCost *
+    shadeCost *
+    exposedCost;
 
-  // ── Turn penalty (in metres, added directly to cost) ─────────────────────
-  // Only applied when we know the direction we arrived from.
-  // The fastest profile skips turn penalties — it just wants raw distance.
+  // ── Turn penalty ─────────────────────────────────────────────────────────
   let turnPenalty = 0;
   if (incomingBearing !== null && profile !== PROFILES.fastest) {
     const outgoingBearing = getBearing(
@@ -455,7 +451,7 @@ export function calculateEdgeCost(
     }
   }
 
-  // ── Direction consistency penalty (gentle — only for walking) ────────────
+  // ── Direction consistency penalty ─────────────────────────────────────────
   let directionPenalty = 0;
   if (goalBearing !== null && vehicleMode === 'walk' && profile !== PROFILES.fastest) {
     const outgoingBearing = getBearing(

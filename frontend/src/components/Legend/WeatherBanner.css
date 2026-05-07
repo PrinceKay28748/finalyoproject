@@ -1,0 +1,174 @@
+/* WeatherBanner.css - Clean, HCI-compliant design */
+
+.weather-banner {
+  background: var(--bg-secondary);
+  border-radius: 16px;
+  margin: 12px 0 8px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  transition: all 0.2s ease;
+}
+
+.weather-banner--impact {
+  background: rgba(37, 99, 235, 0.08);
+  border-left: 3px solid #2563eb;
+}
+
+.weather-banner--loading {
+  opacity: 0.7;
+}
+
+.weather-banner-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.weather-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.weather-icon {
+  font-size: 28px;
+}
+
+.weather-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.weather-temp {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.weather-condition {
+  font-size: 12px;
+  color: var(--sub);
+}
+
+.weather-refresh {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.15s ease;
+}
+
+.weather-refresh:hover {
+  background: var(--hover-bg);
+  transform: rotate(15deg);
+}
+
+.weather-refresh:active {
+  transform: rotate(30deg);
+}
+
+.weather-refresh:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.weather-message {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.weather-message--active {
+  background: rgba(37, 99, 235, 0.12);
+}
+
+.message-icon {
+  font-size: 14px;
+}
+
+.message-text {
+  flex: 1;
+}
+
+.weather-impact-badge {
+  margin-top: 10px;
+  font-size: 11px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: center;
+}
+
+.impact-active {
+  color: #2563eb;
+  font-weight: 500;
+}
+
+.impact-normal {
+  color: var(--sub);
+}
+
+/* Dark mode */
+.ug-root.dark .weather-banner {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.ug-root.dark .weather-banner--impact {
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.ug-root.dark .weather-message {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ug-root.dark .weather-message--active {
+  background: rgba(59, 130, 246, 0.15);
+}
+
+.ug-root.dark .weather-refresh {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .weather-banner {
+    padding: 10px 12px;
+    margin: 8px 0 6px;
+  }
+  
+  .weather-icon {
+    font-size: 24px;
+  }
+  
+  .weather-temp {
+    font-size: 16px;
+  }
+  
+  .weather-condition {
+    font-size: 11px;
+  }
+  
+  .weather-refresh {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+  
+  .weather-message {
+    font-size: 11px;
+    padding: 6px 10px;
+  }
+}
