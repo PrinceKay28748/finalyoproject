@@ -7,8 +7,6 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',  
     port: 5173,
-    // Remove base for development - only use for production build
-    // base: '/finalyoproject/',  ← Comment this out or remove
     proxy: {
       '/api/nominatim': {
         target: 'https://nominatim.openstreetmap.org',
@@ -19,6 +17,23 @@ export default defineConfig({
   },
   
   build: {
+    // Use terser for more stable minification
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: false,
+        passes: 2,
+        // Prevent variable name collisions
+        unsafe: false
+      },
+      mangle: {
+        // Avoid mangling problematic variable names
+        reserved: ['v', 'Se', 'Fe', 'Do', 'vc', 'Fc', 'Mu', 'ku', 'Ou', 'gu', 'cd', 'ie']
+      },
+      format: {
+        comments: false
+      }
+    },
     rollupOptions: {
       output: {
         manualChunks: (id) => {
@@ -31,8 +46,24 @@ export default defineConfig({
           if (id.includes('node_modules/react')) {
             return 'vendor';
           }
+          // Separate voice guidance to avoid circular deps
+          if (id.includes('useVoiceGuidance')) {
+            return 'voice';
+          }
         }
       }
-    }
+    },
+    // Increase chunk size warning limit
+    chunkSizeWarningLimit: 1000
+  },
+  
+  // Optimize dependencies to pre-bundle
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-router-dom', 'leaflet', 'react-leaflet']
+  },
+  
+  // Resolve configuration to handle circular dependencies
+  resolve: {
+    dedupe: ['react', 'react-dom']
   }
 })
