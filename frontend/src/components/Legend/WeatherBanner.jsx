@@ -1,5 +1,7 @@
-// WeatherBanner.jsx - No changes needed, but here it is for completeness
+// WeatherBanner.jsx - Weather display with voice announcements
+import { useEffect, useRef } from 'react';
 import { useWeather } from '../../hooks/useWeather';
+import { useVoiceGuidance } from '../../hooks/useVoiceGuidance';
 import './WeatherBanner.css';
 
 // SVG Refresh Icon
@@ -13,12 +15,58 @@ const RefreshIcon = () => (
 );
 
 export default function WeatherBanner() {
-  const { weather, getWeatherDisplay, hasWeatherImpact, getMultipliers, refreshWeather, isLoading } = useWeather();
+  const { 
+    weather, 
+    getWeatherDisplay, 
+    hasWeatherImpact, 
+    getMultipliers, 
+    refreshWeather, 
+    isLoading,
+    formatWeatherMessage,
+    getWeatherChange
+  } = useWeather();
+  
+  const { speak, isVoiceEnabled } = useVoiceGuidance();
+  const previousWeatherRef = useRef(null);
+  const hasSpokenInitialRef = useRef(false);
   
   const display = getWeatherDisplay();
   const hasImpact = hasWeatherImpact();
   const multipliers = getMultipliers();
-  
+
+  // Voice announcements for weather (moved from useWeather to break circular dependency)
+  useEffect(() => {
+    if (!weather || !isVoiceEnabled || weather.isFallback) return;
+    
+    // Initial weather announcement (first load only)
+    if (!hasSpokenInitialRef.current) {
+      hasSpokenInitialRef.current = true;
+      const message = formatWeatherMessage(weather, hasImpact);
+      setTimeout(() => speak(message, { priority: 'normal' }), 500);
+    }
+    
+    // Check for weather condition change
+    if (previousWeatherRef.current) {
+      const change = getWeatherChange(previousWeatherRef.current, weather);
+      if (change && change.type === 'condition_change') {
+        const message = `Weather update: ${change.newCondition} detected, ${change.temperature} degrees. Routing adjusted for conditions.`;
+        speak(message, { priority: 'normal' });
+      }
+    }
+    
+    previousWeatherRef.current = weather;
+  }, [weather, isVoiceEnabled, speak, formatWeatherMessage, hasImpact, getWeatherChange]);
+
+  // Handle manual refresh with voice confirmation
+  const handleRefresh = async () => {
+    await refreshWeather();
+    if (isVoiceEnabled && weather && !weather.isFallback) {
+      const temp = Math.round(weather.temperature);
+      const condition = weather.condition || 'Unknown';
+      speak(`Weather refreshed: ${condition}, ${temp} degrees.`, { priority: 'normal' });
+    }
+  };
+
   if (!weather) {
     return (
       <div className="weather-banner weather-banner--loading">
@@ -40,7 +88,7 @@ export default function WeatherBanner() {
         </div>
         <button 
           className="weather-refresh" 
-          onClick={refreshWeather} 
+          onClick={handleRefresh} 
           disabled={isLoading}
           title="Refresh weather"
         >
