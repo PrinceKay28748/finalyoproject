@@ -1,4 +1,4 @@
-// WeatherBanner.jsx - Weather display in Legend (always visible)
+// WeatherBanner.jsx - No changes needed, but here it is for completeness
 import { useWeather } from '../../hooks/useWeather';
 import './WeatherBanner.css';
 

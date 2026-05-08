@@ -1,13 +1,68 @@
 // Hook for weather data and routing integration
-
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchWeather, getWeatherMultipliers, WEATHER_CODES } from '../services/weatherService';
+import { useVoiceGuidance } from './useVoiceGuidance';
 
 export function useWeather() {
   const [weather, setWeather] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+  
+  const previousWeatherRef = useRef(null);
+  const hasSpokenInitialRef = useRef(false);
+  
+  const { isVoiceEnabled, speak } = useVoiceGuidance();
+
+  // Format weather message for voice
+  const formatWeatherMessage = useCallback((weatherData, hasImpact) => {
+    const temp = Math.round(weatherData.temperature);
+    const condition = weatherData.condition || 'Unknown';
+    const impactText = hasImpact ? ' Routing adjusted for conditions.' : ' Normal routing.';
+    
+    return `Current weather: ${condition}, ${temp} degrees.${impactText}`;
+  }, []);
+
+  // Format weather update message (when weather changes)
+  const formatWeatherUpdateMessage = useCallback((oldWeather, newWeather, hasImpact) => {
+    const oldCondition = oldWeather?.condition || 'Unknown';
+    const newCondition = newWeather?.condition || 'Unknown';
+    const temp = Math.round(newWeather.temperature);
+    
+    if (oldCondition !== newCondition) {
+      return `Weather update: ${newCondition} detected, ${temp} degrees. Routing adjusted for conditions.`;
+    }
+    return `Weather updated: ${newCondition}, ${temp} degrees.`;
+  }, []);
+
+  // Speak weather on load and when weather changes
+  useEffect(() => {
+    if (!weather || !isVoiceEnabled) return;
+    
+    // Initial weather announcement (first load only)
+    if (!hasSpokenInitialRef.current && !weather.isFallback) {
+      hasSpokenInitialRef.current = true;
+      const hasImpact = hasWeatherImpact();
+      const message = formatWeatherMessage(weather, hasImpact);
+      setTimeout(() => speak(message, { priority: 'normal' }), 500);
+    }
+    
+    // Check if weather changed significantly
+    if (previousWeatherRef.current && !weather.isFallback) {
+      const prevCondition = previousWeatherRef.current.condition;
+      const currCondition = weather.condition;
+      
+      if (prevCondition !== currCondition) {
+        const hasImpact = hasWeatherImpact();
+        const message = formatWeatherUpdateMessage(previousWeatherRef.current, weather, hasImpact);
+        speak(message, { priority: 'normal' });
+      }
+    }
+    
+    // Store current weather for next comparison
+    previousWeatherRef.current = weather;
+    
+  }, [weather, isVoiceEnabled, speak, formatWeatherMessage, formatWeatherUpdateMessage, hasWeatherImpact]);
 
   const refreshWeather = useCallback(async () => {
     setIsLoading(true);
@@ -16,13 +71,20 @@ export function useWeather() {
       setWeather(data);
       setError(null);
       setLastUpdated(new Date());
+      
+      // Speak manual refresh confirmation
+      if (isVoiceEnabled && !data.isFallback) {
+        const temp = Math.round(data.temperature);
+        const condition = data.condition || 'Unknown';
+        speak(`Weather refreshed: ${condition}, ${temp} degrees.`, { priority: 'normal' });
+      }
     } catch (err) {
       console.error('[useWeather] Error:', err);
       setError(err.message);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [isVoiceEnabled, speak]);
 
   // Initial fetch
   useEffect(() => {
@@ -50,7 +112,7 @@ export function useWeather() {
       label: weather.condition,
       description: weatherInfo.description,
       temperature: weather.temperature,
-      feelsLike: weather.temperature, // Open-Meteo doesn't provide feels-like by default
+      feelsLike: weather.temperature,
       humidity: weather.humidity,
       windSpeed: weather.windSpeed,
       isDay: weather.isDay
