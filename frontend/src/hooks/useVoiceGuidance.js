@@ -1,5 +1,5 @@
 // hooks/useVoiceGuidance.js
-// Text-to-speech for accessibility - with turn announcement queue
+// Text-to-speech for accessibility - with turn announcement queue and reroute support
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 
@@ -11,7 +11,7 @@ export function useVoiceGuidance() {
   
   const synthesisRef = useRef(null);
   const queueRef = useRef([]);
-  const isSpeakingRef = useRef(false);  // FIXED: added 'const'
+  const isSpeakingRef = useRef(false);
   const currentUtteranceRef = useRef(null);
 
   // Initialize speech synthesis
@@ -55,7 +55,6 @@ export function useVoiceGuidance() {
     utterance.onend = () => {
       isSpeakingRef.current = false;
       currentUtteranceRef.current = null;
-      // Process next in queue
       setTimeout(() => processQueue(), 100);
     };
     
@@ -77,7 +76,6 @@ export function useVoiceGuidance() {
     const { priority = 'normal' } = options;
     
     if (priority === 'immediate') {
-      // Clear queue and speak immediately for urgent announcements
       queueRef.current = [];
       if (synthesisRef.current) {
         synthesisRef.current.cancel();
@@ -116,11 +114,46 @@ export function useVoiceGuidance() {
     speak("You have arrived at your destination.", { priority: 'immediate' });
   }, [isVoiceEnabled, speak]);
 
-  // Announce route summary
-  const speakRouteSummary = useCallback((distance, time) => {
+  // Helper to format distance for voice
+  const formatDistanceForVoice = useCallback((meters) => {
+    if (meters < 1000) return `${Math.round(meters)} meters`;
+    return `${(meters / 1000).toFixed(1)} kilometers`;
+  }, []);
+
+  // Helper to format time for voice
+  const formatTravelTimeForVoice = useCallback((meters, vehicleMode) => {
+    let speedKmh;
+    if (vehicleMode === 'walk') speedKmh = 5;
+    else if (vehicleMode === 'car') speedKmh = 30;
+    else if (vehicleMode === 'motorcycle') speedKmh = 25;
+    else speedKmh = 5;
+    
+    const minutes = Math.ceil(meters / (speedKmh * 1000 / 60));
+    if (minutes < 1) return "less than 1 minute";
+    if (minutes < 60) return `${minutes} minutes`;
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return m === 0 ? `${h} hour` : `${h} hour ${m} minutes`;
+  }, []);
+
+  // Announce route summary (with optional reroute prefix)
+  const speakRouteSummary = useCallback((distance, time, isReroute = false) => {
     if (!isVoiceEnabled) return;
-    speak(`Route calculated. ${distance}, about ${time}.`, { priority: 'normal' });
+    const prefix = isReroute ? "Rerouting. " : "";
+    speak(`${prefix}Route calculated. ${distance}, about ${time}.`, { priority: 'normal' });
   }, [isVoiceEnabled, speak]);
+
+  // Announce that user has deviated from route
+  const speakDeviation = useCallback(() => {
+    if (!isVoiceEnabled) return;
+    speak("You have deviated from the route. Recalculating...", { priority: 'immediate' });
+  }, [isVoiceEnabled, speak]);
+
+  // Announce reroute complete
+  const speakRerouteComplete = useCallback((distance, time) => {
+    if (!isVoiceEnabled) return;
+    speak(`Route updated. ${formatDistanceForVoice(distance)}, about ${time}.`, { priority: 'normal' });
+  }, [isVoiceEnabled, speak, formatDistanceForVoice]);
 
   return {
     isVoiceEnabled,
@@ -128,6 +161,10 @@ export function useVoiceGuidance() {
     speak,
     speakTurn,
     speakArrival,
-    speakRouteSummary
+    speakRouteSummary,
+    speakDeviation,
+    speakRerouteComplete,
+    formatDistanceForVoice,
+    formatTravelTimeForVoice
   };
 }
