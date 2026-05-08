@@ -1,3 +1,5 @@
+// components/Legend/Legend.jsx
+
 import {
   useState,
   useRef,
@@ -23,13 +25,11 @@ import WeatherBanner from "./WeatherBanner";
 import "./Legend.css";
 import "./LegendProfile.css";
 
-// Formats metres into a readable distance string
 function formatDistance(meters) {
   if (meters < 1000) return `${Math.round(meters)} m`;
   return `${(meters / 1000).toFixed(1)} km`;
 }
 
-// Estimates time based on vehicle mode
 function formatTravelTime(meters, vehicleMode = "walk") {
   let speedKmh;
   if (vehicleMode === "walk") speedKmh = 5;
@@ -45,7 +45,6 @@ function formatTravelTime(meters, vehicleMode = "walk") {
   return m === 0 ? `${h} hr` : `${h} hr ${m} min`;
 }
 
-// Professional SVG icons for directions (corrected paths)
 const DirectionIcon = {
   start: () => (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -104,110 +103,55 @@ const DirectionIcon = {
   ),
 };
 
-// Fallback text arrows for any missing SVG icons
 function getFallbackArrow(maneuver) {
   const arrowMap = {
-    'straight': '↑',
+    straight:    '↑',
     'slight-right': '↗',
     'turn-right': '→',
     'sharp-right': '↘',
     'slight-left': '↖',
-    'turn-left': '←',
+    'turn-left':  '←',
     'sharp-left': '↙',
-    'destination': '📍',
-    'start': '🚗',
+    destination: '📍',
+    start:       '🚗',
   };
   return arrowMap[maneuver] || '•';
 }
 
-// Helper function to get icon based on maneuver (with fallback)
 function getDirectionIcon(maneuver, isFirst, isLast) {
-  if (isFirst) {
-    const StartIcon = DirectionIcon.start;
-    return <StartIcon />;
-  }
-  if (isLast) {
-    const DestIcon = DirectionIcon.destination;
-    return <DestIcon />;
-  }
-  
-  const IconComponent = DirectionIcon[maneuver];
-  if (IconComponent) {
-    return <IconComponent />;
-  }
-  
-  // Fallback to text arrow if SVG doesn't exist
+  if (isFirst) { const I = DirectionIcon.start;       return <I />; }
+  if (isLast)  { const I = DirectionIcon.destination; return <I />; }
+  const I = DirectionIcon[maneuver];
+  if (I) return <I />;
   return <span style={{ fontSize: '18px', fontWeight: 500 }}>{getFallbackArrow(maneuver)}</span>;
 }
 
-// Get current traffic level
 function getTrafficInfo() {
-  const now = new Date();
+  const now  = new Date();
   const hour = now.getHours();
-  const day = now.getDay();
+  const day  = now.getDay();
 
-  if (day === 0) {
-    return {
-      level: "Very Low",
-      icon: "⚪",
-      multiplier: 1.0,
-      message: "Sunday — very light activity",
-    };
-  }
-  if (day === 6) {
-    return {
-      level: "Low",
-      icon: "🟢",
-      multiplier: 1.1,
-      message: "Saturday — light traffic",
-    };
-  }
+  if (day === 0) return { level: "Very Low", icon: "⚪", multiplier: 1.0, message: "Sunday — very light activity" };
+  if (day === 6) return { level: "Low",      icon: "🟢", multiplier: 1.1, message: "Saturday — light traffic" };
 
   const peakHours = [8, 9, 12, 13, 16, 17];
-  const isPeak = peakHours.includes(hour);
-
-  if (isPeak) {
-    return {
-      level: "Heavy",
-      icon: "🔴",
-      multiplier: 1.5,
-      message: "Peak hours — busy paths",
-    };
-  }
-  if (hour >= 6 && hour < 18) {
-    return {
-      level: "Moderate",
-      icon: "🟡",
-      multiplier: 1.3,
-      message: "Moderate traffic",
-    };
-  }
-
+  if (peakHours.includes(hour)) return { level: "Heavy",    icon: "🔴", multiplier: 1.5, message: "Peak hours — busy paths" };
+  if (hour >= 6 && hour < 18)   return { level: "Moderate", icon: "🟡", multiplier: 1.3, message: "Moderate traffic" };
   return { level: "Low", icon: "⚫", multiplier: 1.0, message: "Low traffic" };
 }
 
-// Route profile config
 const PROFILE_CONFIG = {
-  standard: { label: "Standard", color: "#2563eb", icon: IconMap },
-  accessible: {
-    label: "Accessible",
-    color: "#8b5cf6",
-    icon: IconAccessibility,
-  },
-  night: { label: "Night Safety", color: "#f59e0b", icon: IconMoon },
-  fastest: { label: "Fastest", color: "#22c55e", icon: IconBolt },
+  standard:   { label: "Standard",     color: "#2563eb", icon: IconMap },
+  accessible: { label: "Accessible",   color: "#8b5cf6", icon: IconAccessibility },
+  night:      { label: "Night Safety", color: "#f59e0b", icon: IconMoon },
+  fastest:    { label: "Fastest",      color: "#22c55e", icon: IconBolt },
 };
 
 const PROFILES = [
-  { key: "standard", icon: IconMap, label: "Standard", color: "#2563eb" },
-  {
-    key: "accessible",
-    icon: IconAccessibility,
-    label: "Accessible",
-    color: "#8b5cf6",
-  },
-  { key: "night", icon: IconMoon, label: "Night", color: "#f59e0b" },
-  { key: "fastest", icon: IconBolt, label: "Fastest", color: "#22c55e" },
+  { key: "standard",   icon: IconMap,           label: "Standard",  color: "#2563eb" },
+  { key: "accessible", icon: IconAccessibility, label: "Accessible", color: "#8b5cf6" },
+  { key: "night",      icon: IconMoon,          label: "Night",     color: "#f59e0b" },
+  { key: "fastest",    icon: IconBolt,          label: "Fastest",   color: "#22c55e" },
 ];
 
 const Legend = forwardRef(function Legend(
@@ -228,22 +172,26 @@ const Legend = forwardRef(function Legend(
   },
   ref,
 ) {
-  const [expanded, setExpanded] = useState(true);
-  const [isDragging, setIsDragging] = useState(false);
-  const [directions, setDirections] = useState([]);
+  const [expanded, setExpanded]           = useState(true);
+  const [isDragging, setIsDragging]       = useState(false);
+  const [directions, setDirections]       = useState([]);
   const [currentStepIndex, setCurrentStepIndex] = useState(-1);
-  const dragStartY = useRef(0);
-  const dragCurrentY = useRef(0);
-  const dragStartExpanded = useRef(true);
-  const dragVelocity = useRef(0);
-  const lastDragTime = useRef(0);
-  const sheetRef = useRef(null);
-  const headerRef = useRef(null);
-  const peekHeight = 70;
-  const directionsRef = useRef(null);
 
-  // Voice guidance
-  const { isVoiceEnabled, toggleVoice, speak, speakTurn } = useVoiceGuidance();
+  const dragStartY        = useRef(0);
+  const dragCurrentY      = useRef(0);
+  const dragStartExpanded = useRef(true);
+  const dragVelocity      = useRef(0);
+  const lastDragTime      = useRef(0);
+  const sheetRef          = useRef(null);
+  const headerRef         = useRef(null);
+  const directionsRef     = useRef(null);
+  const peekHeight        = 70;
+
+  // Tracks the route identity we last announced so re-renders (e.g. drags)
+  // don't fire the announcement again for the same route.
+  const lastAnnouncedRouteIdRef = useRef(null);
+
+  const { isVoiceEnabled, toggleVoice, speak } = useVoiceGuidance();
 
   // Generate directions when route changes
   useEffect(() => {
@@ -257,60 +205,37 @@ const Legend = forwardRef(function Legend(
     }
   }, [route]);
 
-  // Auto-scroll to current step
+  // Auto-scroll to active step
   useEffect(() => {
     if (currentStepIndex >= 0 && directionsRef.current) {
-      const stepElement = directionsRef.current.querySelector(
-        `[data-step-index="${currentStepIndex}"]`,
-      );
-      if (stepElement) {
-        stepElement.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      }
+      const el = directionsRef.current.querySelector(`[data-step-index="${currentStepIndex}"]`);
+      el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
   }, [currentStepIndex]);
 
-  // Update current step based on user position
+  // Update active step from GPS position
   useEffect(() => {
-    if (
-      !currentLocation ||
-      !route?.coordinates?.length ||
-      directions.length === 0
-    )
-      return;
+    if (!currentLocation || !route?.coordinates?.length || directions.length === 0) return;
 
-    // Find closest point on route
     const { distanceFromStart } = (() => {
       let minDist = Infinity;
       let closestIndex = 0;
       for (let i = 0; i < route.coordinates.length; i++) {
-        const point = route.coordinates[i];
-        const latDiff = point.lat - currentLocation.lat;
-        const lngDiff = point.lng - currentLocation.lng;
-        const dist = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff) * 111319;
-        if (dist < minDist) {
-          minDist = dist;
-          closestIndex = i;
-        }
+        const p = route.coordinates[i];
+        const d = Math.sqrt((p.lat - currentLocation.lat) ** 2 + (p.lng - currentLocation.lng) ** 2) * 111319;
+        if (d < minDist) { minDist = d; closestIndex = i; }
       }
-      // Calculate distance from start (simplified)
       let distFromStart = 0;
       for (let i = 1; i <= closestIndex; i++) {
         const a = route.coordinates[i - 1];
         const b = route.coordinates[i];
-        const latDiff = a.lat - b.lat;
-        const lngDiff = a.lng - b.lng;
-        distFromStart +=
-          Math.sqrt(latDiff * latDiff + lngDiff * lngDiff) * 111319;
+        distFromStart += Math.sqrt((a.lat - b.lat) ** 2 + (a.lng - b.lng) ** 2) * 111319;
       }
       return { distanceFromStart: distFromStart };
     })();
 
-    // Find which step the user is on
     for (let i = 0; i < directions.length; i++) {
-      if (
-        directions[i].distance > distanceFromStart ||
-        directions[i].isDestination
-      ) {
+      if (directions[i].distance > distanceFromStart || directions[i].isDestination) {
         setCurrentStepIndex(i);
         break;
       }
@@ -318,16 +243,8 @@ const Legend = forwardRef(function Legend(
   }, [currentLocation, route, directions]);
 
   useImperativeHandle(ref, () => ({
-    collapse: () => {
-      if (expanded) {
-        setExpanded(false);
-      }
-    },
-    expand: () => {
-      if (!expanded) {
-        setExpanded(true);
-      }
-    },
+    collapse: () => { if (expanded)  setExpanded(false); },
+    expand:   () => { if (!expanded) setExpanded(true);  },
     isExpanded: () => expanded,
   }));
 
@@ -335,46 +252,40 @@ const Legend = forwardRef(function Legend(
     onExpandedChange?.(expanded);
   }, [expanded, onExpandedChange]);
 
-  // Announce route when it loads and voice is enabled
+  // Route-calculated announcement — fires once per unique route, not on re-renders
   useEffect(() => {
-    if (isVoiceEnabled && route && route.totalDistance) {
-      const distance = formatDistance(route.totalDistance);
-      const time = formatTravelTime(route.totalDistance, vehicleMode);
-      speak(`Route calculated. ${distance}, about ${time}.`);
-    }
+    if (!isVoiceEnabled || !route?.totalDistance) return;
+
+    // Build a stable ID for this route
+    const routeId = `${route.totalDistance}-${route.coordinates?.length ?? 0}`;
+    if (lastAnnouncedRouteIdRef.current === routeId) return;
+    lastAnnouncedRouteIdRef.current = routeId;
+
+    const distance = formatDistance(route.totalDistance);
+    const time     = formatTravelTime(route.totalDistance, vehicleMode);
+    speak(`Route calculated. ${distance}, about ${time}.`);
   }, [route, isVoiceEnabled, vehicleMode, speak]);
 
   const traffic = getTrafficInfo();
 
   const handleShareLocation = () => {
-    if (!currentLocation) {
-      alert("Location not available yet. Please wait for GPS fix.");
-      return;
-    }
-
-    const baseUrl = import.meta.env.PROD
-      ? "https://ugnavigator.onrender.com"
-      : window.location.origin;
-
+    if (!currentLocation) { alert("Location not available yet. Please wait for GPS fix."); return; }
+    const baseUrl = import.meta.env.PROD ? "https://ugnavigator.onrender.com" : window.location.origin;
     const link = `${baseUrl}?lat=${currentLocation.lat}&lng=${currentLocation.lng}&name=Shared%20Location`;
-
     navigator.clipboard.writeText(link);
     alert("Location link copied! Share it with your friends.");
   };
 
-  // Drag handlers
+  // ── Drag handlers ─────────────────────────────────────────────────────────
   const handleDragStart = (e) => {
     e.stopPropagation();
     e.preventDefault();
-
     setIsDragging(true);
-    dragStartY.current = e.type.includes("touch")
-      ? e.touches[0].clientY
-      : e.clientY;
-    dragCurrentY.current = dragStartY.current;
+    dragStartY.current      = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
+    dragCurrentY.current    = dragStartY.current;
     dragStartExpanded.current = expanded;
-    lastDragTime.current = Date.now();
-    dragVelocity.current = 0;
+    lastDragTime.current    = Date.now();
+    dragVelocity.current    = 0;
     if (sheetRef.current) {
       sheetRef.current.classList.add("dragging");
       sheetRef.current.style.transition = "none";
@@ -383,57 +294,38 @@ const Legend = forwardRef(function Legend(
 
   const handleDragMove = (e) => {
     if (!isDragging) return;
-
     e.stopPropagation();
     e.preventDefault();
-
-    const currentY = e.type.includes("touch")
-      ? e.touches[0].clientY
-      : e.clientY;
-    const deltaY = currentY - dragStartY.current;
-    const now = Date.now();
+    const currentY  = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
+    const deltaY    = currentY - dragStartY.current;
+    const now       = Date.now();
     const timeDelta = Math.max(1, now - lastDragTime.current);
-    dragVelocity.current =
-      (deltaY - (dragCurrentY.current - dragStartY.current)) / timeDelta;
-    dragCurrentY.current = currentY;
-    lastDragTime.current = now;
+    dragVelocity.current  = (deltaY - (dragCurrentY.current - dragStartY.current)) / timeDelta;
+    dragCurrentY.current  = currentY;
+    lastDragTime.current  = now;
     const sheetHeight = sheetRef.current?.offsetHeight || 400;
-    const maxDrag = sheetHeight - peekHeight;
-    let newTranslateY = 0;
-    if (dragStartExpanded.current) {
-      newTranslateY = Math.min(maxDrag, Math.max(0, deltaY));
-    } else {
-      newTranslateY = Math.min(maxDrag, Math.max(0, maxDrag + deltaY));
-    }
-    if (sheetRef.current) {
-      sheetRef.current.style.transform = `translateY(${newTranslateY}px)`;
-    }
+    const maxDrag     = sheetHeight - peekHeight;
+    const newTranslateY = dragStartExpanded.current
+      ? Math.min(maxDrag, Math.max(0, deltaY))
+      : Math.min(maxDrag, Math.max(0, maxDrag + deltaY));
+    if (sheetRef.current) sheetRef.current.style.transform = `translateY(${newTranslateY}px)`;
   };
 
   const handleDragEnd = (e) => {
     if (!isDragging) return;
-
-    if (e) {
-      e.stopPropagation();
-      e.preventDefault();
-    }
-
-    const sheetHeight = sheetRef.current?.offsetHeight || 400;
-    const maxDrag = sheetHeight - peekHeight;
+    e?.stopPropagation();
+    e?.preventDefault();
+    const sheetHeight    = sheetRef.current?.offsetHeight || 400;
+    const maxDrag        = sheetHeight - peekHeight;
     const currentTranslate = parseFloat(
-      sheetRef.current?.style.transform?.match(
-        /translateY\(([-\d.]+)px\)/,
-      )?.[1] || 0,
+      sheetRef.current?.style.transform?.match(/translateY\(([-\d.]+)px\)/)?.[1] || 0
     );
-    let shouldExpand;
-    if (Math.abs(dragVelocity.current) > 0.3) {
-      shouldExpand = dragVelocity.current < 0;
-    } else {
-      shouldExpand = currentTranslate < maxDrag / 2;
-    }
+    const shouldExpand = Math.abs(dragVelocity.current) > 0.3
+      ? dragVelocity.current < 0
+      : currentTranslate < maxDrag / 2;
     setExpanded(shouldExpand);
     if (sheetRef.current) {
-      sheetRef.current.style.transform = "";
+      sheetRef.current.style.transform  = "";
       sheetRef.current.style.transition = "";
       sheetRef.current.classList.remove("dragging");
     }
@@ -441,74 +333,51 @@ const Legend = forwardRef(function Legend(
   };
 
   useEffect(() => {
-    if (!isDragging) {
-      document.body.classList.remove("dragging-legend");
-      return;
-    }
-
+    if (!isDragging) { document.body.classList.remove("dragging-legend"); return; }
     document.body.classList.add("dragging-legend");
-
-    const handleMouseMove = (e) => handleDragMove(e);
-    const handleMouseUp = (e) => handleDragEnd(e);
-    const handleTouchMove = (e) => handleDragMove(e);
-    const handleTouchEnd = (e) => handleDragEnd(e);
-
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-    document.addEventListener("touchmove", handleTouchMove, { passive: false });
-    document.addEventListener("touchend", handleTouchEnd);
-
+    const onMouseMove  = (e) => handleDragMove(e);
+    const onMouseUp    = (e) => handleDragEnd(e);
+    const onTouchMove  = (e) => handleDragMove(e);
+    const onTouchEnd   = (e) => handleDragEnd(e);
+    document.addEventListener("mousemove",  onMouseMove);
+    document.addEventListener("mouseup",    onMouseUp);
+    document.addEventListener("touchmove",  onTouchMove, { passive: false });
+    document.addEventListener("touchend",   onTouchEnd);
     return () => {
       document.body.classList.remove("dragging-legend");
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-      document.removeEventListener("touchmove", handleTouchMove);
-      document.removeEventListener("touchend", handleTouchEnd);
+      document.removeEventListener("mousemove",  onMouseMove);
+      document.removeEventListener("mouseup",    onMouseUp);
+      document.removeEventListener("touchmove",  onTouchMove);
+      document.removeEventListener("touchend",   onTouchEnd);
     };
   }, [isDragging]);
 
   useEffect(() => {
-    if (!isDragging && sheetRef.current) {
-      sheetRef.current.style.transform = "";
-    }
+    if (!isDragging && sheetRef.current) sheetRef.current.style.transform = "";
   }, [expanded, isDragging]);
 
   if (!visible) return null;
 
-  const hasRoute = route && route.totalDistance;
-  const distMeters = hasRoute ? route.totalDistance : null;
-  const isFallback = route?.isFallback || false;
-  const profile = PROFILE_CONFIG[activeProfile] || PROFILE_CONFIG.standard;
-  const hasWarnings = warnings.length > 0;
-  const hasAlts = alternatives.length > 0;
-
-  const estimatedTime = hasRoute
-    ? formatTravelTime(distMeters, vehicleMode)
-    : null;
-  const carTime = hasRoute ? formatTravelTime(distMeters, "car") : null;
-  const walkTime = hasRoute ? formatTravelTime(distMeters, "walk") : null;
+  const hasRoute     = route && route.totalDistance;
+  const distMeters   = hasRoute ? route.totalDistance : null;
+  const isFallback   = route?.isFallback || false;
+  const profile      = PROFILE_CONFIG[activeProfile] || PROFILE_CONFIG.standard;
+  const hasWarnings  = warnings.length > 0;
+  const hasAlts      = alternatives.length > 0;
+  const estimatedTime = hasRoute ? formatTravelTime(distMeters, vehicleMode) : null;
+  const carTime       = hasRoute ? formatTravelTime(distMeters, "car")  : null;
+  const walkTime      = hasRoute ? formatTravelTime(distMeters, "walk") : null;
 
   const getBarWidth = () => {
-    const level = traffic.level;
-    if (level === "Heavy") return "100%";
-    if (level === "Moderate") return "70%";
-    if (level === "Low") return "40%";
-    if (level === "Very Low") return "20%";
+    if (traffic.level === "Heavy")    return "100%";
+    if (traffic.level === "Moderate") return "70%";
+    if (traffic.level === "Low")      return "40%";
+    if (traffic.level === "Very Low") return "20%";
     return "50%";
   };
 
-  const ProfileIcon = profile.icon;
-  const WalkIcon = IconWalk;
-  const CarIcon = IconCar;
-  const RulerIcon = IconRuler;
-  const ShareIcon = IconShare;
-
-  const vehicleDisplay = {
-    walk: { icon: "🚶", label: "Walk" },
-    car: { icon: "🚗", label: "Drive" },
-    motorcycle: { icon: "🏍️", label: "Ride" },
-  };
-  const currentVehicle = vehicleDisplay[vehicleMode] || vehicleDisplay.walk;
+  const ProfileIcon   = profile.icon;
+  const currentVehicle = { walk: { icon: "🚶", label: "Walk" }, car: { icon: "🚗", label: "Drive" }, motorcycle: { icon: "🏍️", label: "Ride" } }[vehicleMode] || { icon: "🚶", label: "Walk" };
 
   return (
     <div
@@ -556,9 +425,7 @@ const Legend = forwardRef(function Legend(
               {profile.label} Route
             </span>
             {isFallback && (
-              <span className="legend-badge legend-badge--warn">
-                Direct path
-              </span>
+              <span className="legend-badge legend-badge--warn">Direct path</span>
             )}
           </div>
 
@@ -575,10 +442,7 @@ const Legend = forwardRef(function Legend(
                   title={p.label}
                 >
                   <span className="legend-profile-icon">
-                    <IconComponent
-                      className="w-4 h-4"
-                      color={isActive ? p.color : "currentColor"}
-                    />
+                    <IconComponent className="w-4 h-4" color={isActive ? p.color : "currentColor"} />
                   </span>
                   <span>{p.label}</span>
                 </button>
@@ -586,14 +450,12 @@ const Legend = forwardRef(function Legend(
             })}
           </div>
 
+          {/* Voice toggle — toggleVoice now speaks "Voice guidance on/off" internally */}
           <button
             className={`legend-voice-btn ${isVoiceEnabled ? "legend-voice-btn--active" : ""}`}
             onClick={toggleVoice}
-            title={
-              isVoiceEnabled
-                ? "Disable voice guidance"
-                : "Enable voice guidance"
-            }
+            title={isVoiceEnabled ? "Disable voice guidance" : "Enable voice guidance"}
+            aria-pressed={isVoiceEnabled}
           >
             <span className="voice-text">
               {isVoiceEnabled ? "Voice guidance ON" : "Voice guidance OFF"}
@@ -601,7 +463,7 @@ const Legend = forwardRef(function Legend(
             <span className="voice-status">{isVoiceEnabled ? "🔊" : "🔇"}</span>
           </button>
 
-          {/* Weather Banner - always visible */}
+          {/* Weather Banner — always visible */}
           <WeatherBanner />
 
           <div className="legend-divider" />
@@ -610,9 +472,7 @@ const Legend = forwardRef(function Legend(
             <>
               <div className="legend-stats-grid">
                 <div className="legend-stat-card">
-                  <span className="stat-card-icon">
-                    <WalkIcon className="w-5 h-5" color="#22c55e" />
-                  </span>
+                  <span className="stat-card-icon"><IconWalk className="w-5 h-5" color="#22c55e" /></span>
                   <div className="stat-card-info">
                     <span className="stat-card-value">{walkTime}</span>
                     <span className="stat-card-label">Walk</span>
@@ -620,9 +480,7 @@ const Legend = forwardRef(function Legend(
                 </div>
                 <div className="legend-stat-divider" />
                 <div className="legend-stat-card">
-                  <span className="stat-card-icon">
-                    <CarIcon className="w-5 h-5" color="#f59e0b" />
-                  </span>
+                  <span className="stat-card-icon"><IconCar className="w-5 h-5" color="#f59e0b" /></span>
                   <div className="stat-card-info">
                     <span className="stat-card-value">{carTime}</span>
                     <span className="stat-card-label">Drive</span>
@@ -630,22 +488,16 @@ const Legend = forwardRef(function Legend(
                 </div>
                 <div className="legend-stat-divider" />
                 <div className="legend-stat-card">
-                  <span className="stat-card-icon">
-                    <RulerIcon className="w-5 h-5" color="#3b82f6" />
-                  </span>
+                  <span className="stat-card-icon"><IconRuler className="w-5 h-5" color="#3b82f6" /></span>
                   <div className="stat-card-info">
-                    <span className="stat-card-value">
-                      {formatDistance(distMeters)}
-                    </span>
+                    <span className="stat-card-value">{formatDistance(distMeters)}</span>
                     <span className="stat-card-label">Distance</span>
                   </div>
                 </div>
               </div>
 
               <div className="legend-traffic">
-                <div className="legend-traffic-icon">
-                  <span>{traffic.icon}</span>
-                </div>
+                <div className="legend-traffic-icon"><span>{traffic.icon}</span></div>
                 <div className="legend-traffic-info">
                   <span className="legend-traffic-label">Traffic</span>
                   <span className="legend-traffic-value">{traffic.level}</span>
@@ -660,14 +512,11 @@ const Legend = forwardRef(function Legend(
             </>
           )}
 
-          {/* Directions panel with fallback icons */}
           {directions.length > 0 && (
             <div className="legend-directions-section">
               <div className="legend-directions-header">
                 <span className="directions-title">Directions</span>
-                <span className="directions-steps-count">
-                  {directions.length - 1} turns
-                </span>
+                <span className="directions-steps-count">{directions.length - 1} turns</span>
               </div>
               <div className="legend-directions-list" ref={directionsRef}>
                 {directions.map((step, idx) => (
@@ -680,18 +529,12 @@ const Legend = forwardRef(function Legend(
                       {getDirectionIcon(step.maneuver, idx === 0, step.isDestination)}
                     </div>
                     <div className="direction-content">
-                      <div className="direction-instruction">
-                        {step.instruction}
-                      </div>
+                      <div className="direction-instruction">{step.instruction}</div>
                       {!step.isDestination && step.distance > 0 && (
-                        <div className="direction-distance">
-                          {formatDistance(step.distance)}
-                        </div>
+                        <div className="direction-distance">{formatDistance(step.distance)}</div>
                       )}
                     </div>
-                    {currentStepIndex === idx && (
-                      <div className="direction-active-indicator" />
-                    )}
+                    {currentStepIndex === idx && <div className="direction-active-indicator" />}
                   </div>
                 ))}
               </div>
@@ -699,9 +542,7 @@ const Legend = forwardRef(function Legend(
           )}
 
           <button className="legend-share-btn" onClick={handleShareLocation}>
-            <span className="share-icon">
-              <ShareIcon className="w-4 h-4" color="#3b82f6" />
-            </span>
+            <span className="share-icon"><IconShare className="w-4 h-4" color="#3b82f6" /></span>
             <span>Share my location</span>
           </button>
 
@@ -730,13 +571,9 @@ const Legend = forwardRef(function Legend(
                     <span className="alt-line alt-line--secondary" />
                     <div className="alt-info">
                       <span className="alt-name">Alternative {i + 1}</span>
-                      <span className="alt-time">
-                        {formatTravelTime(alt.totalDistance, vehicleMode)}
-                      </span>
+                      <span className="alt-time">{formatTravelTime(alt.totalDistance, vehicleMode)}</span>
                     </div>
-                    <span className="alt-dist">
-                      {formatDistance(alt.totalDistance)}
-                    </span>
+                    <span className="alt-dist">{formatDistance(alt.totalDistance)}</span>
                   </div>
                 ))}
               </div>
@@ -748,18 +585,11 @@ const Legend = forwardRef(function Legend(
               <div className="legend-divider" />
               <div className="legend-warnings">
                 {warnings.map((w, i) => {
-                  const WarningIcon =
-                    w.type === "danger" ? IconWarning : IconInfo;
-                  const warningColor =
-                    w.type === "danger" ? "#ef4444" : "#3b82f6";
+                  const WarningIcon  = w.type === "danger" ? IconWarning : IconInfo;
+                  const warningColor = w.type === "danger" ? "#ef4444" : "#3b82f6";
                   return (
-                    <div
-                      key={i}
-                      className={`legend-warning legend-warning--${w.type || "info"}`}
-                    >
-                      <span className="warning-icon">
-                        <WarningIcon className="w-4 h-4" color={warningColor} />
-                      </span>
+                    <div key={i} className={`legend-warning legend-warning--${w.type || "info"}`}>
+                      <span className="warning-icon"><WarningIcon className="w-4 h-4" color={warningColor} /></span>
                       <span className="warning-text">{w.message}</span>
                     </div>
                   );

@@ -1,65 +1,46 @@
+// components/Map/RouteLayer.jsx
+
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Polyline } from "react-leaflet";
 import { ROUTE_COLORS } from "../../function/utils/colors";
 import { useVoiceGuidance } from "../../hooks/useVoiceGuidance";
-import { generateDirections, findNextTurn, hasReachedDestination } from "../../services/directions";
+import { generateDirections } from "../../services/directions";
 import { findClosestPointOnRoute } from "../../function/utils/geometry";
 import "./RouteLayer.css";
 
-const EASING = "cubic-bezier(0.25, 0.46, 0.45, 0.94)";
 const MIN_DURATION_MS = 800;
 const MAX_DURATION_MS = 2000;
 
-// Calculate animation duration based on route length
 function getAnimationDuration(totalPoints) {
-  const duration = Math.min(MAX_DURATION_MS, MIN_DURATION_MS + totalPoints * 8);
-  return Math.max(MIN_DURATION_MS, duration);
+  return Math.max(MIN_DURATION_MS, Math.min(MAX_DURATION_MS, MIN_DURATION_MS + totalPoints * 8));
 }
 
-// Find closest point on route to current location
-function findClosestRouteIndexOptimized(
-  coordinates,
-  currentLocation,
-  thresholdMeters = 50,
-) {
+function findClosestRouteIndexOptimized(coordinates, currentLocation, thresholdMeters = 50) {
   if (!coordinates?.length || !currentLocation) return -1;
 
   let closestIndex = -1;
-  let minDistance = Infinity;
-
+  let minDistance  = Infinity;
   const step = Math.max(1, Math.floor(coordinates.length / 50));
 
   for (let i = 0; i < coordinates.length; i += step) {
-    const point = coordinates[i];
-    const latDiff = point.lat - currentLocation.lat;
-    const lngDiff = point.lng - currentLocation.lng;
-    const distanceMeters =
-      Math.sqrt(latDiff * latDiff + lngDiff * lngDiff) * 111319;
-
-    if (distanceMeters < minDistance) {
-      minDistance = distanceMeters;
-      closestIndex = i;
-    }
+    const p = coordinates[i];
+    const d = Math.sqrt((p.lat - currentLocation.lat) ** 2 + (p.lng - currentLocation.lng) ** 2) * 111319;
+    if (d < minDistance) { minDistance = d; closestIndex = i; }
   }
 
   const startIdx = Math.max(0, closestIndex - step);
-  const endIdx = Math.min(coordinates.length, closestIndex + step);
-
+  const endIdx   = Math.min(coordinates.length, closestIndex + step);
   for (let i = startIdx; i < endIdx; i++) {
-    const point = coordinates[i];
-    const latDiff = point.lat - currentLocation.lat;
-    const lngDiff = point.lng - currentLocation.lng;
-    const distanceMeters =
-      Math.sqrt(latDiff * latDiff + lngDiff * lngDiff) * 111319;
-
-    if (distanceMeters < minDistance) {
-      minDistance = distanceMeters;
-      closestIndex = i;
-    }
+    const p = coordinates[i];
+    const d = Math.sqrt((p.lat - currentLocation.lat) ** 2 + (p.lng - currentLocation.lng) ** 2) * 111319;
+    if (d < minDistance) { minDistance = d; closestIndex = i; }
   }
 
   return minDistance <= thresholdMeters ? closestIndex : -1;
 }
+
+// Three announcement thresholds in descending order (metres)
+const TURN_THRESHOLDS = [200, 100, 50];
 
 export default function RouteLayer({
   route,
@@ -69,133 +50,126 @@ export default function RouteLayer({
   showProgress = true,
   onTurnApproach = null,
 }) {
-  const [displayedCoords, setDisplayedCoords] = useState([]);
-  const [completedCoords, setCompletedCoords] = useState([]);
-  const [remainingCoords, setRemainingCoords] = useState([]);
+  const [displayedCoords,    setDisplayedCoords]    = useState([]);
+  const [completedCoords,    setCompletedCoords]    = useState([]);
+  const [remainingCoords,    setRemainingCoords]    = useState([]);
   const [isAnimationComplete, setIsAnimationComplete] = useState(false);
-  const [animationProgress, setAnimationProgress] = useState(0);
-  const [instructions, setInstructions] = useState([]);
-  const [lastAnnouncedTurnIndex, setLastAnnouncedTurnIndex] = useState(-1);
+  const [animationProgress,  setAnimationProgress]  = useState(0);
+  const [instructions,       setInstructions]       = useState([]);
   const [hasAnnouncedArrival, setHasAnnouncedArrival] = useState(false);
-  
-  const animationRef = useRef(null);
-  const lastCompletedIndexRef = useRef(-1);
-  const updateTimeoutRef = useRef(null);
-  const startTimeRef = useRef(null);
-  const progressIntervalRef = useRef(null);
 
-  const mainColor = ROUTE_COLORS[profile] || ROUTE_COLORS.standard;
+  const animationRef          = useRef(null);
+  const lastCompletedIndexRef = useRef(-1);
+  const updateTimeoutRef      = useRef(null);
+  const startTimeRef          = useRef(null);
+  const progressIntervalRef   = useRef(null);
+
+  // Ref-based announced turn tracking: Map<turnIndex, Set<threshold>>
+  // Using a ref (not state) prevents stale closures inside setInterval.
+  const announcedTurnsRef = useRef(new Map());
+
+  const mainColor      = ROUTE_COLORS[profile] || ROUTE_COLORS.standard;
   const completedColor = "#94a3b8";
   const remainingColor = mainColor;
 
   const { isVoiceEnabled, speakTurn, speakArrival } = useVoiceGuidance();
 
-  // Generate directions when route is ready
+  // Generate directions (pass roadNames so instructions include street names)
   useEffect(() => {
     if (!visible || !route?.coordinates?.length) {
       setInstructions([]);
-      setLastAnnouncedTurnIndex(-1);
+      announcedTurnsRef.current = new Map();
       setHasAnnouncedArrival(false);
       return;
     }
-
-    const dirs = generateDirections(route.coordinates);
+    const dirs = generateDirections(route.coordinates, route.roadNames || []);
     setInstructions(dirs);
-    setLastAnnouncedTurnIndex(-1);
+    announcedTurnsRef.current = new Map();
     setHasAnnouncedArrival(false);
   }, [route, visible]);
 
-  // Track user progress and announce turns
+  // Progress monitoring + turn announcements
   useEffect(() => {
-    if (!visible || !route?.coordinates?.length || !currentLocation || !isVoiceEnabled) {
-      return;
-    }
+    if (!visible || !route?.coordinates?.length || !currentLocation || !isVoiceEnabled) return;
 
-    const checkProgressAndTurns = () => {
-      // Find current position on route
+    const checkProgress = () => {
       const { distanceFromStart } = findClosestPointOnRoute(
         currentLocation.lat,
         currentLocation.lng,
         route.coordinates
       );
-      
-      const totalDistance = route.totalDistanceKm * 1000;
-      const remaining = totalDistance - distanceFromStart;
-      
-      // Check if arrived at destination
+
+      const totalDistance = (route.totalDistanceKm ?? route.totalDistance / 1000) * 1000;
+      const remaining     = totalDistance - distanceFromStart;
+
+      // Arrival check
       if (remaining <= 30 && !hasAnnouncedArrival) {
         setHasAnnouncedArrival(true);
         speakArrival();
         return;
       }
-      
-      // Find next upcoming turn
-      if (instructions.length > 0) {
-        for (let i = 0; i < instructions.length; i++) {
-          const turn = instructions[i];
-          if (turn.isDestination) continue;
-          
-          const distanceToTurn = turn.distance - distanceFromStart;
-          
-          // Announce when within 100 meters and not announced before
-          if (distanceToTurn <= 100 && distanceToTurn > 0 && i > lastAnnouncedTurnIndex) {
-            setLastAnnouncedTurnIndex(i);
-            
-            let urgency = 'normal';
-            let distance = distanceToTurn;
-            
-            if (distanceToTurn <= 50) {
-              urgency = 'immediate';
-              distance = 0;
+
+      // Turn announcements — iterate all upcoming turns
+      for (let i = 0; i < instructions.length; i++) {
+        const turn = instructions[i];
+        if (turn.isDestination) continue;
+
+        const distanceToTurn = turn.distance - distanceFromStart;
+
+        // Skip turns already passed
+        if (distanceToTurn < 0) continue;
+        // Skip turns too far away (beyond our outermost threshold)
+        if (distanceToTurn > TURN_THRESHOLDS[0] + 20) continue;
+
+        // Check each threshold from largest to smallest
+        for (const threshold of TURN_THRESHOLDS) {
+          if (distanceToTurn <= threshold) {
+            const announced = announcedTurnsRef.current.get(i) || new Set();
+            if (!announced.has(threshold)) {
+              announced.add(threshold);
+              announcedTurnsRef.current.set(i, announced);
+
+              // Build the instruction text with road name if available
+              const instruction = turn.instruction || 'Continue';
+              speakTurn(instruction, distanceToTurn, threshold <= 50 ? 'immediate' : 'normal');
+
+              // Only announce the closest unannounced threshold per interval tick
+              break;
             }
-            
-            speakTurn(turn.instruction, distance, urgency);
-            break;
           }
         }
       }
     };
-    
-    // Check immediately
-    checkProgressAndTurns();
-    
-    // Set up interval for continuous monitoring
-    progressIntervalRef.current = setInterval(checkProgressAndTurns, 2000);
-    
+
+    // Run immediately then on interval
+    checkProgress();
+    progressIntervalRef.current = setInterval(checkProgress, 2000);
+
     return () => {
       if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
         progressIntervalRef.current = null;
       }
     };
-  }, [currentLocation, route, visible, isVoiceEnabled, instructions, lastAnnouncedTurnIndex, hasAnnouncedArrival, speakTurn, speakArrival]);
+    // hasAnnouncedArrival intentionally excluded — we read it inside via closure
+    // but don't want to restart the interval every time it flips.
+  }, [currentLocation, route, visible, isVoiceEnabled, instructions, speakTurn, speakArrival]);
 
-  // Debounced progress update
+  // Debounced progress update (completed/remaining split)
   const updateProgress = useCallback((coords, location) => {
-    if (updateTimeoutRef.current) {
-      clearTimeout(updateTimeoutRef.current);
-    }
-
+    if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
     updateTimeoutRef.current = setTimeout(() => {
       const closestIndex = findClosestRouteIndexOptimized(coords, location);
-
-      if (
-        closestIndex !== -1 &&
-        closestIndex !== lastCompletedIndexRef.current
-      ) {
+      if (closestIndex !== -1 && closestIndex !== lastCompletedIndexRef.current) {
         lastCompletedIndexRef.current = closestIndex;
-
-        const completed = coords.slice(0, closestIndex + 1);
-        const remaining = coords.slice(closestIndex);
-
-        setCompletedCoords(completed.map((c) => [c.lat, c.lng]));
-        setRemainingCoords(remaining.map((c) => [c.lat, c.lng]));
+        setCompletedCoords(coords.slice(0, closestIndex + 1).map((c) => [c.lat, c.lng]));
+        setRemainingCoords(coords.slice(closestIndex).map((c) => [c.lat, c.lng]));
       }
       updateTimeoutRef.current = null;
     }, 100);
   }, []);
 
-  // Smooth animation using requestAnimationFrame
+  // Route draw animation
   useEffect(() => {
     if (!visible || !route?.coordinates?.length) {
       setDisplayedCoords([]);
@@ -204,15 +178,12 @@ export default function RouteLayer({
       setRemainingCoords([]);
       setAnimationProgress(0);
       lastCompletedIndexRef.current = -1;
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-        animationRef.current = null;
-      }
+      if (animationRef.current) { cancelAnimationFrame(animationRef.current); animationRef.current = null; }
       return;
     }
 
-    const coords = route.coordinates.map((c) => [c.lat, c.lng]);
-    const total = coords.length;
+    const coords   = route.coordinates.map((c) => [c.lat, c.lng]);
+    const total    = coords.length;
     const duration = getAnimationDuration(total);
 
     setDisplayedCoords([]);
@@ -221,14 +192,9 @@ export default function RouteLayer({
     startTimeRef.current = null;
 
     const animate = (timestamp) => {
-      if (!startTimeRef.current) {
-        startTimeRef.current = timestamp;
-      }
-
-      const elapsed = timestamp - startTimeRef.current;
-      let progress = Math.min(1, elapsed / duration);
-
-      // Apply easing for smoother motion
+      if (!startTimeRef.current) startTimeRef.current = timestamp;
+      const elapsed      = timestamp - startTimeRef.current;
+      const progress     = Math.min(1, elapsed / duration);
       const easedProgress = 1 - Math.pow(1 - progress, 2);
       setAnimationProgress(easedProgress);
 
@@ -238,21 +204,14 @@ export default function RouteLayer({
         setDisplayedCoords(coords);
         setIsAnimationComplete(true);
         setAnimationProgress(1);
-
         if (currentLocation && showProgress) {
-          const closestIndex = findClosestRouteIndexOptimized(
-            route.coordinates,
-            currentLocation,
-          );
-          if (closestIndex !== -1) {
-            lastCompletedIndexRef.current = closestIndex;
-            const completed = route.coordinates.slice(0, closestIndex + 1);
-            const remaining = route.coordinates.slice(closestIndex);
-            setCompletedCoords(completed.map((c) => [c.lat, c.lng]));
-            setRemainingCoords(remaining.map((c) => [c.lat, c.lng]));
+          const ci = findClosestRouteIndexOptimized(route.coordinates, currentLocation);
+          if (ci !== -1) {
+            lastCompletedIndexRef.current = ci;
+            setCompletedCoords(route.coordinates.slice(0, ci + 1).map((c) => [c.lat, c.lng]));
+            setRemainingCoords(route.coordinates.slice(ci).map((c) => [c.lat, c.lng]));
           }
         }
-
         animationRef.current = null;
       } else {
         setDisplayedCoords(coords.slice(0, pointsToShow));
@@ -261,99 +220,38 @@ export default function RouteLayer({
     };
 
     animationRef.current = requestAnimationFrame(animate);
-
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-        animationRef.current = null;
-      }
-    };
+    return () => { if (animationRef.current) { cancelAnimationFrame(animationRef.current); animationRef.current = null; } };
   }, [route, visible, profile, currentLocation, showProgress]);
 
+  // Keep completed/remaining in sync with GPS movement
   useEffect(() => {
-    if (
-      !visible ||
-      !route?.coordinates?.length ||
-      !showProgress ||
-      !currentLocation
-    ) {
-      return;
-    }
-
+    if (!visible || !route?.coordinates?.length || !showProgress || !currentLocation) return;
     updateProgress(route.coordinates, currentLocation);
   }, [route, visible, currentLocation, showProgress, updateProgress]);
 
-  if (
-    !visible ||
-    (displayedCoords.length < 2 &&
-      completedCoords.length < 2 &&
-      remainingCoords.length < 2)
-  ) {
+  if (!visible || (displayedCoords.length < 2 && completedCoords.length < 2 && remainingCoords.length < 2)) {
     return null;
   }
 
-  if (
-    showProgress &&
-    isAnimationComplete &&
-    (completedCoords.length > 0 || remainingCoords.length > 0)
-  ) {
+  if (showProgress && isAnimationComplete && (completedCoords.length > 0 || remainingCoords.length > 0)) {
     return (
       <>
         {completedCoords.length >= 2 && (
           <>
-            <Polyline
-              positions={completedCoords}
-              color={completedColor}
-              weight={5}
-              opacity={0.4}
-              smoothFactor={2}
-              lineCap="round"
-              lineJoin="round"
-              className="route-completed"
-            />
-            <Polyline
-              positions={completedCoords}
-              color={completedColor}
-              weight={5}
-              opacity={0.2}
-              smoothFactor={2}
-              lineCap="round"
-              lineJoin="round"
-              dashArray="5, 10"
-              className="route-completed-dashed"
-            />
+            <Polyline positions={completedCoords} color={completedColor} weight={5}  opacity={0.4}  smoothFactor={2} lineCap="round" lineJoin="round" className="route-completed" />
+            <Polyline positions={completedCoords} color={completedColor} weight={5}  opacity={0.2}  smoothFactor={2} lineCap="round" lineJoin="round" dashArray="5, 10" className="route-completed-dashed" />
           </>
         )}
-
         {remainingCoords.length >= 2 && (
           <>
-            <Polyline
-              positions={remainingCoords}
-              color={remainingColor}
-              weight={6}
-              opacity={0.95}
-              smoothFactor={2}
-              lineCap="round"
-              lineJoin="round"
-              className="route-remaining"
-            />
-            <Polyline
-              positions={remainingCoords}
-              color={remainingColor}
-              weight={14}
-              opacity={0.15}
-              smoothFactor={2}
-              lineCap="round"
-              lineJoin="round"
-              className="route-remaining-glow"
-            />
+            <Polyline positions={remainingCoords} color={remainingColor} weight={6}  opacity={0.95} smoothFactor={2} lineCap="round" lineJoin="round" className="route-remaining" />
+            <Polyline positions={remainingCoords} color={remainingColor} weight={14} opacity={0.15} smoothFactor={2} lineCap="round" lineJoin="round" className="route-remaining-glow" />
           </>
         )}
       </>
     );
   }
 
-  // Animated route with fade-in effect based on progress
   return (
     <>
       <Polyline
@@ -366,7 +264,6 @@ export default function RouteLayer({
         lineJoin="round"
         className="route-glow"
       />
-
       <Polyline
         positions={displayedCoords}
         color={mainColor}
@@ -375,11 +272,7 @@ export default function RouteLayer({
         smoothFactor={2}
         lineCap="round"
         lineJoin="round"
-        className={
-          isAnimationComplete
-            ? "route-main route-complete"
-            : "route-main route-animating"
-        }
+        className={isAnimationComplete ? "route-main route-complete" : "route-main route-animating"}
       />
     </>
   );
