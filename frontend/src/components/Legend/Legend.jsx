@@ -193,6 +193,35 @@ const Legend = forwardRef(function Legend(
 
   const { isVoiceEnabled, toggleVoice, speak } = useVoiceGuidance();
 
+  // Store a ref to the current route summary info for when voice is turned ON
+  const pendingRouteSummaryRef = useRef(null);
+
+  // Update pending route summary when route changes
+  useEffect(() => {
+    if (route?.totalDistance) {
+      pendingRouteSummaryRef.current = {
+        distance: formatDistance(route.totalDistance),
+        time: formatTravelTime(route.totalDistance, vehicleMode),
+      };
+    } else {
+      pendingRouteSummaryRef.current = null;
+    }
+  }, [route, vehicleMode]);
+
+  // Custom toggle that speaks route summary when turning ON
+  const handleVoiceToggle = () => {
+    const wasEnabled = isVoiceEnabled;
+    toggleVoice();
+    
+    // If turning ON and there's a pending route summary, speak it
+    if (!wasEnabled && pendingRouteSummaryRef.current) {
+      const { distance, time } = pendingRouteSummaryRef.current;
+      setTimeout(() => {
+        speak(`Route calculated. ${distance}, about ${time}.`);
+      }, 100);
+    }
+  };
+
   // Generate directions when route changes
   useEffect(() => {
     if (route?.coordinates?.length > 0) {
@@ -253,6 +282,7 @@ const Legend = forwardRef(function Legend(
   }, [expanded, onExpandedChange]);
 
   // Route-calculated announcement — fires once per unique route, not on re-renders
+  // Only speaks if voice is ALREADY enabled (not when turning on later)
   useEffect(() => {
     if (!isVoiceEnabled || !route?.totalDistance) return;
 
@@ -450,10 +480,10 @@ const Legend = forwardRef(function Legend(
             })}
           </div>
 
-          {/* Voice toggle — toggleVoice now speaks "Voice guidance on/off" internally */}
+          {/* Voice toggle — now speaks route summary when turning ON */}
           <button
             className={`legend-voice-btn ${isVoiceEnabled ? "legend-voice-btn--active" : ""}`}
-            onClick={toggleVoice}
+            onClick={handleVoiceToggle}
             title={isVoiceEnabled ? "Disable voice guidance" : "Enable voice guidance"}
             aria-pressed={isVoiceEnabled}
           >
