@@ -1,4 +1,4 @@
-// WeatherBanner.jsx - Weather display with voice announcements (ONCE EVER)
+// WeatherBanner.jsx - Weather display with voice announcements (ONCE PER SESSION)
 import { useEffect, useRef } from 'react';
 import { useWeather } from '../../hooks/useWeather';
 import { useVoiceGuidance } from '../../hooks/useVoiceGuidance';
@@ -26,54 +26,36 @@ export default function WeatherBanner() {
 
   const { speak, isVoiceEnabled } = useVoiceGuidance();
 
-  // Track if weather has been announced EVER in this session
+  // Track if weather has been announced this session
   const hasAnnouncedWeatherRef = useRef(false);
+  // Keep stable ref to speak
   const speakRef = useRef(speak);
-  const weatherRef = useRef(weather);
-  
   useEffect(() => { speakRef.current = speak; }, [speak]);
-  useEffect(() => { weatherRef.current = weather; }, [weather]);
 
-  // Voice announcement - runs only once total, no matter what
+  // Voice announcement - ONLY ONCE per session, never again
   useEffect(() => {
+    if (!weather || !isVoiceEnabled || weather.isFallback) return;
     if (hasAnnouncedWeatherRef.current) return;
-    if (!isVoiceEnabled) return;
+
+    const condition = weather.condition || 'Unknown';
+    const temp = Math.round(weather.temperature);
     
-    // Small delay to wait for weather data
-    const timer = setTimeout(() => {
-      const currentWeather = weatherRef.current;
-      if (!currentWeather || currentWeather.isFallback) return;
-      
-      const condition = currentWeather.condition || 'Unknown';
-      const temp = Math.round(currentWeather.temperature);
-      
-      hasAnnouncedWeatherRef.current = true;
+    hasAnnouncedWeatherRef.current = true;
+    
+    // Small delay to ensure it doesn't clash with other voice
+    setTimeout(() => {
       speakRef.current(
         `Current weather: ${condition}, ${temp} degrees.`,
         { priority: 'normal' }
       );
-    }, 1000);
-    
-    return () => clearTimeout(timer);
-  }, [isVoiceEnabled]); // Intentionally NO weather in deps!
+    }, 800);
+  }, [weather, isVoiceEnabled]); // No speak in deps - using ref
 
-  // Manual refresh - reset announcement so user hears updated weather
+  // Manual refresh - reset announcement gate so user hears the updated weather
   const handleRefresh = async () => {
     hasAnnouncedWeatherRef.current = false;
     await refreshWeather();
-    // The useEffect will trigger again after refresh (isVoiceEnabled unchanged but will re-run)
-    setTimeout(() => {
-      const currentWeather = weatherRef.current;
-      if (currentWeather && !currentWeather.isFallback) {
-        const condition = currentWeather.condition || 'Unknown';
-        const temp = Math.round(currentWeather.temperature);
-        hasAnnouncedWeatherRef.current = true;
-        speakRef.current(
-          `Weather refreshed: ${condition}, ${temp} degrees.`,
-          { priority: 'normal' }
-        );
-      }
-    }, 500);
+    // After refresh, the useEffect above will trigger again
   };
 
   const display = getWeatherDisplay();
