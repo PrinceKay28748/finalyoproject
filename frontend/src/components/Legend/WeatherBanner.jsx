@@ -100,13 +100,7 @@ export default function WeatherBanner() {
           <RefreshIcon />
         </button>
       </div>
-      
-      {multipliers.message && (
-        <div className={`weather-message ${hasImpact ? 'weather-message--active' : ''}`}>
-          <span className="message-icon">{display.icon}</span>
-          <span className="message-text">{multipliers.message}</span>
-        </div>
-      )}
+     
       
       <div className="weather-impact-badge">
         {hasImpact ? (
@@ -117,4 +111,4 @@ export default function WeatherBanner() {
       </div>
     </div>
   );
-}
+} 
