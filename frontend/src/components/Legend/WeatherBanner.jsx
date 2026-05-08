@@ -1,8 +1,4 @@
-// components/Legend/WeatherBanner.jsx
-// Weather display with voice announcements.
-// Voice fires ONLY when the condition string actually changes — not on re-renders
-// or Legend drags — by comparing against a ref instead of putting speak() in deps.
-
+// WeatherBanner.jsx - Weather display with voice announcements (ONCE PER SESSION)
 import { useEffect, useRef } from 'react';
 import { useWeather } from '../../hooks/useWeather';
 import { useVoiceGuidance } from '../../hooks/useVoiceGuidance';
@@ -30,55 +26,41 @@ export default function WeatherBanner() {
 
   const { speak, isVoiceEnabled } = useVoiceGuidance();
 
-  // Refs track what was last spoken so re-renders never re-trigger voice.
-  // We deliberately do NOT put `speak` in the effect dep array — it's stable
-  // from useVoiceGuidance but even if it weren't, a new function reference
-  // should never cause a repeated announcement.
-  const lastSpokenConditionRef = useRef(null);
-  const hasSpokenInitialRef    = useRef(false);
-  // Keep a stable ref to `speak` so the effect body can call it without
-  // listing it as a dependency.
+  // Track if weather has been announced this session
+  const hasAnnouncedWeatherRef = useRef(false);
+  // Keep stable ref to speak
   const speakRef = useRef(speak);
   useEffect(() => { speakRef.current = speak; }, [speak]);
 
-  // Voice announcement — only fires when weather.condition actually changes
+  // Voice announcement - ONLY ONCE per session, never again
   useEffect(() => {
     if (!weather || !isVoiceEnabled || weather.isFallback) return;
+    if (hasAnnouncedWeatherRef.current) return;
 
     const condition = weather.condition || 'Unknown';
-    const temp      = Math.round(weather.temperature);
-
-    // Gate: skip if we already announced this exact condition
-    if (lastSpokenConditionRef.current === condition) return;
-    lastSpokenConditionRef.current = condition;
-
-    if (!hasSpokenInitialRef.current) {
-      hasSpokenInitialRef.current = true;
-      // Slight delay so it doesn't clash with the route-calculated announcement
-      setTimeout(() => {
-        speakRef.current(
-          `Current weather: ${condition}, ${temp} degrees.`,
-          { priority: 'normal' }
-        );
-      }, 800);
-    } else {
+    const temp = Math.round(weather.temperature);
+    
+    hasAnnouncedWeatherRef.current = true;
+    
+    // Small delay to ensure it doesn't clash with other voice
+    setTimeout(() => {
       speakRef.current(
-        `Weather update: ${condition}, ${temp} degrees.`,
+        `Current weather: ${condition}, ${temp} degrees.`,
         { priority: 'normal' }
       );
-    }
-    // Deps: only the values we actually compare — NOT `speak`
-  }, [weather, isVoiceEnabled]);
+    }, 800);
+  }, [weather, isVoiceEnabled]); // No speak in deps - using ref
 
-  // Manual refresh — re-allow announcement for the new condition
+  // Manual refresh - reset announcement gate so user hears the updated weather
   const handleRefresh = async () => {
-    // Reset the gate so the updated condition gets announced
-    lastSpokenConditionRef.current = null;
+    hasAnnouncedWeatherRef.current = false;
     await refreshWeather();
+    // After refresh, the useEffect above will trigger again
   };
 
-  const display   = getWeatherDisplay();
+  const display = getWeatherDisplay();
   const hasImpact = hasWeatherImpact();
+  const multipliers = getMultipliers();
 
   if (!weather) {
     return (
