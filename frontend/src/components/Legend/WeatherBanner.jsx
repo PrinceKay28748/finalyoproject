@@ -1,11 +1,16 @@
-// WeatherBanner.jsx - Weather display with voice announcements (no routing impact voice)
+// components/Legend/WeatherBanner.jsx
+// Weather display with voice announcements.
+// Voice fires ONLY when the condition string actually changes — not on re-renders
+// or Legend drags — by comparing against a ref instead of putting speak() in deps.
+
 import { useEffect, useRef } from 'react';
 import { useWeather } from '../../hooks/useWeather';
 import { useVoiceGuidance } from '../../hooks/useVoiceGuidance';
 import './WeatherBanner.css';
 
 const RefreshIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M23 4v6h-6" />
     <path d="M1 20v-6h6" />
     <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
@@ -14,63 +19,66 @@ const RefreshIcon = () => (
 );
 
 export default function WeatherBanner() {
-  const { 
-    weather, 
-    getWeatherDisplay, 
-    hasWeatherImpact, 
-    getMultipliers, 
-    refreshWeather, 
+  const {
+    weather,
+    getWeatherDisplay,
+    hasWeatherImpact,
+    getMultipliers,
+    refreshWeather,
     isLoading,
-    formatWeatherMessage
   } = useWeather();
-  
-  const { speak, isVoiceEnabled } = useVoiceGuidance();
-  
-  // Use refs to prevent repeat announcements on re-renders
-  const hasSpokenInitialRef = useRef(false);
-  const lastSpokenWeatherIdRef = useRef(null);
-  
-  const display = getWeatherDisplay();
-  const hasImpact = hasWeatherImpact();
-  const multipliers = getMultipliers();
 
-  // Voice announcements for weather - ONLY weather description, NO routing impact
+  const { speak, isVoiceEnabled } = useVoiceGuidance();
+
+  // Refs track what was last spoken so re-renders never re-trigger voice.
+  // We deliberately do NOT put `speak` in the effect dep array — it's stable
+  // from useVoiceGuidance but even if it weren't, a new function reference
+  // should never cause a repeated announcement.
+  const lastSpokenConditionRef = useRef(null);
+  const hasSpokenInitialRef    = useRef(false);
+  // Keep a stable ref to `speak` so the effect body can call it without
+  // listing it as a dependency.
+  const speakRef = useRef(speak);
+  useEffect(() => { speakRef.current = speak; }, [speak]);
+
+  // Voice announcement — only fires when weather.condition actually changes
   useEffect(() => {
     if (!weather || !isVoiceEnabled || weather.isFallback) return;
-    
-    // Create unique ID for this weather state
-    const weatherId = `${weather.condition}-${weather.temperature}`;
-    
-    // Only speak if weather has actually changed
-    if (lastSpokenWeatherIdRef.current !== weatherId) {
-      lastSpokenWeatherIdRef.current = weatherId;
-      
-      // Simple weather announcement - no routing impact
-      if (!hasSpokenInitialRef.current) {
-        hasSpokenInitialRef.current = true;
-        const temp = Math.round(weather.temperature);
-        const condition = weather.condition || 'Unknown';
-        const message = `Current weather: ${condition}, ${temp} degrees.`;
-        setTimeout(() => speak(message, { priority: 'normal' }), 500);
-      } else {
-        // Weather condition changed - announce update only
-        const temp = Math.round(weather.temperature);
-        const condition = weather.condition || 'Unknown';
-        const message = `Weather update: ${condition}, ${temp} degrees.`;
-        speak(message, { priority: 'normal' });
-      }
-    }
-  }, [weather, isVoiceEnabled, speak]);
 
-  // Handle manual refresh with voice confirmation
-  const handleRefresh = async () => {
-    await refreshWeather();
-    if (isVoiceEnabled && weather && !weather.isFallback) {
-      const temp = Math.round(weather.temperature);
-      const condition = weather.condition || 'Unknown';
-      speak(`Weather refreshed: ${condition}, ${temp} degrees.`, { priority: 'normal' });
+    const condition = weather.condition || 'Unknown';
+    const temp      = Math.round(weather.temperature);
+
+    // Gate: skip if we already announced this exact condition
+    if (lastSpokenConditionRef.current === condition) return;
+    lastSpokenConditionRef.current = condition;
+
+    if (!hasSpokenInitialRef.current) {
+      hasSpokenInitialRef.current = true;
+      // Slight delay so it doesn't clash with the route-calculated announcement
+      setTimeout(() => {
+        speakRef.current(
+          `Current weather: ${condition}, ${temp} degrees.`,
+          { priority: 'normal' }
+        );
+      }, 800);
+    } else {
+      speakRef.current(
+        `Weather update: ${condition}, ${temp} degrees.`,
+        { priority: 'normal' }
+      );
     }
+    // Deps: only the values we actually compare — NOT `speak`
+  }, [weather, isVoiceEnabled]);
+
+  // Manual refresh — re-allow announcement for the new condition
+  const handleRefresh = async () => {
+    // Reset the gate so the updated condition gets announced
+    lastSpokenConditionRef.current = null;
+    await refreshWeather();
   };
+
+  const display   = getWeatherDisplay();
+  const hasImpact = hasWeatherImpact();
 
   if (!weather) {
     return (
@@ -80,9 +88,9 @@ export default function WeatherBanner() {
       </div>
     );
   }
-  
+
   return (
-    <div className={`weather-banner ${hasImpact ? 'weather-banner--impact' : ''}`}>
+    <div className={`weather-banner${hasImpact ? ' weather-banner--impact' : ''}`}>
       <div className="weather-banner-main">
         <div className="weather-info">
           <span className="weather-icon">{display.icon}</span>
@@ -91,17 +99,18 @@ export default function WeatherBanner() {
             <span className="weather-condition">{display.label}</span>
           </div>
         </div>
-        <button 
-          className="weather-refresh" 
-          onClick={handleRefresh} 
+
+        <button
+          className="weather-refresh"
+          onClick={handleRefresh}
           disabled={isLoading}
           title="Refresh weather"
+          aria-label="Refresh weather"
         >
           <RefreshIcon />
         </button>
       </div>
-     
-      
+
       <div className="weather-impact-badge">
         {hasImpact ? (
           <span className="impact-active">🌧️ Routing adjusted for conditions</span>
@@ -111,4 +120,4 @@ export default function WeatherBanner() {
       </div>
     </div>
   );
-} 
+}
