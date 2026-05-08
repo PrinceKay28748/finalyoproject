@@ -17,23 +17,9 @@ export default defineConfig({
   },
   
   build: {
-    // Use terser for more stable minification
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: false,
-        passes: 2,
-        // Prevent variable name collisions
-        unsafe: false
-      },
-      mangle: {
-        // Avoid mangling problematic variable names
-        reserved: ['v', 'Se', 'Fe', 'Do', 'vc', 'Fc', 'Mu', 'ku', 'Ou', 'gu', 'cd', 'ie']
-      },
-      format: {
-        comments: false
-      }
-    },
+    // Use esbuild (default, faster) but with specific settings
+    minify: 'esbuild',
+    target: 'es2020',
     rollupOptions: {
       output: {
         manualChunks: (id) => {
@@ -46,24 +32,28 @@ export default defineConfig({
           if (id.includes('node_modules/react')) {
             return 'vendor';
           }
-          // Separate voice guidance to avoid circular deps
-          if (id.includes('useVoiceGuidance')) {
+          // Isolate the problematic modules
+          if (id.includes('useVoiceGuidance') || id.includes('useWeather')) {
             return 'voice';
           }
         }
       }
     },
-    // Increase chunk size warning limit
-    chunkSizeWarningLimit: 1000
+    // Don't minify identifiers that might cause conflicts
+    minifyIdentifiers: true,
+    // Ensure sourcemaps for debugging (optional)
+    sourcemap: false
   },
   
-  // Optimize dependencies to pre-bundle
+  // Optimize deps to pre-bundle and avoid circular issues
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom', 'leaflet', 'react-leaflet']
-  },
-  
-  // Resolve configuration to handle circular dependencies
-  resolve: {
-    dedupe: ['react', 'react-dom']
+    include: [
+      'react', 
+  'react-dom', 
+  'react-router-dom',
+      'leaflet', 
+      'react-leaflet'
+    ],
+    exclude: []
   }
 })
