@@ -63,7 +63,13 @@ export function useRealtimeRoutes({
   // a reroute completes or deviation clears.
   const hasSpokenDeviationRef   = useRef(false);
 
-  const { speakRouteSummary, speakDeviation } = useVoiceGuidance();
+  const { isVoiceEnabled, speakRouteSummary, speakDeviation } = useVoiceGuidance();
+  
+  // Keep a ref to the current voice state to avoid stale closures
+  const isVoiceEnabledRef = useRef(isVoiceEnabled);
+  useEffect(() => {
+    isVoiceEnabledRef.current = isVoiceEnabled;
+  }, [isVoiceEnabled]);
 
   useEffect(() => {
     currentStartNodeIdRef.current = startNodeId;
@@ -98,8 +104,8 @@ export function useRealtimeRoutes({
         closestPointIndex: -1,
       });
 
-      // Voice: announce reroute or initial route
-      if (allRoutes[activeProfile]) {
+      // Voice: announce reroute or initial route - ONLY if voice is actually enabled
+      if (allRoutes[activeProfile] && isVoiceEnabledRef.current) {
         const dist = formatDistanceForVoice(allRoutes[activeProfile].totalDistance);
         const time = formatTravelTimeForVoice(allRoutes[activeProfile].totalDistance, vehicleMode);
         speakRouteSummary(dist, time, isReroute);
@@ -114,7 +120,7 @@ export function useRealtimeRoutes({
       setIsLoading(false);
       setIsRerouting(false);
     }
-  }, [graph, endNodeId, activeProfile, vehicleMode, speakRouteSummary]);
+  }, [graph, endNodeId, activeProfile, vehicleMode, speakRouteSummary]); // isVoiceEnabledRef is a ref, not a dep
 
   const updateRouteProgress = useCallback(() => {
     const activeRoute = routes[activeProfile];
@@ -167,10 +173,13 @@ export function useRealtimeRoutes({
     if (distanceToRoute > DEVIATION_THRESHOLD_METERS) {
       if (!deviationDetected) setDeviationDetected(true);
 
-      // Speak deviation voice ONCE per deviation event
-      if (!hasSpokenDeviationRef.current) {
+      // Speak deviation voice ONCE per deviation event - ONLY if voice is enabled
+      if (isVoiceEnabledRef.current && !hasSpokenDeviationRef.current) {
         hasSpokenDeviationRef.current = true;
         speakDeviation();
+      } else if (!isVoiceEnabledRef.current && !hasSpokenDeviationRef.current) {
+        // Still mark as spoken to prevent future attempts when voice is off
+        hasSpokenDeviationRef.current = true;
       }
 
       if (deviationTimerRef.current) clearTimeout(deviationTimerRef.current);
@@ -196,7 +205,7 @@ export function useRealtimeRoutes({
     }
 
     return () => { if (deviationTimerRef.current) clearTimeout(deviationTimerRef.current); };
-  }, [currentLocation, routes, activeProfile, graph, endNodeId, calculateRoutes, deviationDetected, isActive, speakDeviation]);
+  }, [currentLocation, routes, activeProfile, graph, endNodeId, calculateRoutes, deviationDetected, isActive, speakDeviation]); // isVoiceEnabledRef is a ref
 
   const getPrimaryRoute      = useCallback(() => routes[activeProfile], [routes, activeProfile]);
   const getAlternativeRoutes = useCallback(() => {
