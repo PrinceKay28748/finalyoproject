@@ -20,13 +20,21 @@ export function useVoiceGuidance() {
     isVoiceEnabledRef.current = isVoiceEnabled;
   }, [isVoiceEnabled]);
 
-  // Initialise speech synthesis once
+  // Initialise speech synthesis once with proper cleanup
   useEffect(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       synthesisRef.current = window.speechSynthesis;
     }
+    
     return () => {
-      synthesisRef.current?.cancel();
+      // Cancel any pending speech when component unmounts
+      if (synthesisRef.current) {
+        synthesisRef.current.cancel();
+      }
+      // Reset queue and speaking state
+      queueRef.current = [];
+      isSpeakingRef.current = false;
+      currentUtteranceRef.current = null;
     };
   }, []);
 
@@ -34,6 +42,16 @@ export function useVoiceGuidance() {
   useEffect(() => {
     localStorage.setItem('voiceGuidanceEnabled', isVoiceEnabled);
   }, [isVoiceEnabled]);
+
+  // Reset voice state (useful for navigation/refresh edge cases)
+  const resetVoice = useCallback(() => {
+    if (synthesisRef.current) {
+      synthesisRef.current.cancel();
+    }
+    queueRef.current = [];
+    isSpeakingRef.current = false;
+    currentUtteranceRef.current = null;
+  }, []);
 
   // ── Queue processor ───────────────────────────────────────────────────────
   // Uses isVoiceEnabledRef so the onend callback never reads a stale closure.
@@ -218,5 +236,6 @@ export function useVoiceGuidance() {
     speakRerouteComplete,
     formatDistanceForVoice,
     formatTravelTimeForVoice,
+    resetVoice,  // Expose reset function for navigation edge cases
   };
 }
