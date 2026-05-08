@@ -1,10 +1,9 @@
-// WeatherBanner.jsx - Weather display with voice announcements
+// WeatherBanner.jsx - Weather display with voice announcements (no routing impact voice)
 import { useEffect, useRef } from 'react';
 import { useWeather } from '../../hooks/useWeather';
 import { useVoiceGuidance } from '../../hooks/useVoiceGuidance';
 import './WeatherBanner.css';
 
-// SVG Refresh Icon
 const RefreshIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M23 4v6h-6" />
@@ -22,40 +21,46 @@ export default function WeatherBanner() {
     getMultipliers, 
     refreshWeather, 
     isLoading,
-    formatWeatherMessage,
-    getWeatherChange
+    formatWeatherMessage
   } = useWeather();
   
   const { speak, isVoiceEnabled } = useVoiceGuidance();
-  const previousWeatherRef = useRef(null);
+  
+  // Use refs to prevent repeat announcements on re-renders
   const hasSpokenInitialRef = useRef(false);
+  const lastSpokenWeatherIdRef = useRef(null);
   
   const display = getWeatherDisplay();
   const hasImpact = hasWeatherImpact();
   const multipliers = getMultipliers();
 
-  // Voice announcements for weather (moved from useWeather to break circular dependency)
+  // Voice announcements for weather - ONLY weather description, NO routing impact
   useEffect(() => {
     if (!weather || !isVoiceEnabled || weather.isFallback) return;
     
-    // Initial weather announcement (first load only)
-    if (!hasSpokenInitialRef.current) {
-      hasSpokenInitialRef.current = true;
-      const message = formatWeatherMessage(weather, hasImpact);
-      setTimeout(() => speak(message, { priority: 'normal' }), 500);
-    }
+    // Create unique ID for this weather state
+    const weatherId = `${weather.condition}-${weather.temperature}`;
     
-    // Check for weather condition change
-    if (previousWeatherRef.current) {
-      const change = getWeatherChange(previousWeatherRef.current, weather);
-      if (change && change.type === 'condition_change') {
-        const message = `Weather update: ${change.newCondition} detected, ${change.temperature} degrees. Routing adjusted for conditions.`;
+    // Only speak if weather has actually changed
+    if (lastSpokenWeatherIdRef.current !== weatherId) {
+      lastSpokenWeatherIdRef.current = weatherId;
+      
+      // Simple weather announcement - no routing impact
+      if (!hasSpokenInitialRef.current) {
+        hasSpokenInitialRef.current = true;
+        const temp = Math.round(weather.temperature);
+        const condition = weather.condition || 'Unknown';
+        const message = `Current weather: ${condition}, ${temp} degrees.`;
+        setTimeout(() => speak(message, { priority: 'normal' }), 500);
+      } else {
+        // Weather condition changed - announce update only
+        const temp = Math.round(weather.temperature);
+        const condition = weather.condition || 'Unknown';
+        const message = `Weather update: ${condition}, ${temp} degrees.`;
         speak(message, { priority: 'normal' });
       }
     }
-    
-    previousWeatherRef.current = weather;
-  }, [weather, isVoiceEnabled, speak, formatWeatherMessage, hasImpact, getWeatherChange]);
+  }, [weather, isVoiceEnabled, speak]);
 
   // Handle manual refresh with voice confirmation
   const handleRefresh = async () => {
