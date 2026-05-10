@@ -142,6 +142,7 @@ export default function MapView({
   selectedHour,
   onSelectedHourChange,
   onOpenReportModal,
+  isNavExpanded = false, // NEW: Receive from parent App.jsx
 }) {
   const showDestinationMarker = !!destPoint;
   const displayStartPoint =
@@ -368,6 +369,7 @@ export default function MapView({
         onProfileChange={onProfileChange}
         isExpanded={isLegendExpanded}
         onExpandedChange={onLegendExpandedChange}
+        autoCollapse={isNavExpanded}
       />
 
       {waitingForStart && (

@@ -472,6 +472,7 @@ export default function App() {
             selectedHour={selectedHour}
             onSelectedHourChange={setSelectedHour}
             onOpenReportModal={handleOpenReportModal}
+            isNavExpanded={isNavExpanded}
           />
         </Suspense>
 
