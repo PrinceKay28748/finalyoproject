@@ -285,24 +285,7 @@ export default function MapView({
       </MapContainer>
 
       {/* ── Map controls (OUTSIDE map container) ───────────────────────────── */}
-      <div className="map-zoom-controls">
-        <button
-          className="map-zoom-btn map-zoom-in"
-          onClick={() => getMap()?.zoomIn({ animate: true })}
-          title="Zoom in (+)"
-          aria-label="Zoom in"
-        >
-          +
-        </button>
-        <button
-          className="map-zoom-btn map-zoom-out"
-          onClick={() => getMap()?.zoomOut({ animate: true })}
-          title="Zoom out (-)"
-          aria-label="Zoom out"
-        >
-          −
-        </button>
-      </div>
+      {/* Zoom controls removed */}
 
       <button
         className="map-recenter-btn"
