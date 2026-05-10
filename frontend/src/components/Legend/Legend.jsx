@@ -169,6 +169,7 @@ const Legend = forwardRef(function Legend(
     currentLocation,
     onExpandedChange,
     onProfileChange,
+    autoCollapse = false, // NEW: Auto-collapse when Nav Panel opens
   },
   ref,
 ) {
@@ -176,6 +177,7 @@ const Legend = forwardRef(function Legend(
   const [isDragging, setIsDragging]       = useState(false);
   const [directions, setDirections]       = useState([]);
   const [currentStepIndex, setCurrentStepIndex] = useState(-1);
+  const [wasExpandedBeforeCollapse, setWasExpandedBeforeCollapse] = useState(true);
 
   const dragStartY        = useRef(0);
   const dragCurrentY      = useRef(0);
@@ -221,6 +223,17 @@ const Legend = forwardRef(function Legend(
       }, 100);
     }
   };
+
+  // Auto-collapse legend when Nav Panel opens
+  useEffect(() => {
+    if (autoCollapse && expanded) {
+      setWasExpandedBeforeCollapse(true);
+      setExpanded(false);
+    } else if (!autoCollapse && wasExpandedBeforeCollapse && !expanded) {
+      setExpanded(true);
+      setWasExpandedBeforeCollapse(false);
+    }
+  }, [autoCollapse, expanded, wasExpandedBeforeCollapse]);
 
   // Generate directions when route changes
   useEffect(() => {
