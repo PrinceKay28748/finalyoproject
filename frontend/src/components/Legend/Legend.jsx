@@ -169,7 +169,8 @@ const Legend = forwardRef(function Legend(
     currentLocation,
     onExpandedChange,
     onProfileChange,
-    autoCollapse = false, // NEW: Auto-collapse when Nav Panel opens
+    autoCollapse = false,
+    onNavPanelClose, // NEW: Callback to close Nav Panel when Legend expands
   },
   ref,
 ) {
@@ -189,16 +190,12 @@ const Legend = forwardRef(function Legend(
   const directionsRef     = useRef(null);
   const peekHeight        = 70;
 
-  // Tracks the route identity we last announced so re-renders (e.g. drags)
-  // don't fire the announcement again for the same route.
   const lastAnnouncedRouteIdRef = useRef(null);
 
   const { isVoiceEnabled, toggleVoice, speak } = useVoiceGuidance();
 
-  // Store a ref to the current route summary info for when voice is turned ON
   const pendingRouteSummaryRef = useRef(null);
 
-  // Update pending route summary when route changes
   useEffect(() => {
     if (route?.totalDistance) {
       pendingRouteSummaryRef.current = {
@@ -210,12 +207,10 @@ const Legend = forwardRef(function Legend(
     }
   }, [route, vehicleMode]);
 
-  // Custom toggle that speaks route summary when turning ON
   const handleVoiceToggle = () => {
     const wasEnabled = isVoiceEnabled;
     toggleVoice();
     
-    // If turning ON and there's a pending route summary, speak it
     if (!wasEnabled && pendingRouteSummaryRef.current) {
       const { distance, time } = pendingRouteSummaryRef.current;
       setTimeout(() => {
@@ -235,7 +230,6 @@ const Legend = forwardRef(function Legend(
     }
   }, [autoCollapse, expanded, wasExpandedBeforeCollapse]);
 
-  // Generate directions when route changes
   useEffect(() => {
     if (route?.coordinates?.length > 0) {
       const dirs = generateDirections(route.coordinates, route.roadNames || []);
@@ -247,7 +241,6 @@ const Legend = forwardRef(function Legend(
     }
   }, [route]);
 
-  // Auto-scroll to active step
   useEffect(() => {
     if (currentStepIndex >= 0 && directionsRef.current) {
       const el = directionsRef.current.querySelector(`[data-step-index="${currentStepIndex}"]`);
@@ -255,7 +248,6 @@ const Legend = forwardRef(function Legend(
     }
   }, [currentStepIndex]);
 
-  // Update active step from GPS position
   useEffect(() => {
     if (!currentLocation || !route?.coordinates?.length || directions.length === 0) return;
 
@@ -294,12 +286,9 @@ const Legend = forwardRef(function Legend(
     onExpandedChange?.(expanded);
   }, [expanded, onExpandedChange]);
 
-  // Route-calculated announcement — fires once per unique route, not on re-renders
-  // Only speaks if voice is ALREADY enabled (not when turning on later)
   useEffect(() => {
     if (!isVoiceEnabled || !route?.totalDistance) return;
 
-    // Build a stable ID for this route
     const routeId = `${route.totalDistance}-${route.coordinates?.length ?? 0}`;
     if (lastAnnouncedRouteIdRef.current === routeId) return;
     lastAnnouncedRouteIdRef.current = routeId;
@@ -367,6 +356,12 @@ const Legend = forwardRef(function Legend(
       ? dragVelocity.current < 0
       : currentTranslate < maxDrag / 2;
     setExpanded(shouldExpand);
+    
+    // NEW: When Legend expands via drag, close the Nav Panel
+    if (shouldExpand && onNavPanelClose) {
+      onNavPanelClose();
+    }
+    
     if (sheetRef.current) {
       sheetRef.current.style.transform  = "";
       sheetRef.current.style.transition = "";
@@ -493,7 +488,6 @@ const Legend = forwardRef(function Legend(
             })}
           </div>
 
-          {/* Voice toggle — now speaks route summary when turning ON */}
           <button
             className={`legend-voice-btn ${isVoiceEnabled ? "legend-voice-btn--active" : ""}`}
             onClick={handleVoiceToggle}
@@ -506,7 +500,6 @@ const Legend = forwardRef(function Legend(
             <span className="voice-status">{isVoiceEnabled ? "🔊" : "🔇"}</span>
           </button>
 
-          {/* Weather Banner — always visible */}
           <WeatherBanner />
 
           <div className="legend-divider" />
