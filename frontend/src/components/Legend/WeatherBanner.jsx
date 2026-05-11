@@ -1,144 +1,123 @@
-// WeatherBanner.jsx - Weather display with voice announcements and forecast modal
-import { useEffect, useRef, useState } from 'react';
+// components/Legend/WeatherBanner.jsx
+// Weather display with voice announcements.
+// Voice fires ONLY when the condition string actually changes — not on re-renders
+// or Legend drags — by comparing against a ref instead of putting speak() in deps.
+
+import { useEffect, useRef } from 'react';
 import { useWeather } from '../../hooks/useWeather';
 import { useVoiceGuidance } from '../../hooks/useVoiceGuidance';
-import { fetchForecast } from '../../services/weatherService';
-import { WeatherIcon, CalendarIcon, RefreshIcon, CloseIcon } from '../ui/WeatherIcons';
 import './WeatherBanner.css';
 
+const RefreshIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M23 4v6h-6" />
+    <path d="M1 20v-6h6" />
+    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
+    <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" />
+  </svg>
+);
+
 export default function WeatherBanner() {
-  const { weather, getWeatherDisplay, hasWeatherImpact, getMultipliers, refreshWeather, isLoading } = useWeather();
+  const {
+    weather,
+    getWeatherDisplay,
+    hasWeatherImpact,
+    getMultipliers,
+    refreshWeather,
+    isLoading,
+  } = useWeather();
+
   const { speak, isVoiceEnabled } = useVoiceGuidance();
-  const [forecast, setForecast] = useState(null);
-  const [showForecastModal, setShowForecastModal] = useState(false);
-  const [isLoadingForecast, setIsLoadingForecast] = useState(false);
-  
+
+  // Refs track what was last spoken so re-renders never re-trigger voice.
+  // We deliberately do NOT put `speak` in the effect dep array — it's stable
+  // from useVoiceGuidance but even if it weren't, a new function reference
+  // should never cause a repeated announcement.
   const lastSpokenConditionRef = useRef(null);
-  const hasSpokenInitialRef = useRef(false);
+  const hasSpokenInitialRef    = useRef(false);
+  // Keep a stable ref to `speak` so the effect body can call it without
+  // listing it as a dependency.
   const speakRef = useRef(speak);
-  
   useEffect(() => { speakRef.current = speak; }, [speak]);
 
+  // Voice announcement — only fires when weather.condition actually changes
   useEffect(() => {
     if (!weather || !isVoiceEnabled || weather.isFallback) return;
+
     const condition = weather.condition || 'Unknown';
-    const temp = Math.round(weather.temperature);
+    const temp      = Math.round(weather.temperature);
+
+    // Gate: skip if we already announced this exact condition
     if (lastSpokenConditionRef.current === condition) return;
     lastSpokenConditionRef.current = condition;
-    
+
     if (!hasSpokenInitialRef.current) {
       hasSpokenInitialRef.current = true;
-      setTimeout(() => speakRef.current(`Current weather: ${condition}, ${temp} degrees.`, { priority: 'normal' }), 800);
+      // Slight delay so it doesn't clash with the route-calculated announcement
+      setTimeout(() => {
+        speakRef.current(
+          `Current weather: ${condition}, ${temp} degrees.`,
+          { priority: 'normal' }
+        );
+      }, 800);
     } else {
-      speakRef.current(`Weather update: ${condition}, ${temp} degrees.`, { priority: 'normal' });
+      speakRef.current(
+        `Weather update: ${condition}, ${temp} degrees.`,
+        { priority: 'normal' }
+      );
     }
+    // Deps: only the values we actually compare — NOT `speak`
   }, [weather, isVoiceEnabled]);
 
+  // Manual refresh — re-allow announcement for the new condition
   const handleRefresh = async () => {
+    // Reset the gate so the updated condition gets announced
     lastSpokenConditionRef.current = null;
     await refreshWeather();
   };
 
-  const handleOpenForecast = async () => {
-    setShowForecastModal(true);
-    if (!forecast) {
-      setIsLoadingForecast(true);
-      const data = await fetchForecast();
-      setForecast(data);
-      setIsLoadingForecast(false);
-    }
-  };
-
-  const display = getWeatherDisplay();
+  const display   = getWeatherDisplay();
   const hasImpact = hasWeatherImpact();
-  const multipliers = getMultipliers();
 
   if (!weather) {
     return (
       <div className="weather-banner weather-banner--loading">
-        <span className="weather-icon-loading">🌡️</span>
+        <span className="weather-icon">🌡️</span>
         <span className="weather-text">Loading weather...</span>
       </div>
     );
   }
 
   return (
-    <>
-      <div className={`weather-banner ${hasImpact ? 'weather-banner--impact' : ''}`}>
-        <div className="weather-banner-main">
-          <div className="weather-info">
-            <div className="weather-icon">
-              <WeatherIcon type={display.iconType || 'clouds'} className="w-5 h-5" />
-            </div>
-            <div className="weather-details">
-              <span className="weather-temp">{display.temperature}°C</span>
-              <span className="weather-condition">{display.label}</span>
-            </div>
-          </div>
-          
-          <div className="weather-actions">
-            <button className="weather-forecast-btn" onClick={handleOpenForecast} title="5-day forecast" aria-label="View 5-day forecast">
-              <CalendarIcon />
-            </button>
-            <button className="weather-refresh" onClick={handleRefresh} disabled={isLoading} title="Refresh weather" aria-label="Refresh weather">
-              <RefreshIcon />
-            </button>
+    <div className={`weather-banner${hasImpact ? ' weather-banner--impact' : ''}`}>
+      <div className="weather-banner-main">
+        <div className="weather-info">
+          <span className="weather-icon">{display.icon}</span>
+          <div className="weather-details">
+            <span className="weather-temp">{display.temperature}°C</span>
+            <span className="weather-condition">{display.label}</span>
           </div>
         </div>
-        
-        <div className="weather-impact-badge">
-          {hasImpact ? (
-            <span className="impact-active">Routing adjusted for conditions</span>
-          ) : (
-            <span className="impact-normal">Clear conditions — normal routing</span>
-          )}
-        </div>
+
+        <button
+          className="weather-refresh"
+          onClick={handleRefresh}
+          disabled={isLoading}
+          title="Refresh weather"
+          aria-label="Refresh weather"
+        >
+          <RefreshIcon />
+        </button>
       </div>
 
-      {/* Forecast Modal */}
-      {showForecastModal && (
-        <div className="forecast-modal-overlay" onClick={() => setShowForecastModal(false)}>
-          <div className="forecast-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="forecast-modal-header">
-              <h3>5-Day Forecast</h3>
-              <button className="forecast-modal-close" onClick={() => setShowForecastModal(false)}>
-                <CloseIcon />
-              </button>
-            </div>
-            
-            {isLoadingForecast ? (
-              <div className="forecast-loading">
-                <div className="forecast-spinner" />
-                <span>Loading forecast...</span>
-              </div>
-            ) : forecast && forecast.length > 0 ? (
-              <>
-                <div className="forecast-grid">
-                  {forecast.map((day, idx) => (
-                    <div key={idx} className="forecast-day">
-                      <span className="forecast-day-name">{day.dayName}</span>
-                      <div className="forecast-day-icon">
-                        <WeatherIcon type={day.iconType} className="w-6 h-6" />
-                      </div>
-                      <span className="forecast-temp-high">{day.tempMax}°</span>
-                      <span className="forecast-temp-low">{day.tempMin}°</span>
-                      <span className="forecast-condition">{day.condition}</span>
-                    </div>
-                  ))}
-                </div>
-                {multipliers.message && (
-                  <div className="forecast-note">
-                    <span className="forecast-note-icon">⚠️</span>
-                    <span className="forecast-note-text">{multipliers.message}</span>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="forecast-error">Unable to load forecast</div>
-            )}
-          </div>
-        </div>
-      )}
-    </>
+      <div className="weather-impact-badge">
+        {hasImpact ? (
+          <span className="impact-active">🌧️ Routing adjusted for conditions</span>
+        ) : (
+          <span className="impact-normal">✅ Clear conditions — normal routing</span>
+        )}
+      </div>
+    </div>
   );
 }
