@@ -1,5 +1,20 @@
 /* WeatherBanner.css */
 
+/* ─── Base font configuration ───────────────────────────────────────────────── */
+.weather-banner,
+.weather-banner *,
+.forecast-popup,
+.forecast-popup * {
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'DM Sans', 'Segoe UI', sans-serif;
+}
+
+.weather-temp,
+.fdc-high,
+.fdc-low,
+.forecast-popup-title span:first-of-type {
+  font-family: 'Syne', -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+}
+
 /* ─── Banner ──────────────────────────────────────────────────────────────── */
 
 .weather-banner {
@@ -178,6 +193,7 @@
 .forecast-popup-title span:first-of-type {
   font-size: 15px;
   font-weight: 600;
+  font-family: 'Syne', -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
 }
 
 .forecast-location {
@@ -277,6 +293,7 @@
   color: var(--sub, #6b7280);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  font-family: 'Inter', 'DM Sans', sans-serif;
 }
 
 .forecast-day-card--today .fdc-name {
@@ -299,6 +316,7 @@
   font-weight: 700;
   color: var(--text, #111827);
   line-height: 1;
+  font-family: 'Syne', 'Inter', sans-serif;
 }
 
 /* Low temp */
@@ -306,6 +324,7 @@
   font-size: 12px;
   color: var(--sub, #6b7280);
   line-height: 1;
+  font-family: 'Syne', 'Inter', sans-serif;
 }
 
 /* Precipitation probability */
@@ -315,6 +334,7 @@
   border-radius: 20px;
   padding: 2px 6px;
   line-height: 1.4;
+  font-family: 'Inter', 'DM Sans', sans-serif;
 }
 
 .precip-low  { color: var(--sub, #9ca3af); background: transparent; }
@@ -335,6 +355,7 @@
   font-size: 12px;
   color: #2563eb;
   line-height: 1.4;
+  font-family: 'Inter', 'DM Sans', sans-serif;
 }
 
 .ug-root.dark .forecast-routing-note {
