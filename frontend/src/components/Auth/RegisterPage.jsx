@@ -8,6 +8,7 @@ export default function RegisterPage({ onSwitchToLogin }) {
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordStrength, setPasswordStrength] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
@@ -38,6 +39,12 @@ export default function RegisterPage({ onSwitchToLogin }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
+    // Check if passwords match
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
 
     if (passwordStrength < 3) {
       setError(
@@ -250,6 +257,28 @@ export default function RegisterPage({ onSwitchToLogin }) {
             </button>
           </div>
 
+          {/* Confirm Password Field - NEW */}
+          <div className="form-group-split">
+            <input
+              id="reg-confirm-password"
+              type={showPassword ? "text" : "password"}
+              placeholder=" "
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              disabled={isLoading || success}
+              required
+              autoComplete="new-password"
+            />
+            <label htmlFor="reg-confirm-password">Confirm password</label>
+          </div>
+
+          {/* Password mismatch warning - NEW */}
+          {password && confirmPassword && password !== confirmPassword && (
+            <div className="auth-error-split" style={{ marginBottom: '12px' }}>
+              <span className="error-message">✗ Passwords do not match</span>
+            </div>
+          )}
+
           {password && (
             <div className="password-strength-split">
               <div className="strength-bar-split">
@@ -274,7 +303,12 @@ export default function RegisterPage({ onSwitchToLogin }) {
           <button
             type="submit"
             className={`auth-button-split ${isLoading ? "loading" : ""}`}
-            disabled={isLoading || success || passwordStrength < 3}
+            disabled={
+              isLoading || 
+              success || 
+              passwordStrength < 3 || 
+              (password !== confirmPassword)
+            }
           >
             {isLoading ? (
               <>
