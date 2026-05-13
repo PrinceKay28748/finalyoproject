@@ -40,7 +40,6 @@ export default function RegisterPage({ onSwitchToLogin }) {
     e.preventDefault();
     setError("");
 
-    // Check if passwords match
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
@@ -238,6 +237,7 @@ export default function RegisterPage({ onSwitchToLogin }) {
             <label htmlFor="reg-username">Username</label>
           </div>
 
+          {/* Password Field with Show/Hide */}
           <div className="form-group-split">
             <input
               id="reg-password"
@@ -260,7 +260,7 @@ export default function RegisterPage({ onSwitchToLogin }) {
             </button>
           </div>
 
-          {/* Confirm Password Field */}
+          {/* Confirm Password Field with Show/Hide (uses same showPassword toggle) */}
           <div className="form-group-split">
             <input
               id="reg-confirm-password"
@@ -273,9 +273,10 @@ export default function RegisterPage({ onSwitchToLogin }) {
               autoComplete="new-password"
             />
             <label htmlFor="reg-confirm-password">Confirm password</label>
+            {/* Note: Same toggle button toggles both fields */}
           </div>
 
-          {/* Combined validation message - replaces separate error and strength bar */}
+          {/* Combined validation section */}
           <div className="password-validation-split">
             {password && (
               <div className="strength-bar-split">
@@ -299,7 +300,7 @@ export default function RegisterPage({ onSwitchToLogin }) {
               )}
               {password && passwordsMatch && passwordStrength < 3 && (
                 <span className="validation-warning">
-                  ⚠️ Password too weak - use 8+ chars, uppercase, lowercase & numbers
+                  Password too weak - use 8+ chars, uppercase, lowercase & numbers
                 </span>
               )}
             </div>
