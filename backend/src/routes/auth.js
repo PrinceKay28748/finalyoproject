@@ -2,6 +2,7 @@
 // Supabase Auth - Backend only verifies tokens and syncs users
 
 import express from 'express';
+import crypto from 'crypto';
 import { verifyToken } from '../middleware/auth.js';
 import { query } from '../config/db.js';
 import { createClient } from '@supabase/supabase-js';
@@ -9,10 +10,8 @@ import { createClient } from '@supabase/supabase-js';
 const router = express.Router();
 
 // ─── Email-based rate limiting (in-memory) ─────────────────────────────────
-// Stores: email -> { count, resetTime }
 const passwordResetRequests = new Map();
 
-// Clean up expired entries every hour
 setInterval(() => {
   const now = Date.now();
   for (const [email, data] of passwordResetRequests.entries()) {
@@ -22,24 +21,18 @@ setInterval(() => {
   }
 }, 60 * 60 * 1000);
 
-// Check rate limit for a specific email
 function isEmailRateLimited(email) {
   const now = Date.now();
   const record = passwordResetRequests.get(email);
   
-  if (!record) {
-    return false;
-  }
-  
+  if (!record) return false;
   if (now > record.resetTime) {
     passwordResetRequests.delete(email);
     return false;
   }
-  
-  return record.count >= 3; // Max 3 requests per hour
+  return record.count >= 3;
 }
 
-// Update rate limit for an email
 function updateEmailRateLimit(email) {
   const now = Date.now();
   const record = passwordResetRequests.get(email);
@@ -47,11 +40,51 @@ function updateEmailRateLimit(email) {
   if (!record) {
     passwordResetRequests.set(email, {
       count: 1,
-      resetTime: now + 60 * 60 * 1000 // 1 hour
+      resetTime: now + 60 * 60 * 1000
     });
   } else {
     record.count++;
   }
+}
+
+// ─── Helper: Create or refresh token (idempotent) ──────────────────────────
+async function getOrCreateResetToken(email) {
+  // Check for existing active token
+  const existing = await query(
+    `SELECT id, token_hash, expires_at 
+     FROM password_resets 
+     WHERE email = ? 
+       AND used_at IS NULL 
+       AND expires_at > NOW()
+     LIMIT 1`,
+    [email.toLowerCase()]
+  );
+  
+  if (existing.rows.length > 0) {
+    // Refresh expiry (extend by 1 hour)
+    const tokenHash = existing.rows[0].token_hash;
+    await query(
+      `UPDATE password_resets 
+       SET expires_at = NOW() + INTERVAL '1 hour',
+           updated_at = NOW()
+       WHERE id = ?`,
+      [existing.rows[0].id]
+    );
+    return tokenHash;
+  }
+  
+  // Create new token
+  const token = crypto.randomBytes(32).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+  
+  await query(
+    `INSERT INTO password_resets (email, token_hash, expires_at, created_at)
+     VALUES (?, ?, ?, NOW())`,
+    [email.toLowerCase(), tokenHash, expiresAt.toISOString()]
+  );
+  
+  return token;
 }
 
 // ─── Forgot Password (with layered rate limiting) ──────────────────────────
@@ -63,20 +96,21 @@ router.post('/forgot-password', async (req, res) => {
     return res.status(400).json({ error: 'Email is required' });
   }
   
-  // Layer 1: IP-based rate limiting (already handled by generalLimiter in server.js)
-  // Layer 2: Email-based rate limiting
   if (isEmailRateLimited(email.toLowerCase())) {
-    // Log internally, but return same success response
     console.warn(`[RateLimit] Password reset rate limit exceeded for email: ${email}, IP: ${ip}`);
-    
-    // Return same success message to prevent email enumeration
     return res.json({
       message: 'If an account exists with that email, you will receive a password reset link.'
     });
   }
   
   try {
-    // Initialize Supabase client with service role key
+    // Get or create token (idempotent)
+    const tokenHash = await getOrCreateResetToken(email);
+    
+    // Update rate limit
+    updateEmailRateLimit(email.toLowerCase());
+    
+    // Initialize Supabase client
     const supabase = createClient(
       process.env.SUPABASE_URL,
       process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -88,21 +122,15 @@ router.post('/forgot-password', async (req, res) => {
       }
     );
     
-    // Call Supabase password reset
+    // Send email via Supabase with the token
+    const resetLink = `${process.env.FRONTEND_URL || 'https://ugnavigator.onrender.com'}/reset-password?token=${tokenHash}`;
+    
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${process.env.FRONTEND_URL || 'https://ugnavigator.onrender.com'}/reset-password`,
+      redirectTo: resetLink,
     });
     
-    // Update rate limit regardless of whether email exists (prevents enumeration)
-    updateEmailRateLimit(email.toLowerCase());
-    
-    // Always return same message, even if error (to prevent email enumeration)
     if (error) {
       console.error('[ForgotPassword] Supabase error:', error.message);
-      // Don't reveal error details to client
-      return res.json({
-        message: 'If an account exists with that email, you will receive a password reset link.'
-      });
     }
     
     res.json({
@@ -111,8 +139,101 @@ router.post('/forgot-password', async (req, res) => {
     
   } catch (error) {
     console.error('[ForgotPassword] Error:', error.message);
+    res.json({
+      message: 'If an account exists with that email, you will receive a password reset link.'
+    });
+  }
+});
+
+// ─── Resend Password Reset Email (idempotent) ──────────────────────────────
+router.post('/resend', async (req, res) => {
+  const { email } = req.body;
+  const ip = req.ip || req.socket.remoteAddress;
+  
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+  
+  // Check rate limit (same as forgot-password)
+  if (isEmailRateLimited(email.toLowerCase())) {
+    console.warn(`[RateLimit] Resend rate limit exceeded for email: ${email}, IP: ${ip}`);
+    return res.json({
+      message: 'If an account exists with that email, you will receive a password reset link.'
+    });
+  }
+  
+  try {
+    // Get existing token (don't create new if doesn't exist)
+    const existing = await query(
+      `SELECT token_hash, expires_at 
+       FROM password_resets 
+       WHERE email = ? 
+         AND used_at IS NULL 
+         AND expires_at > NOW()
+       LIMIT 1`,
+      [email.toLowerCase()]
+    );
     
-    // Still return same message
+    let tokenHash;
+    let isNewToken = false;
+    
+    if (existing.rows.length > 0) {
+      // Refresh existing token
+      tokenHash = existing.rows[0].token_hash;
+      await query(
+        `UPDATE password_resets 
+         SET expires_at = NOW() + INTERVAL '1 hour',
+             updated_at = NOW()
+         WHERE email = ? AND used_at IS NULL`,
+        [email.toLowerCase()]
+      );
+    } else {
+      // Create new token
+      const token = crypto.randomBytes(32).toString('hex');
+      tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+      
+      await query(
+        `INSERT INTO password_resets (email, token_hash, expires_at, created_at)
+         VALUES (?, ?, ?, NOW())`,
+        [email.toLowerCase(), tokenHash, expiresAt.toISOString()]
+      );
+      isNewToken = true;
+    }
+    
+    // Update rate limit
+    updateEmailRateLimit(email.toLowerCase());
+    
+    // Send email via Supabase
+    const supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
+    
+    const resetLink = `${process.env.FRONTEND_URL || 'https://ugnavigator.onrender.com'}/reset-password?token=${tokenHash}`;
+    
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: resetLink,
+    });
+    
+    if (error) {
+      console.error('[Resend] Supabase error:', error.message);
+    }
+    
+    res.json({
+      message: isNewToken 
+        ? 'A new password reset link has been sent to your email.'
+        : 'Your password reset link has been refreshed and resent.'
+    });
+    
+  } catch (error) {
+    console.error('[Resend] Error:', error.message);
     res.json({
       message: 'If an account exists with that email, you will receive a password reset link.'
     });
