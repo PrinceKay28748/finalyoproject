@@ -100,6 +100,9 @@ export default function RegisterPage({ onSwitchToLogin }) {
   const strengthLabels = ["Weak", "Fair", "Good", "Strong"];
   const strengthColors = ["#ef4444", "#f97316", "#eab308", "#22c55e"];
 
+  const passwordsMatch = password === confirmPassword;
+  const isPasswordValid = passwordStrength >= 3 && passwordsMatch;
+
   // If email confirmation is needed, show different message with resend button
   if (needsEmailConfirmation) {
     return (
@@ -257,7 +260,7 @@ export default function RegisterPage({ onSwitchToLogin }) {
             </button>
           </div>
 
-          {/* Confirm Password Field - NEW */}
+          {/* Confirm Password Field */}
           <div className="form-group-split">
             <input
               id="reg-confirm-password"
@@ -272,15 +275,9 @@ export default function RegisterPage({ onSwitchToLogin }) {
             <label htmlFor="reg-confirm-password">Confirm password</label>
           </div>
 
-          {/* Password mismatch warning - NEW */}
-          {password && confirmPassword && password !== confirmPassword && (
-            <div className="auth-error-split" style={{ marginBottom: '12px' }}>
-              <span className="error-message">✗ Passwords do not match</span>
-            </div>
-          )}
-
-          {password && (
-            <div className="password-strength-split">
+          {/* Combined validation message - replaces separate error and strength bar */}
+          <div className="password-validation-split">
+            {password && (
               <div className="strength-bar-split">
                 <div
                   className="strength-fill-split"
@@ -291,24 +288,27 @@ export default function RegisterPage({ onSwitchToLogin }) {
                   }}
                 />
               </div>
-              <span className="strength-label-split">
-                Password strength:{" "}
-                <strong>
-                  {strengthLabels[passwordStrength - 1] || "Weak"}
-                </strong>
-              </span>
+            )}
+            
+            <div className="validation-messages">
+              {password && confirmPassword && !passwordsMatch && (
+                <span className="validation-error">✗ Passwords do not match</span>
+              )}
+              {password && passwordsMatch && passwordStrength >= 3 && (
+                <span className="validation-success">✓ Password looks good</span>
+              )}
+              {password && passwordsMatch && passwordStrength < 3 && (
+                <span className="validation-warning">
+                  ⚠️ Password too weak - use 8+ chars, uppercase, lowercase & numbers
+                </span>
+              )}
             </div>
-          )}
+          </div>
 
           <button
             type="submit"
             className={`auth-button-split ${isLoading ? "loading" : ""}`}
-            disabled={
-              isLoading || 
-              success || 
-              passwordStrength < 3 || 
-              (password !== confirmPassword)
-            }
+            disabled={isLoading || success || !isPasswordValid}
           >
             {isLoading ? (
               <>
