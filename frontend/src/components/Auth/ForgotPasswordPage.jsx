@@ -1,6 +1,4 @@
 // frontend/src/components/Auth/ForgotPasswordPage.jsx
-// Forgot Password Page — Request password reset email (Backend proxy version)
-
 import { useState } from "react";
 import { API_URL } from "../../config";
 import "./AuthPage.css";
@@ -8,17 +6,25 @@ import "./AuthPage.css";
 export default function ForgotPasswordPage({ onBackToLogin }) {
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [isEmailLocked, setIsEmailLocked] = useState(false);
+  const [showEditButton, setShowEditButton] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSendReset = async (isResend = false) => {
+    const endpoint = isResend ? `${API_URL}/auth/resend` : `${API_URL}/auth/forgot-password`;
+    
+    if (isResend) {
+      setIsResending(true);
+    } else {
+      setIsLoading(true);
+    }
+    
     setError("");
-    setSuccess(false);
-    setIsLoading(true);
-
+    
     try {
-      const response = await fetch(`${API_URL}/auth/forgot-password`, {
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -26,9 +32,10 @@ export default function ForgotPasswordPage({ onBackToLogin }) {
 
       const data = await response.json();
 
-      // Backend always returns success message (rate limiting handled internally)
       if (response.ok) {
         setSuccess(true);
+        setIsEmailLocked(true);
+        setShowEditButton(true);
       } else {
         setError(data.error || "Something went wrong. Please try again.");
       }
@@ -36,13 +43,32 @@ export default function ForgotPasswordPage({ onBackToLogin }) {
       console.error("[ForgotPassword] Error:", err);
       setError("Network error. Please try again.");
     } finally {
-      setIsLoading(false);
+      if (isResend) {
+        setIsResending(false);
+      } else {
+        setIsLoading(false);
+      }
     }
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    handleSendReset(false);
+  };
+
+  const handleResend = () => {
+    handleSendReset(true);
+  };
+
+  const handleEditEmail = () => {
+    setIsEmailLocked(false);
+    setSuccess(false);
+    setShowEditButton(false);
+    setError("");
   };
 
   return (
     <div className="auth-container-split">
-      {/* Left side — Hero / Brand */}
       <div className="auth-hero">
         <div className="auth-hero-bg">UG</div>
         <img src="/icon-512.png" alt="UG Navigator" width={80} height={80} />
@@ -54,7 +80,6 @@ export default function ForgotPasswordPage({ onBackToLogin }) {
         <p>Don't worry — we'll send you a link to reset it.</p>
       </div>
 
-      {/* Right side — Forgot Password Form */}
       <div className="auth-form-panel">
         <div className="auth-form-header">
           <h2>Reset your password</h2>
@@ -62,14 +87,12 @@ export default function ForgotPasswordPage({ onBackToLogin }) {
         </div>
 
         <form onSubmit={handleSubmit}>
-          {/* ERROR DISPLAY */}
           {error && (
             <div className="auth-error-split" role="alert">
               <span className="error-message">{error}</span>
             </div>
           )}
 
-          {/* SUCCESS DISPLAY */}
           {success && (
             <div className="auth-success-split" role="alert">
               <span className="success-icon">✓</span>
@@ -91,34 +114,64 @@ export default function ForgotPasswordPage({ onBackToLogin }) {
               placeholder=" "
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              disabled={isLoading || success}
+              disabled={isLoading || isResending || isEmailLocked}
               required
               autoComplete="email"
             />
             <label htmlFor="email">Email address</label>
           </div>
 
-          <button
-            type="submit"
-            className="auth-button-split"
-            disabled={isLoading || success}
-          >
-            {isLoading ? (
-              <>
-                <span className="button-spinner-split" />
-                Sending...
-              </>
-            ) : (
-              "Send reset link →"
-            )}
-          </button>
+          {!isEmailLocked ? (
+            <button
+              type="submit"
+              className="auth-button-split"
+              disabled={isLoading || isResending || success}
+            >
+              {isLoading ? (
+                <>
+                  <span className="button-spinner-split" />
+                  Sending...
+                </>
+              ) : (
+                "Send reset link →"
+              )}
+            </button>
+          ) : (
+            <div className="forgot-password-actions">
+              {showEditButton && (
+                <button
+                  type="button"
+                  className="auth-secondary-split"
+                  onClick={handleEditEmail}
+                  style={{ marginBottom: '12px' }}
+                >
+                  Edit Email
+                </button>
+              )}
+              <button
+                type="button"
+                className="auth-button-split"
+                onClick={handleResend}
+                disabled={isResending}
+              >
+                {isResending ? (
+                  <>
+                    <span className="button-spinner-split" />
+                    Resending...
+                  </>
+                ) : (
+                  "Resend Email →"
+                )}
+              </button>
+            </div>
+          )}
         </form>
 
         <button
           type="button"
           className="auth-secondary-split"
           onClick={onBackToLogin}
-          disabled={isLoading}
+          disabled={isLoading || isResending}
         >
           ← Back to login
         </button>
