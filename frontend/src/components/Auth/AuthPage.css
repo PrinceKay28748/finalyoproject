@@ -560,3 +560,49 @@
   border: 1px solid #fecaca;
   color: #dc2626;
 }
+
+/* Password validation section - clean, no overlap */
+.password-validation-split {
+  margin-bottom: 20px;
+}
+
+.validation-messages {
+  margin-top: 8px;
+  font-size: 12px;
+  min-height: 36px;
+}
+
+.validation-error {
+  color: #ef4444;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.validation-success {
+  color: #22c55e;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.validation-warning {
+  color: #f59e0b;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+/* Dark mode */
+.ug-root.dark .validation-error {
+  color: #f87171;
+}
+
+.ug-root.dark .validation-success {
+  color: #4ade80;
+}
+
+.ug-root.dark .validation-warning {
+  color: #fbbf24;
+}
