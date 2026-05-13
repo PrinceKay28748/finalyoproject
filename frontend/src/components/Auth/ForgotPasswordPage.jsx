@@ -1,34 +1,40 @@
 // frontend/src/components/Auth/ForgotPasswordPage.jsx
-// Forgot Password Page — Request password reset email (Supabase version)
+// Forgot Password Page — Request password reset email (Backend proxy version)
 
-import { useState } from 'react';
-import { supabase } from '../../lib/supabase';
-import './AuthPage.css';
+import { useState } from "react";
+import { API_URL } from "../../config";
+import "./AuthPage.css";
 
 export default function ForgotPasswordPage({ onBackToLogin }) {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setSuccess(false);
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+      const response = await fetch(`${API_URL}/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
       });
 
-      if (error) {
-        setError(error.message);
-      } else {
+      const data = await response.json();
+
+      // Backend always returns success message (rate limiting handled internally)
+      if (response.ok) {
         setSuccess(true);
+      } else {
+        setError(data.error || "Something went wrong. Please try again.");
       }
     } catch (err) {
-      setError('Network error. Please try again.');
+      console.error("[ForgotPassword] Error:", err);
+      setError("Network error. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -41,7 +47,8 @@ export default function ForgotPasswordPage({ onBackToLogin }) {
         <div className="auth-hero-bg">UG</div>
         <img src="/icon-512.png" alt="UG Navigator" width={80} height={80} />
         <h1>
-          Forgot<br />
+          Forgot
+          <br />
           Password?
         </h1>
         <p>Don't worry — we'll send you a link to reset it.</p>
@@ -67,12 +74,16 @@ export default function ForgotPasswordPage({ onBackToLogin }) {
             <div className="auth-success-split" role="alert">
               <span className="success-icon">✓</span>
               <div className="success-content">
-                <span className="success-message">Password reset email sent!</span>
-                <span className="success-detail">Check your inbox (and spam folder) for the reset link.</span>
+                <span className="success-message">
+                  Password reset email sent!
+                </span>
+                <span className="success-detail">
+                  Check your inbox (and spam folder) for the reset link.
+                </span>
               </div>
             </div>
           )}
-          
+
           <div className="form-group-split">
             <input
               id="email"
@@ -98,7 +109,7 @@ export default function ForgotPasswordPage({ onBackToLogin }) {
                 Sending...
               </>
             ) : (
-              'Send reset link →'
+              "Send reset link →"
             )}
           </button>
         </form>

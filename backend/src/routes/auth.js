@@ -4,8 +4,120 @@
 import express from 'express';
 import { verifyToken } from '../middleware/auth.js';
 import { query } from '../config/db.js';
+import { createClient } from '@supabase/supabase-js';
 
 const router = express.Router();
+
+// ─── Email-based rate limiting (in-memory) ─────────────────────────────────
+// Stores: email -> { count, resetTime }
+const passwordResetRequests = new Map();
+
+// Clean up expired entries every hour
+setInterval(() => {
+  const now = Date.now();
+  for (const [email, data] of passwordResetRequests.entries()) {
+    if (now > data.resetTime) {
+      passwordResetRequests.delete(email);
+    }
+  }
+}, 60 * 60 * 1000);
+
+// Check rate limit for a specific email
+function isEmailRateLimited(email) {
+  const now = Date.now();
+  const record = passwordResetRequests.get(email);
+  
+  if (!record) {
+    return false;
+  }
+  
+  if (now > record.resetTime) {
+    passwordResetRequests.delete(email);
+    return false;
+  }
+  
+  return record.count >= 3; // Max 3 requests per hour
+}
+
+// Update rate limit for an email
+function updateEmailRateLimit(email) {
+  const now = Date.now();
+  const record = passwordResetRequests.get(email);
+  
+  if (!record) {
+    passwordResetRequests.set(email, {
+      count: 1,
+      resetTime: now + 60 * 60 * 1000 // 1 hour
+    });
+  } else {
+    record.count++;
+  }
+}
+
+// ─── Forgot Password (with layered rate limiting) ──────────────────────────
+router.post('/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  const ip = req.ip || req.socket.remoteAddress;
+  
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+  
+  // Layer 1: IP-based rate limiting (already handled by generalLimiter in server.js)
+  // Layer 2: Email-based rate limiting
+  if (isEmailRateLimited(email.toLowerCase())) {
+    // Log internally, but return same success response
+    console.warn(`[RateLimit] Password reset rate limit exceeded for email: ${email}, IP: ${ip}`);
+    
+    // Return same success message to prevent email enumeration
+    return res.json({
+      message: 'If an account exists with that email, you will receive a password reset link.'
+    });
+  }
+  
+  try {
+    // Initialize Supabase client with service role key
+    const supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
+    
+    // Call Supabase password reset
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${process.env.FRONTEND_URL || 'https://ugnavigator.onrender.com'}/reset-password`,
+    });
+    
+    // Update rate limit regardless of whether email exists (prevents enumeration)
+    updateEmailRateLimit(email.toLowerCase());
+    
+    // Always return same message, even if error (to prevent email enumeration)
+    if (error) {
+      console.error('[ForgotPassword] Supabase error:', error.message);
+      // Don't reveal error details to client
+      return res.json({
+        message: 'If an account exists with that email, you will receive a password reset link.'
+      });
+    }
+    
+    res.json({
+      message: 'If an account exists with that email, you will receive a password reset link.'
+    });
+    
+  } catch (error) {
+    console.error('[ForgotPassword] Error:', error.message);
+    
+    // Still return same message
+    res.json({
+      message: 'If an account exists with that email, you will receive a password reset link.'
+    });
+  }
+});
 
 // ─── Get Profile (from your users table using Supabase UUID) ────────────────
 router.get('/me', verifyToken, async (req, res) => {
@@ -84,28 +196,24 @@ router.post('/sync', verifyToken, async (req, res) => {
     const { userId, email } = req.user;
     const { username } = req.body;
 
-    // Check if user exists in your users table
     const existing = await query(
       'SELECT * FROM users WHERE id = ? AND deleted_at IS NULL',
       [userId]
     );
 
     if (existing.rows.length === 0) {
-      // Create user in your table
       await query(
         `INSERT INTO users (id, email, username, is_admin)
          VALUES (?, ?, ?, ?)`,
         [userId, email, username || email.split('@')[0], 0]
       );
 
-      // Create default preferences
       await query(
         `INSERT INTO user_preferences (user_id) VALUES (?)`,
         [userId]
       );
     }
 
-    // Get the user
     const userResult = await query(
       'SELECT id, email, username, is_admin, created_at FROM users WHERE id = ?',
       [userId]
