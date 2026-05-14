@@ -144,6 +144,7 @@ export default function MapView({
   onOpenReportModal,
   isNavExpanded = false, // NEW: Receive from parent App.jsx
   onNavPanelClose, // NEW: Receive from parent App.jsx
+  isPanelTransitioning = false,
 }) {
   const showDestinationMarker = !!destPoint;
   const displayStartPoint =
@@ -373,6 +374,7 @@ export default function MapView({
         autoCollapse={isNavExpanded}
         disableDrag={isPanelTransitioning}
         onNavPanelClose={onNavPanelClose}
+        disableDrag={isPanelTransitioning}
       />
 
       {waitingForStart && (
