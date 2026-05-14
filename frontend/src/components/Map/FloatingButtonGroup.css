@@ -1,147 +1,234 @@
-/* FloatingButtonGroup.css - iOS-style glassmorphism */
+/* FloatingButtonGroup.css - Apple-style glassmorphism (vertical, no labels, tooltips) */
 
-.floating-button-group {
+/* Single glass container */
+.floating-glass-container {
   position: absolute;
-  left: 16px;
+  left: 20px;
   top: 50%;
   transform: translateY(-50%);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
+  padding: 12px 8px;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
   z-index: 999;
+  transition: all 0.3s ease;
 }
 
-.floating-btn {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 0.5px solid rgba(255, 255, 255, 0.5);
-  border-radius: 30px;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.34, 1.2, 0.64, 1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  color: #1c1c1e;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif;
-  font-weight: 500;
-  font-size: 14px;
-  width: auto;
-  min-width: 100px;
-}
-
-/* Icon styling */
-.floating-btn-icon {
-  font-size: 18px;
+/* Each icon item */
+.floating-glass-item {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 48px;
+  height: 48px;
+  cursor: pointer;
+  border-radius: 24px;
+  transition: all 0.2s cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+
+/* Icon styling */
+.floating-glass-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  color: #1c1c1e;
+  transition: all 0.2s cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+
+.floating-glass-icon svg {
   width: 22px;
   height: 22px;
-}
-
-.floating-btn-icon svg {
-  width: 18px;
-  height: 18px;
   stroke-width: 1.75;
+  transition: transform 0.2s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 
-/* Label styling */
-.floating-btn-label {
-  font-size: 14px;
-  font-weight: 510;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
+/* Hover effect - icon scales up with glow */
+.floating-glass-item:hover .floating-glass-icon svg {
+  transform: scale(1.15);
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.6));
 }
 
-/* Hover effect (desktop) */
-.floating-btn:hover {
-  transform: scale(1.02);
-  background: rgba(255, 255, 255, 0.85);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+.floating-glass-item:hover {
+  background: rgba(255, 255, 255, 0.15);
 }
 
 /* Active state (click feedback) */
-.floating-btn:active {
-  transform: scale(0.97);
+.floating-glass-item:active .floating-glass-icon svg {
+  transform: scale(0.92);
   transition: transform 0.05s;
 }
 
-/* Active button (toggled on) - e.g., heatmap */
-.floating-btn--active {
-  background: rgba(245, 158, 11, 0.9);
-  backdrop-filter: blur(20px);
-  border-color: rgba(245, 158, 11, 0.3);
-  color: white;
-  box-shadow: 0 2px 12px rgba(245, 158, 11, 0.3);
+/* Active button (toggled on - e.g., heatmap) */
+.floating-glass-icon--active {
+  color: #f59e0b;
 }
 
-.floating-btn--active .floating-btn-icon {
-  color: white;
+.floating-glass-icon--active svg {
+  filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.4));
 }
 
-.floating-btn--active:hover {
-  background: rgba(245, 158, 11, 1);
-  transform: scale(1.02);
+.floating-glass-item:hover .floating-glass-icon--active svg {
+  transform: scale(1.1);
+}
+
+/* Apple-style tooltip */
+.floating-glass-tooltip {
+  position: absolute;
+  left: 100%;
+  margin-left: 12px;
+  white-space: nowrap;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: white;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif;
+  padding: 6px 12px;
+  border-radius: 8px;
+  letter-spacing: -0.01em;
+  animation: tooltipFadeIn 0.15s ease-out;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+  z-index: 1000;
+}
+
+/* Tooltip arrow */
+.tooltip-arrow {
+  position: absolute;
+  left: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-right: 6px solid rgba(0, 0, 0, 0.75);
 }
 
 /* Dark mode */
-.ug-root.dark .floating-btn {
-  background: rgba(28, 28, 30, 0.85);
-  backdrop-filter: blur(20px);
-  border-color: rgba(255, 255, 255, 0.15);
+.ug-root.dark .floating-glass-container {
+  background: rgba(28, 28, 30, 0.6);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.ug-root.dark .floating-glass-icon {
   color: #f5f5f7;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
 }
 
-.ug-root.dark .floating-btn:hover {
-  background: rgba(44, 44, 46, 0.9);
+.ug-root.dark .floating-glass-item:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
-.ug-root.dark .floating-btn--active {
-  background: rgba(245, 158, 11, 0.9);
-  color: white;
+.ug-root.dark .floating-glass-icon--active {
+  color: #fbbf24;
+}
+
+/* Tooltip animations */
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 /* Mobile adjustments */
 @media (max-width: 600px) {
-  .floating-button-group {
+  .floating-glass-container {
     left: 12px;
-    gap: 10px;
+    padding: 10px 6px;
+    gap: 6px;
   }
   
-  .floating-btn {
-    padding: 8px 14px;
-    min-width: 44px;
-    width: auto;
+  .floating-glass-item {
+    width: 44px;
+    height: 44px;
   }
   
-  .floating-btn-label {
-    font-size: 12px;
+  .floating-glass-icon {
+    width: 24px;
+    height: 24px;
   }
   
-  .floating-btn-icon {
-    font-size: 16px;
+  .floating-glass-icon svg {
     width: 20px;
     height: 20px;
   }
   
-  .floating-btn-icon svg {
-    width: 16px;
-    height: 16px;
+  .floating-glass-tooltip {
+    font-size: 12px;
+    padding: 5px 10px;
+    margin-left: 10px;
   }
 }
 
 /* Desktop larger screens */
 @media (min-width: 1024px) {
-  .floating-btn {
-    padding: 12px 20px;
-    min-width: 120px;
+  .floating-glass-container {
+    left: 24px;
+    padding: 14px 10px;
   }
   
-  .floating-btn-label {
-    font-size: 15px;
+  .floating-glass-item {
+    width: 52px;
+    height: 52px;
+  }
+  
+  .floating-glass-icon svg {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+/* Entrance animation - staggered */
+.floating-glass-container {
+  animation: containerFadeIn 0.3s ease-out;
+}
+
+.floating-glass-item:nth-child(1) {
+  animation: itemFadeIn 0.2s ease-out 0.05s both;
+}
+
+.floating-glass-item:nth-child(2) {
+  animation: itemFadeIn 0.2s ease-out 0.1s both;
+}
+
+.floating-glass-item:nth-child(3) {
+  animation: itemFadeIn 0.2s ease-out 0.15s both;
+}
+
+@keyframes containerFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+}
+
+@keyframes itemFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }

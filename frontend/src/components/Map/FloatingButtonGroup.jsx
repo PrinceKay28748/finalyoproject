@@ -1,32 +1,47 @@
 // components/Map/FloatingButtonGroup.jsx
-// iOS-style vertical glassmorphism button group
+// Apple-style vertical glassmorphism button group (icon-only + tooltip)
+
 import { useState } from 'react';
 import './FloatingButtonGroup.css';
 
 const FloatingButtonGroup = ({ buttons }) => {
-  const [activeIndex, setActiveIndex] = useState(null);
+  const [hoveredIndex, setHoveredIndex] = useState(null);
 
   return (
-    <div className="floating-button-group">
+    <div className="floating-glass-container">
       {buttons.map((button, index) => (
-        <button
+        <div
           key={index}
-          className={`floating-btn ${button.active ? 'floating-btn--active' : ''}`}
+          className="floating-glass-item"
+          onMouseEnter={() => setHoveredIndex(index)}
+          onMouseLeave={() => setHoveredIndex(null)}
           onClick={(e) => {
             e.stopPropagation();
-            setActiveIndex(index);
             button.onClick();
-            setTimeout(() => setActiveIndex(null), 150);
+            // Haptic feedback on mobile
+            if (window.navigator && window.navigator.vibrate) {
+              window.navigator.vibrate(10);
+            }
           }}
           onMouseDown={(e) => e.stopPropagation()}
           onTouchStart={(e) => e.stopPropagation()}
-          title={button.label}
+          role="button"
+          tabIndex={0}
           aria-label={button.label}
           aria-pressed={button.active}
         >
-          <span className="floating-btn-icon">{button.icon}</span>
-          <span className="floating-btn-label">{button.label}</span>
-        </button>
+          <span className={`floating-glass-icon ${button.active ? 'floating-glass-icon--active' : ''}`}>
+            {button.icon}
+          </span>
+          
+          {/* Apple-style tooltip */}
+          {hoveredIndex === index && (
+            <div className="floating-glass-tooltip">
+              <span className="tooltip-arrow" />
+              {button.label}
+            </div>
+          )}
+        </div>
       ))}
     </div>
   );
