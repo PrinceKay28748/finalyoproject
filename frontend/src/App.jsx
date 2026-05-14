@@ -217,8 +217,24 @@ export default function App() {
     legendCollapseRef.current = fn;
   }, []);
 
+  // Coordinated panel management
+  const [isPanelTransitioning, setIsPanelTransitioning] = useState(false);
+  
   const handleNavExpandRequest = useCallback((expanded) => {
-    setIsNavExpanded(expanded);
+    if (expanded) {
+      // When expanding NavPanel, collapse Legend first (smooth coordination)
+      setIsPanelTransitioning(true);
+      setIsNavExpanded(true);
+      // Allow time for Legend collapse animation
+      setTimeout(() => setIsPanelTransitioning(false), 350);
+    } else {
+      // When collapsing NavPanel, no delay needed
+      setIsNavExpanded(false);
+    }
+  }, []);
+
+  const handleNavPanelClose = useCallback(() => {
+    setIsNavExpanded(false);
   }, []);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
@@ -473,7 +489,8 @@ export default function App() {
             onSelectedHourChange={setSelectedHour}
             onOpenReportModal={handleOpenReportModal}
             isNavExpanded={isNavExpanded}
-            onNavPanelClose={() => setIsNavExpanded(false)}
+            onNavPanelClose={handleNavPanelClose}
+            isPanelTransitioning={isPanelTransitioning}
           />
         </Suspense>
 

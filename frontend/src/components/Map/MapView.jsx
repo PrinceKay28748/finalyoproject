@@ -371,6 +371,7 @@ export default function MapView({
         isExpanded={isLegendExpanded}
         onExpandedChange={onLegendExpandedChange}
         autoCollapse={isNavExpanded}
+        disableDrag={isPanelTransitioning}
         onNavPanelClose={onNavPanelClose}
       />
 
