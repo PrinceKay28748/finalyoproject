@@ -14,7 +14,7 @@ import HeatmapLayer from "./HeatmapLayer";
 import HeatmapControls from "./HeatmapControls";
 import Legend from "../Legend/Legend";
 import WeatherOverlay from "./WeatherOverlay";
-import { IconReport } from "../ui/icon";
+import FloatingButtonGroup from "./FloatingButtonGroup";
 import { useWeather } from "../../hooks/useWeather";
 import "../Legend/Legend.css";
 
@@ -142,8 +142,8 @@ export default function MapView({
   selectedHour,
   onSelectedHourChange,
   onOpenReportModal,
-  isNavExpanded = false, // NEW: Receive from parent App.jsx
-  onNavPanelClose, // NEW: Receive from parent App.jsx
+  isNavExpanded = false,
+  onNavPanelClose,
   isPanelTransitioning = false,
 }) {
   const showDestinationMarker = !!destPoint;
@@ -282,53 +282,52 @@ export default function MapView({
           isShared={isSharedLocation}
         />
 
-        {/* Weather Overlay - INSIDE MapContainer (after all markers, before closing) */}
+        {/* Weather Overlay - INSIDE MapContainer */}
         <WeatherOverlay weather={weather} />
         
       </MapContainer>
 
-      {/* ── Map controls (OUTSIDE map container) ───────────────────────────── */}
-      {/* Zoom controls removed */}
-
-      <button
-        className="map-recenter-btn"
-        onClick={onRecenter}
-        title="Go to my location"
-        aria-label="Go to my location"
-      >
-        🎯
-      </button>
-
-      {/* Heatmap toggle button */}
-      <button
-        className={`map-heatmap-btn${showHeatmap ? " map-heatmap-btn--active" : ""}`}
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggleHeatmap();
-        }}
-        onMouseDown={(e) => e.stopPropagation()}
-        onTouchStart={(e) => e.stopPropagation()}
-        title={showHeatmap ? "Hide congestion heatmap" : "Show congestion heatmap"}
-        aria-label="Toggle congestion heatmap"
-        aria-pressed={showHeatmap}
-      >
-        🔥
-      </button>
-
-      {/* Report button */}
-      <button
-        className="map-report-btn"
-        onClick={(e) => {
-          e.stopPropagation();
-          if (onOpenReportModal) onOpenReportModal();
-        }}
-        onMouseDown={(e) => e.stopPropagation()}
-        onTouchStart={(e) => e.stopPropagation()}
-        title="Report accessibility issue"
-        aria-label="Report accessibility issue"
-      >
-        <IconReport className="w-5 h-5" />
-      </button>
+      {/* ── iOS-style Glassmorphism Floating Button Group ───────────────────── */}
+      <FloatingButtonGroup
+        buttons={[
+          {
+            icon: (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <polygon points="12 6 12 12 16 14" />
+                <line x1="12" y1="12" x2="12" y2="18" />
+              </svg>
+            ),
+            label: "Recenter",
+            onClick: onRecenter,
+            active: false
+          },
+          {
+            icon: (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="2" />
+                <path d="M12 2v4M22 12h-4M12 20v4M4 12H2M19.07 4.93l-2.83 2.83M6.9 17.1l-2.83 2.83M17.1 17.1l2.83 2.83M4.93 4.93l2.83 2.83" />
+              </svg>
+            ),
+            label: "Heatmap",
+            onClick: onToggleHeatmap,
+            active: showHeatmap
+          },
+          {
+            icon: (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+                <circle cx="12" cy="9" r="2.5" />
+                <path d="M12 9v4" />
+                <path d="M9 13h6" />
+              </svg>
+            ),
+            label: "Report",
+            onClick: onOpenReportModal,
+            active: false
+          }
+        ]}
+      />
 
       <HeatmapControls
         visible={showHeatmap}
@@ -374,7 +373,6 @@ export default function MapView({
         autoCollapse={isNavExpanded}
         disableDrag={isPanelTransitioning}
         onNavPanelClose={onNavPanelClose}
-        disableDrag={isPanelTransitioning}
       />
 
       {waitingForStart && (

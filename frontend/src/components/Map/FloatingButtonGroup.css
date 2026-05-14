@@ -1,0 +1,147 @@
+/* FloatingButtonGroup.css - iOS-style glassmorphism */
+
+.floating-button-group {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 999;
+}
+
+.floating-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 0.5px solid rgba(255, 255, 255, 0.5);
+  border-radius: 30px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.34, 1.2, 0.64, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  color: #1c1c1e;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  width: auto;
+  min-width: 100px;
+}
+
+/* Icon styling */
+.floating-btn-icon {
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+}
+
+.floating-btn-icon svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.75;
+}
+
+/* Label styling */
+.floating-btn-label {
+  font-size: 14px;
+  font-weight: 510;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+/* Hover effect (desktop) */
+.floating-btn:hover {
+  transform: scale(1.02);
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+/* Active state (click feedback) */
+.floating-btn:active {
+  transform: scale(0.97);
+  transition: transform 0.05s;
+}
+
+/* Active button (toggled on) - e.g., heatmap */
+.floating-btn--active {
+  background: rgba(245, 158, 11, 0.9);
+  backdrop-filter: blur(20px);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: white;
+  box-shadow: 0 2px 12px rgba(245, 158, 11, 0.3);
+}
+
+.floating-btn--active .floating-btn-icon {
+  color: white;
+}
+
+.floating-btn--active:hover {
+  background: rgba(245, 158, 11, 1);
+  transform: scale(1.02);
+}
+
+/* Dark mode */
+.ug-root.dark .floating-btn {
+  background: rgba(28, 28, 30, 0.85);
+  backdrop-filter: blur(20px);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #f5f5f7;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+.ug-root.dark .floating-btn:hover {
+  background: rgba(44, 44, 46, 0.9);
+}
+
+.ug-root.dark .floating-btn--active {
+  background: rgba(245, 158, 11, 0.9);
+  color: white;
+}
+
+/* Mobile adjustments */
+@media (max-width: 600px) {
+  .floating-button-group {
+    left: 12px;
+    gap: 10px;
+  }
+  
+  .floating-btn {
+    padding: 8px 14px;
+    min-width: 44px;
+    width: auto;
+  }
+  
+  .floating-btn-label {
+    font-size: 12px;
+  }
+  
+  .floating-btn-icon {
+    font-size: 16px;
+    width: 20px;
+    height: 20px;
+  }
+  
+  .floating-btn-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+/* Desktop larger screens */
+@media (min-width: 1024px) {
+  .floating-btn {
+    padding: 12px 20px;
+    min-width: 120px;
+  }
+  
+  .floating-btn-label {
+    font-size: 15px;
+  }
+}
