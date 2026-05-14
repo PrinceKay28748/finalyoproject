@@ -170,6 +170,7 @@ const Legend = forwardRef(function Legend(
     onExpandedChange,
     onProfileChange,
     autoCollapse = false,
+    disableDrag = false,
     onNavPanelClose, // NEW: Callback to close Nav Panel when Legend expands
   },
   ref,
@@ -310,6 +311,7 @@ const Legend = forwardRef(function Legend(
 
   // ── Drag handlers ─────────────────────────────────────────────────────────
   const handleDragStart = (e) => {
+    if (disableDrag) return; 
     e.stopPropagation();
     e.preventDefault();
     setIsDragging(true);
