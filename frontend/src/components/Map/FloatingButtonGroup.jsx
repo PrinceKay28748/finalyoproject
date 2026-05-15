@@ -1,14 +1,21 @@
 // components/Map/FloatingButtonGroup.jsx
-// Apple-style vertical glassmorphism button group (icon-only + tooltip)
-
-import { useState } from 'react';
+// Apple visionOS/macOS-style grouped glass buttons (icon-only + tooltip)
+import { useState, useCallback } from 'react';
 import './FloatingButtonGroup.css';
 
 const FloatingButtonGroup = ({ buttons }) => {
   const [hoveredIndex, setHoveredIndex] = useState(null);
 
+  const handleClick = useCallback((button) => {
+    button.onClick();
+    // Haptic feedback on mobile (10ms light tap, Apple-style)
+    if (window.navigator?.vibrate) {
+      window.navigator.vibrate(10);
+    }
+  }, []);
+
   return (
-    <div className="floating-glass-container">
+    <div className="floating-glass-container" role="toolbar" aria-label="Map controls">
       {buttons.map((button, index) => (
         <div
           key={index}
@@ -17,27 +24,30 @@ const FloatingButtonGroup = ({ buttons }) => {
           onMouseLeave={() => setHoveredIndex(null)}
           onClick={(e) => {
             e.stopPropagation();
-            button.onClick();
-            // Haptic feedback on mobile
-            if (window.navigator && window.navigator.vibrate) {
-              window.navigator.vibrate(10);
-            }
+            handleClick(button);
           }}
           onMouseDown={(e) => e.stopPropagation()}
           onTouchStart={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleClick(button);
+            }
+          }}
           role="button"
           tabIndex={0}
           aria-label={button.label}
-          aria-pressed={button.active}
+          aria-pressed={button.active ?? undefined}
         >
-          <span className={`floating-glass-icon ${button.active ? 'floating-glass-icon--active' : ''}`}>
+          <span
+            className={`floating-glass-icon${button.active ? ' floating-glass-icon--active' : ''}`}
+          >
             {button.icon}
           </span>
-          
-          {/* Apple-style tooltip */}
+
           {hoveredIndex === index && (
-            <div className="floating-glass-tooltip">
-              <span className="tooltip-arrow" />
+            <div className="floating-glass-tooltip" role="tooltip">
+              <span className="tooltip-arrow" aria-hidden="true" />
               {button.label}
             </div>
           )}
