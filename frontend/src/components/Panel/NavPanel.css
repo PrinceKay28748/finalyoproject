@@ -1,5 +1,5 @@
 /* ==========================================================================
-   NavPanel.css — Premium Glassmorphic Mobile-First Architecture
+   NavPanel.css — Top-Anchored Refined Glassmorphic UI Style
    ========================================================================== */
 
 @import url('https://googleapis.com');
@@ -21,38 +21,38 @@
   --text-muted-dark: #9ca3af;
 }
 
-/* ─── Main Structural Container (Reachable Bottom Floating Sheet) ───────── */
+/* ─── Main Structural Container (Restored back to the Top Position) ─────── */
 .nav-panel {
   font-family: 'Outfit', -apple-system, sans-serif;
   background: var(--panel-bg-light);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid var(--border-light);
-  border-radius: 32px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  border-radius: 28px; /* Restored to original layout radius */
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.5);
   z-index: 1000;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px; /* Restored to original layout gap */
   position: fixed;
   
-  /* Mobile-first bottom position: optimal thumb zone reachability */
-  bottom: calc(16px + env(safe-area-inset-bottom));
-  left: 16px;
-  right: 16px;
-  max-width: 460px;
+  /* POSITIONING REVERTED: Back to original top layout constraints */
+  top: env(safe-area-inset-top);
+  left: 12px;
+  right: 12px;
+  max-width: 480px;
   margin: 0 auto;
-  padding: 16px;
+  padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
   
   transform: translateZ(0);
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.3s ease; /* Restored to original transition rule */
 }
 
 /* Core Local Dark Mode Scope Integration */
 .nav-panel.dark {
   background: var(--panel-bg-dark);
   border-color: var(--border-dark);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 /* ─── Global Unified Header Layout ──────────────────────────────────────── */
@@ -117,19 +117,21 @@
 
 /* ─── Premium System Glass Buttons ──────────────────────────────────────── */
 .nav-glass-btn {
-  background: rgba(255, 255, 255, 0.4);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
+  background: rgba(255, 255, 255, 0.6); /* Restored light profile contrast */
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 0.5px solid rgba(255, 255, 255, 0.4);
+  border-radius: 40px; /* Restored round capsule profile */
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--text-muted-light);
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s, color 0.2s;
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s, color 0.2s;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08), inset 0 0.5px 0 rgba(255, 255, 255, 0.7);
 }
 
 .nav-glass-btn svg {
@@ -138,22 +140,23 @@
 }
 
 .nav-glass-btn:hover {
-  transform: scale(1.06);
-  background: rgba(255, 255, 255, 0.7);
+  transform: scale(1.02);
+  background: rgba(255, 255, 255, 0.75);
   color: var(--text-main-light);
 }
 
-.nav-glass-btn:active { transform: scale(0.94); }
+.nav-glass-btn:active { transform: scale(0.97); }
 
 /* Dark mode glass states */
 .nav-panel.dark .nav-glass-btn {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
   color: var(--text-muted-dark);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25), inset 0 0.5px 0 rgba(255, 255, 255, 0.12);
 }
 
 .nav-panel.dark .nav-glass-btn:hover {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.16);
   color: var(--text-main-dark);
 }
 
@@ -167,7 +170,7 @@
 /* Red danger hover modification on sign-out icon triggers */
 .nav-logout-btn:hover {
   background: rgba(239, 68, 68, 0.12) !important;
-  border-color: rgba(239, 68, 68, 0.25) !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
   color: var(--accent-red) !important;
 }
 
@@ -175,7 +178,7 @@
 .nav-routing-body {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 .nav-search-fields {
@@ -253,17 +256,18 @@
 /* Primary Action Navigation Trigger Component */
 .nav-directions-btn {
   flex: 1;
-  height: 44px;
-  border-radius: 22px;
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 40px;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   cursor: pointer;
   border: none;
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s, box-shadow 0.2s;
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s, box-shadow 0.2s;
 }
 
 .nav-directions-btn svg {
@@ -272,63 +276,86 @@
 }
 
 .nav-directions-btn.ready {
-  background: var(--accent-blue);
-  color: #ffffff;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  background: rgba(37, 99, 235, 0.12);
+  border: 0.5px solid rgba(37, 99, 235, 0.4);
+  color: #1d4ed8;
+  box-shadow: 0 1px 4px rgba(37, 99, 235, 0.15), inset 0 0.5px 0 rgba(255, 255, 255, 0.6);
 }
 
 .nav-directions-btn.ready:hover {
   transform: scale(1.02);
-  background: var(--accent-blue-hover);
-  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+  background: rgba(37, 99, 235, 0.18);
+  border-color: rgba(37, 99, 235, 0.55);
+  box-shadow: 0 3px 12px rgba(37, 99, 235, 0.2), inset 0 0.5px 0 rgba(255, 255, 255, 0.7);
 }
 
 .nav-directions-btn.disabled {
-  background: rgba(0, 0, 0, 0.06);
-  color: rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.05);
+  border: 0.5px solid rgba(0, 0, 0, 0.08);
+  color: rgba(0, 0, 0, 0.3);
   cursor: not-allowed;
+}
+
+/* Dark mode directions modifications */
+.nav-panel.dark .nav-directions-btn.ready {
+  background: rgba(96, 165, 250, 0.15);
+  border-color: rgba(96, 165, 250, 0.4);
+  color: #93c5fd;
+  box-shadow: 0 1px 4px rgba(96, 165, 250, 0.15), inset 0 0.5px 0 rgba(255, 255, 255, 0.08);
+}
+.nav-panel.dark .nav-directions-btn.ready:hover {
+  background: rgba(96, 165, 250, 0.22);
+  border-color: rgba(96, 165, 250, 0.55);
 }
 .nav-panel.dark .nav-directions-btn.disabled {
   background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.25);
 }
 
 /* Secondary Cancel/Reset Layout Controller */
 .nav-reset-btn {
-  height: 44px;
-  padding: 0 18px;
-  background: rgba(0, 0, 0, 0.04);
-  border: 1px solid transparent;
-  border-radius: 22px;
+  min-height: 44px;
+  padding: 10px 18px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 0.5px solid rgba(0, 0, 0, 0.1);
+  border-radius: 40px;
   cursor: pointer;
-  color: var(--text-muted-light);
+  color: rgba(0, 0, 0, 0.55);
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06), inset 0 0.5px 0 rgba(255, 255, 255, 0.7);
   transition: all 0.2s ease;
 }
 
 .nav-reset-btn:hover {
+  transform: scale(1.02);
   background: rgba(239, 68, 68, 0.08);
-  border-color: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.45);
   color: var(--accent-red);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.12), inset 0 0.5px 0 rgba(255, 255, 255, 0.7);
 }
 
 .nav-panel.dark .nav-reset-btn {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-muted-dark);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2), inset 0 0.5px 0 rgba(255, 255, 255, 0.06);
+}
+.nav-panel.dark .nav-reset-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
 }
 
 /* ─── Compact State Layout Transformations ────────────────────────────── */
 .nav-panel--compact {
-  padding: 12px;
-  gap: 12px;
-  border-radius: 24px;
+  padding: 10px 16px;
 }
 
 .nav-compact-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   width: 100%;
 }
 
@@ -337,16 +364,26 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(0, 0, 0, 0.03);
-  padding: 0 14px;
-  border-radius: 20px;
-  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.55);
+  padding: 8px 14px;
+  border-radius: 40px;
+  border: 0.5px solid rgba(255, 255, 255, 0.4);
   cursor: pointer;
-  height: 40px;
+  min-height: 44px;
   text-align: left;
-  min-width: 0; /* Prevents long titles from blowing out layouts */
+  min-width: 0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06), inset 0 0.5px 0 rgba(255, 255, 255, 0.7);
+  transition: transform 0.18s ease, background 0.2s;
 }
-.nav-panel.dark .nav-compact-location { background: rgba(255, 255, 255, 0.04); }
+.nav-panel.dark .nav-compact-location {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.nav-compact-location:hover {
+  transform: scale(1.01);
+  background: rgba(255, 255, 255, 0.7);
+}
 
 .nav-compact-start,
 .nav-compact-dest {
@@ -369,8 +406,8 @@
 .nav-panel.dark .nav-compact-arrow { color: var(--text-muted-dark); }
 
 .nav-compact-dot {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
 }
