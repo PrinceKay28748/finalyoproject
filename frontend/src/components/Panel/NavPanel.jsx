@@ -13,6 +13,35 @@ import {
 } from "../ui/icon";
 import "./NavPanel.css";
 
+// Inline SVG icons used only for buttons (no emoji replacements)
+function IconFrom() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="4" fill="currentColor" />
+      <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.5" fill="none" opacity="0.4" />
+    </svg>
+  );
+}
+
+function IconTo() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function IconArrowRight() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export default function NavPanel({
   startText,
   destText,
@@ -79,11 +108,11 @@ export default function NavPanel({
       ? "ready"
       : "idle";
   const statusMsg = locationError
-    ? `⚠️ ${locationError}`
+    ? locationError
     : markersVisible
-      ? "✓ Route ready"
+      ? "Route ready"
       : canShow
-        ? "✓ Ready — tap Directions"
+        ? "Ready — tap Directions"
         : startText && !destText
           ? "Now set your destination"
           : !startText && destText
@@ -132,21 +161,21 @@ export default function NavPanel({
           </div>
           <div className="nav-header-buttons">
             <button
-              className="nav-mode-btn"
+              className="nav-glass-btn nav-mode-btn"
               onClick={onToggleDarkMode}
-              aria-label={
-                darkMode ? "Switch to light mode" : "Switch to dark mode"
-              }
+              aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
               title={`${user?.username || "User"} · ${darkMode ? "Light" : "Dark"} mode`}
             >
-              {darkMode ? (
-                <IconSun className="w-4 h-4" />
-              ) : (
-                <IconMoonNav className="w-4 h-4" />
-              )}
+              <span className={`nav-mode-icon ${darkMode ? "nav-mode-icon--spin" : ""}`}>
+                {darkMode ? (
+                  <IconSun className="w-4 h-4" />
+                ) : (
+                  <IconMoonNav className="w-4 h-4" />
+                )}
+              </span>
             </button>
             <button
-              className="nav-logout-btn"
+              className="nav-glass-btn nav-logout-btn"
               onClick={handleLogout}
               title="Sign out"
               aria-label="Sign out"
@@ -160,19 +189,21 @@ export default function NavPanel({
           <div
             className="nav-compact-location"
             onClick={handleSearchFocus}
+            role="button"
+            tabIndex={0}
             aria-label="Edit route"
+            onKeyDown={(e) => e.key === "Enter" && handleSearchFocus()}
           >
-            <span className="nav-compact-icon" aria-hidden="true">
-              📍
-            </span>
+            <span className="nav-compact-dot nav-compact-dot--from" aria-hidden="true" />
             <span className="nav-compact-start">{startText}</span>
             <span className="nav-compact-arrow" aria-hidden="true">
-              →
+              <IconArrowRight />
             </span>
+            <span className="nav-compact-dot nav-compact-dot--to" aria-hidden="true" />
             <span className="nav-compact-dest">{destText}</span>
           </div>
           <button
-            className="nav-compact-swap"
+            className="nav-glass-btn nav-compact-swap"
             onClick={onSwap}
             title="Swap"
             aria-label="Swap start and destination"
@@ -227,21 +258,21 @@ export default function NavPanel({
         </div>
         <div className="nav-header-buttons">
           <button
-            className="nav-mode-btn"
+            className="nav-glass-btn nav-mode-btn"
             onClick={onToggleDarkMode}
-            aria-label={
-              darkMode ? "Switch to light mode" : "Switch to dark mode"
-            }
+            aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
             title={`${user?.username || "User"} · ${darkMode ? "Light" : "Dark"} mode`}
           >
-            {darkMode ? (
-              <IconSun className="w-4 h-4" />
-            ) : (
-              <IconMoonNav className="w-4 h-4" />
-            )}
+            <span className={`nav-mode-icon ${darkMode ? "nav-mode-icon--spin" : ""}`}>
+              {darkMode ? (
+                <IconSun className="w-4 h-4" />
+              ) : (
+                <IconMoonNav className="w-4 h-4" />
+              )}
+            </span>
           </button>
           <button
-            className="nav-logout-btn"
+            className="nav-glass-btn nav-logout-btn"
             onClick={handleLogout}
             aria-label="Sign out"
             title="Sign out"
@@ -252,7 +283,7 @@ export default function NavPanel({
       </div>
 
       {!isExpanded && (
-        <div
+        <button
           className="nav-where-to"
           onClick={() => setIsExpanded(true)}
           aria-label="Search for destination"
@@ -261,15 +292,15 @@ export default function NavPanel({
             <IconSearch className="w-4 h-4" />
           </div>
           <span className="nav-where-to-text">Where to?</span>
-        </div>
+        </button>
       )}
 
       {isExpanded && (
         <div className="nav-expanded-content">
           <div className="nav-input-section">
             <div className="nav-input-label">
-              <span className="nav-input-icon" aria-hidden="true">
-                📍
+              <span className="nav-input-icon from-icon" aria-hidden="true">
+                <IconFrom />
               </span>
               <span className="nav-input-label-text from-label">From</span>
             </div>
@@ -287,8 +318,8 @@ export default function NavPanel({
 
           <div className="nav-input-section">
             <div className="nav-input-label">
-              <span className="nav-input-icon" aria-hidden="true">
-                📍
+              <span className="nav-input-icon to-icon" aria-hidden="true">
+                <IconTo />
               </span>
               <span className="nav-input-label-text to-label">To</span>
             </div>
@@ -310,7 +341,10 @@ export default function NavPanel({
               onClick={handleResetClick}
               aria-label="Reset route"
             >
-              ✕ Reset
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+              </svg>
+              Reset
             </button>
             <button
               className={`nav-directions-btn ${canShow ? "ready" : "disabled"}`}
@@ -321,7 +355,7 @@ export default function NavPanel({
               {isResolving ? (
                 <>
                   <div className="nav-spinner" aria-hidden="true" />
-                  Finding...
+                  Finding…
                 </>
               ) : (
                 <>
@@ -332,7 +366,19 @@ export default function NavPanel({
             </button>
           </div>
 
-          <p className={`nav-status ${statusClass}`}>{statusMsg}</p>
+          <p className={`nav-status ${statusClass}`}>
+            {statusClass === "error" && (
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ display: "inline", marginRight: 4, verticalAlign: "middle" }}>
+                <path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+            {statusClass === "ready" && (
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ display: "inline", marginRight: 4, verticalAlign: "middle" }}>
+                <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+            {statusMsg}
+          </p>
         </div>
       )}
     </div>
