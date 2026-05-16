@@ -1,4 +1,4 @@
-// frontend/src/App.jsx - Simplified (no auth guards, no admin route)
+// frontend/src/App.jsx - With map blur functionality
 import { useState, useCallback, lazy, Suspense, useEffect, useRef } from "react";
 import { useGeolocation } from "./hooks/useGeolocation";
 import { useRealtimeRoutes } from "./hooks/useRealtimeRoutes";
@@ -59,9 +59,40 @@ export default function App() {
   const [graph, setGraph] = useState(null);
   const [graphLoading, setGraphLoading] = useState(true);
 
+  // NEW: Map blur state for focus layering
+  const [isMapBlurred, setIsMapBlurred] = useState(false);
+
   const legendCollapseRef = useRef(null);
 
   const { location: currentLocation, accuracy, error: locationError } = useGeolocation();
+
+  // ── MAP BLUR EFFECT: Blur background when any UI panel is active ─────────
+  useEffect(() => {
+    // Determine if any interactive UI element is active
+    const isAnyPanelActive = 
+      isNavExpanded ||           // Navigation panel expanded
+      !isLegendExpanded ||       // Legend expanded (note: starts as true, so !true = false means collapsed)
+      isReportModalOpen;        // Report modal open
+    
+    // Update blur state
+    setIsMapBlurred(isAnyPanelActive);
+    
+    // Add/remove body class for additional styling if needed
+    if (isAnyPanelActive) {
+      document.body.classList.add('has-active-panel');
+    } else {
+      document.body.classList.remove('has-active-panel');
+    }
+    
+    // Optional: Log for debugging
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[App] Map blur state:', isAnyPanelActive ? 'BLURRED' : 'CLEAR', {
+        isNavExpanded,
+        isLegendExpanded: !isLegendExpanded,
+        isReportModalOpen
+      });
+    }
+  }, [isNavExpanded, isLegendExpanded, isReportModalOpen]);
 
   // ── Restore route state ──────────────────────────────────────────────────
   useEffect(() => {
@@ -491,6 +522,7 @@ export default function App() {
             isNavExpanded={isNavExpanded}
             onNavPanelClose={handleNavPanelClose}
             isPanelTransitioning={isPanelTransitioning}
+            isMapBlurred={isMapBlurred}  // NEW: Pass blur state to MapView
           />
         </Suspense>
 

@@ -539,3 +539,240 @@
     height: 38px;
   }
 }
+
+/* ============================================
+   MAP BLUR EFFECT FOR FOCUS LAYERING
+   Enhanced Glassmorphism Support
+   ============================================ */
+
+/* Map blur container styles */
+.map-wrap {
+  position: relative;
+  transition: filter 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: filter;
+}
+
+/* Blur effect when any panel is active */
+.map-wrap.map-blurred .leaflet-container {
+  filter: blur(5px) brightness(0.95);
+  transition: filter 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none; /* Prevent map interaction when blurred */
+  will-change: filter;
+}
+
+/* Subtle dark overlay when blurred to enhance panel focus */
+.map-wrap.map-blurred::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(0, 0, 0, 0.15) 0%,
+    rgba(0, 0, 0, 0.05) 100%
+  );
+  pointer-events: none;
+  z-index: 401;
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 1;
+  border-radius: inherit;
+}
+
+/* Remove overlay when not blurred */
+.map-wrap:not(.map-blurred)::before {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Ensure glassmorphic panels stay razor-sharp above the blur */
+.nav-panel,
+.legend-panel,
+.modal-content,
+.panel-glass,
+.legend-glass,
+.report-modal {
+  filter: none !important;
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  position: relative;
+  z-index: 1000;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Specific panel refinements for better readability */
+.nav-panel {
+  backdrop-filter: blur(12px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(180%) !important;
+  background: rgba(255, 255, 255, 0.85) !important;
+}
+
+.ug-root.dark .nav-panel {
+  background: rgba(18, 18, 24, 0.85) !important;
+  backdrop-filter: blur(12px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(180%) !important;
+}
+
+.legend-panel {
+  backdrop-filter: blur(12px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(180%) !important;
+}
+
+/* Modal glass effect enhancement */
+.modal-content,
+.report-modal {
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+}
+
+.ug-root.dark .modal-content,
+.ug-root.dark .report-modal {
+  background: rgba(18, 18, 24, 0.9) !important;
+}
+
+/* Dark mode adjustments for blur and overlay */
+.ug-root.dark .map-wrap.map-blurred .leaflet-container {
+  filter: blur(5px) brightness(0.85);
+}
+
+.ug-root.dark .map-wrap.map-blurred::before {
+  background: linear-gradient(
+    135deg,
+    rgba(0, 0, 0, 0.3) 0%,
+    rgba(0, 0, 0, 0.15) 100%
+  );
+}
+
+/* Light mode adjustments */
+.ug-root:not(.dark) .map-wrap.map-blurred .leaflet-container {
+  filter: blur(5px) brightness(0.98);
+}
+
+.ug-root:not(.dark) .map-wrap.map-blurred::before {
+  background: linear-gradient(
+    135deg,
+    rgba(0, 0, 0, 0.08) 0%,
+    rgba(0, 0, 0, 0.02) 100%
+  );
+}
+
+/* Performance optimization: GPU acceleration for blur */
+.map-wrap.map-blurred .leaflet-container {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Ensure route lines and markers don't get extra blur */
+.map-wrap.map-blurred .leaflet-container canvas,
+.map-wrap.map-blurred .leaflet-container svg,
+.map-wrap.map-blurred .leaflet-container img {
+  filter: none !important;
+}
+
+/* Smooth transition for panels when blur state changes */
+.nav-panel,
+.legend-panel,
+.modal-content,
+.map-report-btn,
+.map-zoom-btn,
+.map-recenter-btn,
+.map-heatmap-btn {
+  transition: backdrop-filter 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              background 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.15s ease;
+}
+
+/* Prevent blur on any UI overlay elements */
+.map-controls,
+.leaflet-control-container,
+.leaflet-popup,
+.leaflet-tooltip,
+.map-zoom-controls,
+.map-recenter-btn,
+.map-heatmap-btn,
+.map-report-btn,
+.floating-button-group {
+  filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Enhanced focus state for panels when map is blurred */
+.map-wrap.map-blurred ~ .nav-panel,
+body.has-active-panel .nav-panel,
+body.has-active-panel .legend-panel {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.ug-root.dark .map-wrap.map-blurred ~ .nav-panel,
+.ug-root.dark body.has-active-panel .nav-panel,
+.ug-root.dark body.has-active-panel .legend-panel {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Accessibility: Reduce motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .map-wrap,
+  .map-wrap.map-blurred .leaflet-container,
+  .nav-panel,
+  .legend-panel,
+  .modal-content {
+    transition: none !important;
+  }
+}
+
+/* Safari-specific fixes for backdrop-filter */
+@supports (backdrop-filter: blur(12px)) {
+  .nav-panel,
+  .legend-panel,
+  .modal-content {
+    backdrop-filter: blur(12px) saturate(180%);
+  }
+}
+
+/* Fallback for browsers without backdrop-filter */
+@supports not (backdrop-filter: blur(12px)) {
+  .nav-panel,
+  .legend-panel,
+  .modal-content {
+    background: rgba(255, 255, 255, 0.95) !important;
+  }
+  
+  .ug-root.dark .nav-panel,
+  .ug-root.dark .legend-panel,
+  .ug-root.dark .modal-content {
+    background: rgba(18, 18, 24, 0.95) !important;
+  }
+}
+
+/* Ensure floating buttons remain clickable when map is blurred */
+.map-wrap.map-blurred ~ .map-zoom-controls,
+.map-wrap.map-blurred ~ .map-recenter-btn,
+.map-wrap.map-blurred ~ .map-heatmap-btn,
+.map-wrap.map-blurred ~ .map-report-btn,
+.map-wrap.map-blurred ~ .floating-button-group {
+  pointer-events: auto;
+  z-index: 1002;
+  position: relative;
+}
+
+/* Progress indicator stays sharp during blur */
+.map-wrap.map-blurred ~ .progress-indicator,
+.map-wrap.map-blurred ~ .route-loading,
+.map-wrap.map-blurred ~ .rerouting-indicator,
+.map-wrap.map-blurred ~ .map-tap-hint {
+  filter: none !important;
+  backdrop-filter: blur(8px);
+  z-index: 1002;
+}
+
+/* Heatmap controls stay sharp */
+.map-wrap.map-blurred ~ .heatmap-controls {
+  filter: none !important;
+  z-index: 1002;
+}
