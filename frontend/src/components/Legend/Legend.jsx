@@ -32,13 +32,13 @@ function formatDistance(meters) {
 
 function formatTravelTime(meters, vehicleMode = "walk") {
   let speedKmh;
-  if (vehicleMode === "walk") speedKmh = 5;
-  else if (vehicleMode === "car") speedKmh = 30;
+  if (vehicleMode === "walk")       speedKmh = 5;
+  else if (vehicleMode === "car")   speedKmh = 30;
   else if (vehicleMode === "motorcycle") speedKmh = 25;
   else speedKmh = 5;
 
   const minutes = Math.ceil(meters / ((speedKmh * 1000) / 60));
-  if (minutes < 1) return "< 1 min";
+  if (minutes < 1)  return "< 1 min";
   if (minutes < 60) return `${minutes} min`;
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
@@ -105,17 +105,17 @@ const DirectionIcon = {
 
 function getFallbackArrow(maneuver) {
   const arrowMap = {
-    straight:    '↑',
-    'slight-right': '↗',
-    'turn-right': '→',
-    'sharp-right': '↘',
-    'slight-left': '↖',
-    'turn-left':  '←',
-    'sharp-left': '↙',
-    destination: '📍',
-    start:       '🚗',
+    straight:      "↑",
+    "slight-right": "↗",
+    "turn-right":   "→",
+    "sharp-right":  "↘",
+    "slight-left":  "↖",
+    "turn-left":    "←",
+    "sharp-left":   "↙",
+    destination:    "📍",
+    start:          "🚗",
   };
-  return arrowMap[maneuver] || '•';
+  return arrowMap[maneuver] || "•";
 }
 
 function getDirectionIcon(maneuver, isFirst, isLast) {
@@ -123,7 +123,7 @@ function getDirectionIcon(maneuver, isFirst, isLast) {
   if (isLast)  { const I = DirectionIcon.destination; return <I />; }
   const I = DirectionIcon[maneuver];
   if (I) return <I />;
-  return <span style={{ fontSize: '18px', fontWeight: 500 }}>{getFallbackArrow(maneuver)}</span>;
+  return <span style={{ fontSize: "18px", fontWeight: 500 }}>{getFallbackArrow(maneuver)}</span>;
 }
 
 function getTrafficInfo() {
@@ -148,10 +148,10 @@ const PROFILE_CONFIG = {
 };
 
 const PROFILES = [
-  { key: "standard",   icon: IconMap,           label: "Standard",  color: "#2563eb" },
+  { key: "standard",   icon: IconMap,           label: "Standard",   color: "#2563eb" },
   { key: "accessible", icon: IconAccessibility, label: "Accessible", color: "#8b5cf6" },
-  { key: "night",      icon: IconMoon,          label: "Night",     color: "#f59e0b" },
-  { key: "fastest",    icon: IconBolt,          label: "Fastest",   color: "#22c55e" },
+  { key: "night",      icon: IconMoon,          label: "Night",      color: "#f59e0b" },
+  { key: "fastest",    icon: IconBolt,          label: "Fastest",    color: "#22c55e" },
 ];
 
 const Legend = forwardRef(function Legend(
@@ -171,32 +171,90 @@ const Legend = forwardRef(function Legend(
     onProfileChange,
     autoCollapse = false,
     disableDrag = false,
-    onNavPanelClose, // NEW: Callback to close Nav Panel when Legend expands
+    onNavPanelClose,
   },
   ref,
 ) {
-  const [expanded, setExpanded]           = useState(true);
-  const [isDragging, setIsDragging]       = useState(false);
-  const [directions, setDirections]       = useState([]);
+  const [expanded, setExpanded]     = useState(true);
+  const [isDragging, setIsDragging] = useState(false);
+  const [directions, setDirections] = useState([]);
   const [currentStepIndex, setCurrentStepIndex] = useState(-1);
   const [wasExpandedBeforeCollapse, setWasExpandedBeforeCollapse] = useState(true);
 
+  // ── Drag state refs (never cause re-renders) ─────────────────────────────
   const dragStartY        = useRef(0);
+  const dragStartScrollTop = useRef(0);
   const dragCurrentY      = useRef(0);
   const dragStartExpanded = useRef(true);
   const dragVelocity      = useRef(0);
   const lastDragTime      = useRef(0);
-  const sheetRef          = useRef(null);
-  const headerRef         = useRef(null);
-  const directionsRef     = useRef(null);
-  const peekHeight        = 70;
+  const lastDragY         = useRef(0);
+  // expandedTranslateY — the translateY when sheet is fully expanded (0)
+  // peekTranslateY     — the translateY when sheet is in peek mode
+  const expandedTranslateY = useRef(0);
+  const peekTranslateY     = useRef(0);
+
+  const sheetRef        = useRef(null);
+  const headerRef       = useRef(null);
+  const directionsRef   = useRef(null);
+  const peekHeight      = 70; // px visible in peek state
 
   const lastAnnouncedRouteIdRef = useRef(null);
+  const pendingRouteSummaryRef  = useRef(null);
 
   const { isVoiceEnabled, toggleVoice, speak } = useVoiceGuidance();
 
-  const pendingRouteSummaryRef = useRef(null);
+  // ── Helpers ──────────────────────────────────────────────────────────────
 
+  /** Apply translateY to the sheet DOM node directly — no React state. */
+  const setTranslate = (y) => {
+    if (sheetRef.current) {
+      sheetRef.current.style.transform = `translateY(${y}px)`;
+    }
+  };
+
+  /** Add the spring-snap transition class, snap to target Y, then remove the
+   *  class once the transition ends so future drags aren't delayed. */
+  const snapTo = (targetY) => {
+    const el = sheetRef.current;
+    if (!el) return;
+    el.classList.add("legend-sheet--snapping");
+    el.style.transform = `translateY(${targetY}px)`;
+    const onEnd = () => {
+      el.classList.remove("legend-sheet--snapping");
+      el.removeEventListener("transitionend", onEnd);
+    };
+    el.addEventListener("transitionend", onEnd);
+  };
+
+  /** Recalculate peekTranslateY from current sheet height. Called on mount
+   *  and whenever the sheet height may change (expand/collapse). */
+  const recalcPositions = () => {
+    if (!sheetRef.current) return;
+    const h = sheetRef.current.offsetHeight;
+    peekTranslateY.current = Math.max(0, h - peekHeight);
+  };
+
+  // ── Mount: slide the sheet up once via the CSS animation class ───────────
+  useEffect(() => {
+    const el = sheetRef.current;
+    if (!el) return;
+    el.classList.add("legend-sheet--entering");
+    const onEnd = () => el.classList.remove("legend-sheet--entering");
+    el.addEventListener("animationend", onEnd, { once: true });
+  }, []); // empty dep — fires once on mount only
+
+  // ── Recalc peek position whenever expanded changes ───────────────────────
+  useEffect(() => {
+    // Wait one frame for the DOM to reflect the new expanded state
+    requestAnimationFrame(() => {
+      recalcPositions();
+      // Snap to the correct resting position without a finger involved
+      snapTo(expanded ? expandedTranslateY.current : peekTranslateY.current);
+    });
+  }, [expanded]);
+
+  // ── Voice ────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (route?.totalDistance) {
       pendingRouteSummaryRef.current = {
@@ -211,16 +269,13 @@ const Legend = forwardRef(function Legend(
   const handleVoiceToggle = () => {
     const wasEnabled = isVoiceEnabled;
     toggleVoice();
-    
     if (!wasEnabled && pendingRouteSummaryRef.current) {
       const { distance, time } = pendingRouteSummaryRef.current;
-      setTimeout(() => {
-        speak(`Route calculated. ${distance}, about ${time}.`);
-      }, 100);
+      setTimeout(() => speak(`Route calculated. ${distance}, about ${time}.`), 100);
     }
   };
 
-  // Auto-collapse legend when Nav Panel opens
+  // ── Auto-collapse ────────────────────────────────────────────────────────
   useEffect(() => {
     if (autoCollapse && expanded) {
       setWasExpandedBeforeCollapse(true);
@@ -229,8 +284,9 @@ const Legend = forwardRef(function Legend(
       setExpanded(true);
       setWasExpandedBeforeCollapse(false);
     }
-  }, [autoCollapse, expanded, wasExpandedBeforeCollapse]);
+  }, [autoCollapse]);
 
+  // ── Directions ───────────────────────────────────────────────────────────
   useEffect(() => {
     if (route?.coordinates?.length > 0) {
       const dirs = generateDirections(route.coordinates, route.roadNames || []);
@@ -251,78 +307,73 @@ const Legend = forwardRef(function Legend(
 
   useEffect(() => {
     if (!currentLocation || !route?.coordinates?.length || directions.length === 0) return;
-
-    const { distanceFromStart } = (() => {
-      let minDist = Infinity;
-      let closestIndex = 0;
-      for (let i = 0; i < route.coordinates.length; i++) {
-        const p = route.coordinates[i];
-        const d = Math.sqrt((p.lat - currentLocation.lat) ** 2 + (p.lng - currentLocation.lng) ** 2) * 111319;
-        if (d < minDist) { minDist = d; closestIndex = i; }
-      }
-      let distFromStart = 0;
-      for (let i = 1; i <= closestIndex; i++) {
-        const a = route.coordinates[i - 1];
-        const b = route.coordinates[i];
-        distFromStart += Math.sqrt((a.lat - b.lat) ** 2 + (a.lng - b.lng) ** 2) * 111319;
-      }
-      return { distanceFromStart: distFromStart };
-    })();
-
+    let minDist = Infinity, closestIndex = 0;
+    for (let i = 0; i < route.coordinates.length; i++) {
+      const p = route.coordinates[i];
+      const d = Math.sqrt((p.lat - currentLocation.lat) ** 2 + (p.lng - currentLocation.lng) ** 2) * 111319;
+      if (d < minDist) { minDist = d; closestIndex = i; }
+    }
+    let distFromStart = 0;
+    for (let i = 1; i <= closestIndex; i++) {
+      const a = route.coordinates[i - 1], b = route.coordinates[i];
+      distFromStart += Math.sqrt((a.lat - b.lat) ** 2 + (a.lng - b.lng) ** 2) * 111319;
+    }
     for (let i = 0; i < directions.length; i++) {
-      if (directions[i].distance > distanceFromStart || directions[i].isDestination) {
+      if (directions[i].distance > distFromStart || directions[i].isDestination) {
         setCurrentStepIndex(i);
         break;
       }
     }
   }, [currentLocation, route, directions]);
 
+  // ── Imperative handle ────────────────────────────────────────────────────
   useImperativeHandle(ref, () => ({
-    collapse: () => { if (expanded)  setExpanded(false); },
-    expand:   () => { if (!expanded) setExpanded(true);  },
+    collapse:   () => { if (expanded)  setExpanded(false); },
+    expand:     () => { if (!expanded) setExpanded(true);  },
     isExpanded: () => expanded,
   }));
 
-  useEffect(() => {
-    onExpandedChange?.(expanded);
-  }, [expanded, onExpandedChange]);
+  useEffect(() => { onExpandedChange?.(expanded); }, [expanded, onExpandedChange]);
 
   useEffect(() => {
     if (!isVoiceEnabled || !route?.totalDistance) return;
-
     const routeId = `${route.totalDistance}-${route.coordinates?.length ?? 0}`;
     if (lastAnnouncedRouteIdRef.current === routeId) return;
     lastAnnouncedRouteIdRef.current = routeId;
-
-    const distance = formatDistance(route.totalDistance);
-    const time     = formatTravelTime(route.totalDistance, vehicleMode);
-    speak(`Route calculated. ${distance}, about ${time}.`);
+    speak(`Route calculated. ${formatDistance(route.totalDistance)}, about ${formatTravelTime(route.totalDistance, vehicleMode)}.`);
   }, [route, isVoiceEnabled, vehicleMode, speak]);
 
-  const traffic = getTrafficInfo();
+  // ── DRAG HANDLERS ────────────────────────────────────────────────────────
+  // The sheet's translateY is written directly to the DOM — no React state
+  // involved — so every finger-pixel maps to exactly one pixel of movement.
 
-  const handleShareLocation = () => {
-    if (!currentLocation) { alert("Location not available yet. Please wait for GPS fix."); return; }
-    const baseUrl = import.meta.env.PROD ? "https://ugnavigator.onrender.com" : window.location.origin;
-    const link = `${baseUrl}?lat=${currentLocation.lat}&lng=${currentLocation.lng}&name=Shared%20Location`;
-    navigator.clipboard.writeText(link);
-    alert("Location link copied! Share it with your friends.");
-  };
-
-  // ── Drag handlers ─────────────────────────────────────────────────────────
   const handleDragStart = (e) => {
-    if (disableDrag) return; 
+    if (disableDrag) return;
     e.stopPropagation();
     e.preventDefault();
-    setIsDragging(true);
-    dragStartY.current      = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
-    dragCurrentY.current    = dragStartY.current;
+
+    recalcPositions();
+
+    const clientY = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
+    dragStartY.current   = clientY;
+    dragCurrentY.current = clientY;
+    lastDragY.current    = clientY;
+    lastDragTime.current = performance.now();
+    dragVelocity.current = 0;
     dragStartExpanded.current = expanded;
-    lastDragTime.current    = Date.now();
-    dragVelocity.current    = 0;
-    if (sheetRef.current) {
-      sheetRef.current.classList.add("dragging");
-      sheetRef.current.style.transition = "none";
+
+    // Current resting translate (0 if expanded, peekTranslateY if peeking)
+    dragStartScrollTop.current = expanded
+      ? expandedTranslateY.current
+      : peekTranslateY.current;
+
+    setIsDragging(true);
+
+    const el = sheetRef.current;
+    if (el) {
+      // Kill any ongoing snap transition immediately
+      el.classList.remove("legend-sheet--snapping");
+      el.classList.add("dragging");
     }
   };
 
@@ -330,83 +381,112 @@ const Legend = forwardRef(function Legend(
     if (!isDragging) return;
     e.stopPropagation();
     e.preventDefault();
-    const currentY  = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
-    const deltaY    = currentY - dragStartY.current;
-    const now       = Date.now();
-    const timeDelta = Math.max(1, now - lastDragTime.current);
-    dragVelocity.current  = (deltaY - (dragCurrentY.current - dragStartY.current)) / timeDelta;
-    dragCurrentY.current  = currentY;
-    lastDragTime.current  = now;
-    const sheetHeight = sheetRef.current?.offsetHeight || 400;
-    const maxDrag     = sheetHeight - peekHeight;
-    const newTranslateY = dragStartExpanded.current
-      ? Math.min(maxDrag, Math.max(0, deltaY))
-      : Math.min(maxDrag, Math.max(0, maxDrag + deltaY));
-    if (sheetRef.current) sheetRef.current.style.transform = `translateY(${newTranslateY}px)`;
+
+    const clientY = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
+    const now     = performance.now();
+    const dt      = Math.max(1, now - lastDragTime.current);
+
+    // Instantaneous velocity (px/ms), smoothed slightly
+    dragVelocity.current = 0.7 * dragVelocity.current + 0.3 * ((clientY - lastDragY.current) / dt);
+    lastDragY.current    = clientY;
+    lastDragTime.current = now;
+
+    // Raw desired translate
+    const delta    = clientY - dragStartY.current;
+    const rawY     = dragStartScrollTop.current + delta;
+
+    // Clamp: can't go above expanded (0) or below peek, with rubber-band past peek
+    const minY = expandedTranslateY.current;
+    const maxY = peekTranslateY.current;
+
+    let clampedY;
+    if (rawY < minY) {
+      // Rubber-band above expanded — resistance 1:3
+      clampedY = minY + (rawY - minY) / 3;
+    } else if (rawY > maxY) {
+      // Rubber-band below peek — resistance 1:3
+      clampedY = maxY + (rawY - maxY) / 3;
+    } else {
+      clampedY = rawY;
+    }
+
+    setTranslate(clampedY);
   };
 
   const handleDragEnd = (e) => {
     if (!isDragging) return;
     e?.stopPropagation();
     e?.preventDefault();
-    const sheetHeight    = sheetRef.current?.offsetHeight || 400;
-    const maxDrag        = sheetHeight - peekHeight;
-    const currentTranslate = parseFloat(
-      sheetRef.current?.style.transform?.match(/translateY\(([-\d.]+)px\)/)?.[1] || 0
-    );
-    const shouldExpand = Math.abs(dragVelocity.current) > 0.3
-      ? dragVelocity.current < 0
-      : currentTranslate < maxDrag / 2;
-    setExpanded(shouldExpand);
-    
-    // NEW: When Legend expands via drag, close the Nav Panel
-    if (shouldExpand && onNavPanelClose) {
-      onNavPanelClose();
-    }
-    
-    if (sheetRef.current) {
-      sheetRef.current.style.transform  = "";
-      sheetRef.current.style.transition = "";
-      sheetRef.current.classList.remove("dragging");
-    }
+
+    const el = sheetRef.current;
+    if (el) el.classList.remove("dragging");
     setIsDragging(false);
+
+    // Current translate at release
+    const currentY = parseFloat(
+      el?.style.transform?.match(/translateY\(([-\d.]+)px\)/)?.[1] ?? "0"
+    );
+
+    const minY = expandedTranslateY.current;
+    const maxY = peekTranslateY.current;
+    const mid  = (minY + maxY) / 2;
+
+    // Flick threshold: 0.4 px/ms
+    let shouldExpand;
+    if (Math.abs(dragVelocity.current) > 0.4) {
+      shouldExpand = dragVelocity.current < 0; // flicking up → expand
+    } else {
+      shouldExpand = currentY < mid;           // position-based snap
+    }
+
+    // Snap to resting position with spring transition
+    snapTo(shouldExpand ? minY : maxY);
+
+    // Update React state AFTER the snap so content renders correctly
+    if (shouldExpand !== expanded) {
+      setExpanded(shouldExpand);
+      if (shouldExpand && onNavPanelClose) onNavPanelClose();
+    }
   };
 
+  // ── Global move/up listeners while dragging ──────────────────────────────
   useEffect(() => {
-    if (!isDragging) { document.body.classList.remove("dragging-legend"); return; }
+    if (!isDragging) {
+      document.body.classList.remove("dragging-legend");
+      return;
+    }
     document.body.classList.add("dragging-legend");
-    const onMouseMove  = (e) => handleDragMove(e);
-    const onMouseUp    = (e) => handleDragEnd(e);
-    const onTouchMove  = (e) => handleDragMove(e);
-    const onTouchEnd   = (e) => handleDragEnd(e);
-    document.addEventListener("mousemove",  onMouseMove);
-    document.addEventListener("mouseup",    onMouseUp);
-    document.addEventListener("touchmove",  onTouchMove, { passive: false });
-    document.addEventListener("touchend",   onTouchEnd);
+
+    const onMove    = (e) => handleDragMove(e);
+    const onUp      = (e) => handleDragEnd(e);
+
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup",   onUp);
+    document.addEventListener("touchmove", onMove, { passive: false });
+    document.addEventListener("touchend",  onUp);
+
     return () => {
       document.body.classList.remove("dragging-legend");
-      document.removeEventListener("mousemove",  onMouseMove);
-      document.removeEventListener("mouseup",    onMouseUp);
-      document.removeEventListener("touchmove",  onTouchMove);
-      document.removeEventListener("touchend",   onTouchEnd);
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup",   onUp);
+      document.removeEventListener("touchmove", onMove);
+      document.removeEventListener("touchend",  onUp);
     };
   }, [isDragging]);
 
-  useEffect(() => {
-    if (!isDragging && sheetRef.current) sheetRef.current.style.transform = "";
-  }, [expanded, isDragging]);
-
+  // ── Render ───────────────────────────────────────────────────────────────
   if (!visible) return null;
 
-  const hasRoute     = route && route.totalDistance;
-  const distMeters   = hasRoute ? route.totalDistance : null;
-  const isFallback   = route?.isFallback || false;
-  const profile      = PROFILE_CONFIG[activeProfile] || PROFILE_CONFIG.standard;
-  const hasWarnings  = warnings.length > 0;
-  const hasAlts      = alternatives.length > 0;
+  const hasRoute      = route && route.totalDistance;
+  const distMeters    = hasRoute ? route.totalDistance : null;
+  const isFallback    = route?.isFallback || false;
+  const profile       = PROFILE_CONFIG[activeProfile] || PROFILE_CONFIG.standard;
+  const hasWarnings   = warnings.length > 0;
+  const hasAlts       = alternatives.length > 0;
   const estimatedTime = hasRoute ? formatTravelTime(distMeters, vehicleMode) : null;
   const carTime       = hasRoute ? formatTravelTime(distMeters, "car")  : null;
   const walkTime      = hasRoute ? formatTravelTime(distMeters, "walk") : null;
+  const traffic       = getTrafficInfo();
 
   const getBarWidth = () => {
     if (traffic.level === "Heavy")    return "100%";
@@ -416,14 +496,18 @@ const Legend = forwardRef(function Legend(
     return "50%";
   };
 
-  const ProfileIcon   = profile.icon;
-  const currentVehicle = { walk: { icon: "🚶", label: "Walk" }, car: { icon: "🚗", label: "Drive" }, motorcycle: { icon: "🏍️", label: "Ride" } }[vehicleMode] || { icon: "🚶", label: "Walk" };
+  const ProfileIcon    = profile.icon;
+  const currentVehicle = (
+    { walk: { icon: "🚶", label: "Walk" }, car: { icon: "🚗", label: "Drive" }, motorcycle: { icon: "🏍️", label: "Ride" } }
+    [vehicleMode] || { icon: "🚶", label: "Walk" }
+  );
 
   return (
     <div
       ref={sheetRef}
       className={`legend-sheet ${expanded ? "legend-sheet--expanded" : "legend-sheet--peek"}`}
     >
+      {/* ── Drag zone (handle + peek row) ──────────────────────────────── */}
       <div
         ref={headerRef}
         className="legend-drag-header"
@@ -455,6 +539,7 @@ const Legend = forwardRef(function Legend(
         </div>
       </div>
 
+      {/* ── Expanded body ───────────────────────────────────────────────── */}
       {expanded && (
         <div className="legend-body">
           <div className="legend-profile">
@@ -561,7 +646,9 @@ const Legend = forwardRef(function Legend(
                   <div
                     key={idx}
                     data-step-index={idx}
-                    className={`legend-direction-step ${currentStepIndex === idx ? "legend-direction-step--active" : ""} ${step.isDestination ? "legend-direction-step--destination" : ""}`}
+                    className={`legend-direction-step
+                      ${currentStepIndex === idx ? "legend-direction-step--active" : ""}
+                      ${step.isDestination ? "legend-direction-step--destination" : ""}`}
                   >
                     <div className="direction-icon">
                       {getDirectionIcon(step.maneuver, idx === 0, step.isDestination)}
@@ -645,6 +732,14 @@ const Legend = forwardRef(function Legend(
       )}
     </div>
   );
+
+  function handleShareLocation() {
+    if (!currentLocation) { alert("Location not available yet. Please wait for GPS fix."); return; }
+    const baseUrl = import.meta.env.PROD ? "https://ugnavigator.onrender.com" : window.location.origin;
+    const link = `${baseUrl}?lat=${currentLocation.lat}&lng=${currentLocation.lng}&name=Shared%20Location`;
+    navigator.clipboard.writeText(link);
+    alert("Location link copied! Share it with your friends.");
+  }
 });
 
 export default Legend;
