@@ -1200,6 +1200,7 @@ body.dragging-legend .leaflet-container {
 }
 
 /* ── Desktop ─────────────────────────────────────────────────────────────── */
+/* ── Desktop ─────────────────────────────────────────────────────────────── */
 @media (min-width: 1024px) {
   .legend-sheet {
     left: 50%;
@@ -1208,8 +1209,16 @@ body.dragging-legend .leaflet-container {
     right: auto;
     border-radius: 28px 28px 0 0;
   }
+  
+  /* Important: Keep the X centering during all states */
+  .legend-sheet.dragging {
+    transform: translateX(-50%) !important;
+  }
+  
+  .legend-sheet--snapping {
+    transform: translateX(-50%) translateY(var(--snap-y, 0));
+  }
 
-  /* Override sheet-rise to preserve centered X offset */
   @keyframes sheet-rise {
     from { transform: translateX(-50%) translateY(110%); opacity: 0; }
     to   { transform: translateX(-50%) translateY(0);    opacity: 1; }
