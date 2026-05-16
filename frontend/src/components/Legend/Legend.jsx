@@ -171,7 +171,7 @@ const Legend = forwardRef(function Legend(
     onProfileChange,
     autoCollapse = false,
     disableDrag = false,
-    onNavPanelClose, // Callback to close Nav Panel when Legend expands
+    onNavPanelClose, // NEW: Callback to close Nav Panel when Legend expands
   },
   ref,
 ) {
@@ -181,7 +181,6 @@ const Legend = forwardRef(function Legend(
   const [currentStepIndex, setCurrentStepIndex] = useState(-1);
   const [wasExpandedBeforeCollapse, setWasExpandedBeforeCollapse] = useState(true);
 
-  // Drag state refs
   const dragStartY        = useRef(0);
   const dragCurrentY      = useRef(0);
   const dragStartExpanded = useRef(true);
@@ -310,17 +309,17 @@ const Legend = forwardRef(function Legend(
     alert("Location link copied! Share it with your friends.");
   };
 
-  // ── SMOOTH DRAWER DRAG HANDLERS ─────────────────────────────────────────
+  // ── Drag handlers ─────────────────────────────────────────────────────────
   const handleDragStart = (e) => {
-    if (disableDrag) return;
+    if (disableDrag) return; 
     e.stopPropagation();
     e.preventDefault();
     setIsDragging(true);
-    dragStartY.current = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
-    dragCurrentY.current = dragStartY.current;
+    dragStartY.current      = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
+    dragCurrentY.current    = dragStartY.current;
     dragStartExpanded.current = expanded;
-    lastDragTime.current = Date.now();
-    dragVelocity.current = 0;
+    lastDragTime.current    = Date.now();
+    dragVelocity.current    = 0;
     if (sheetRef.current) {
       sheetRef.current.classList.add("dragging");
       sheetRef.current.style.transition = "none";
@@ -331,104 +330,70 @@ const Legend = forwardRef(function Legend(
     if (!isDragging) return;
     e.stopPropagation();
     e.preventDefault();
-    
-    const currentY = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
-    const deltaY = currentY - dragStartY.current;
-    const now = Date.now();
+    const currentY  = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
+    const deltaY    = currentY - dragStartY.current;
+    const now       = Date.now();
     const timeDelta = Math.max(1, now - lastDragTime.current);
-    
-    // Calculate velocity for smooth flick detection
-    dragVelocity.current = (deltaY - (dragCurrentY.current - dragStartY.current)) / timeDelta;
-    dragCurrentY.current = currentY;
-    lastDragTime.current = now;
-    
+    dragVelocity.current  = (deltaY - (dragCurrentY.current - dragStartY.current)) / timeDelta;
+    dragCurrentY.current  = currentY;
+    lastDragTime.current  = now;
     const sheetHeight = sheetRef.current?.offsetHeight || 400;
-    const maxDrag = sheetHeight - peekHeight;
-    
-    let newTranslateY;
-    if (dragStartExpanded.current) {
-      // Dragging from expanded state - limit to maxDrag
-      newTranslateY = Math.min(maxDrag, Math.max(0, deltaY));
-    } else {
-      // Dragging from peek state
-      newTranslateY = Math.min(maxDrag, Math.max(0, maxDrag + deltaY));
-    }
-    
-    if (sheetRef.current) {
-      sheetRef.current.style.transform = `translateY(${newTranslateY}px)`;
-    }
+    const maxDrag     = sheetHeight - peekHeight;
+    const newTranslateY = dragStartExpanded.current
+      ? Math.min(maxDrag, Math.max(0, deltaY))
+      : Math.min(maxDrag, Math.max(0, maxDrag + deltaY));
+    if (sheetRef.current) sheetRef.current.style.transform = `translateY(${newTranslateY}px)`;
   };
 
   const handleDragEnd = (e) => {
     if (!isDragging) return;
     e?.stopPropagation();
     e?.preventDefault();
-    
-    const sheetHeight = sheetRef.current?.offsetHeight || 400;
-    const maxDrag = sheetHeight - peekHeight;
+    const sheetHeight    = sheetRef.current?.offsetHeight || 400;
+    const maxDrag        = sheetHeight - peekHeight;
     const currentTranslate = parseFloat(
       sheetRef.current?.style.transform?.match(/translateY\(([-\d.]+)px\)/)?.[1] || 0
     );
-    
-    // Determine snap position based on velocity and current position
-    let shouldExpand;
-    if (Math.abs(dragVelocity.current) > 0.3) {
-      // Flick gesture - snap based on direction
-      shouldExpand = dragVelocity.current < 0;
-    } else {
-      // Slow drag - snap based on current position
-      shouldExpand = currentTranslate < maxDrag / 2;
-    }
-    
+    const shouldExpand = Math.abs(dragVelocity.current) > 0.3
+      ? dragVelocity.current < 0
+      : currentTranslate < maxDrag / 2;
     setExpanded(shouldExpand);
     
-    // When Legend expands via drag, close the Nav Panel
+    // NEW: When Legend expands via drag, close the Nav Panel
     if (shouldExpand && onNavPanelClose) {
       onNavPanelClose();
     }
     
-    // Reset transform with smooth transition
     if (sheetRef.current) {
-      sheetRef.current.style.transform = "";
+      sheetRef.current.style.transform  = "";
       sheetRef.current.style.transition = "";
       sheetRef.current.classList.remove("dragging");
     }
     setIsDragging(false);
   };
 
-  // Add/remove global drag event listeners
   useEffect(() => {
-    if (!isDragging) {
-      document.body.classList.remove("dragging-legend");
-      return;
-    }
-    
+    if (!isDragging) { document.body.classList.remove("dragging-legend"); return; }
     document.body.classList.add("dragging-legend");
-    
-    const onMouseMove = (e) => handleDragMove(e);
-    const onMouseUp = (e) => handleDragEnd(e);
-    const onTouchMove = (e) => handleDragMove(e);
-    const onTouchEnd = (e) => handleDragEnd(e);
-    
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup", onMouseUp);
-    document.addEventListener("touchmove", onTouchMove, { passive: false });
-    document.addEventListener("touchend", onTouchEnd);
-    
+    const onMouseMove  = (e) => handleDragMove(e);
+    const onMouseUp    = (e) => handleDragEnd(e);
+    const onTouchMove  = (e) => handleDragMove(e);
+    const onTouchEnd   = (e) => handleDragEnd(e);
+    document.addEventListener("mousemove",  onMouseMove);
+    document.addEventListener("mouseup",    onMouseUp);
+    document.addEventListener("touchmove",  onTouchMove, { passive: false });
+    document.addEventListener("touchend",   onTouchEnd);
     return () => {
       document.body.classList.remove("dragging-legend");
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", onMouseUp);
-      document.removeEventListener("touchmove", onTouchMove);
-      document.removeEventListener("touchend", onTouchEnd);
+      document.removeEventListener("mousemove",  onMouseMove);
+      document.removeEventListener("mouseup",    onMouseUp);
+      document.removeEventListener("touchmove",  onTouchMove);
+      document.removeEventListener("touchend",   onTouchEnd);
     };
   }, [isDragging]);
 
-  // Reset transform when expanded state changes
   useEffect(() => {
-    if (!isDragging && sheetRef.current) {
-      sheetRef.current.style.transform = "";
-    }
+    if (!isDragging && sheetRef.current) sheetRef.current.style.transform = "";
   }, [expanded, isDragging]);
 
   if (!visible) return null;
