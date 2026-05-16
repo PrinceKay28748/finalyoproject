@@ -18,22 +18,31 @@
     0 -24px 40px rgba(0, 0, 0, 0.03);
   z-index: 999;
   pointer-events: auto;
-  transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
-  animation: sheet-rise 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+  /* No transition or animation here — the JSX manages transform directly.
+     Snapping uses will-change so the GPU layer is already composited. */
+  will-change: transform;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
 }
 
+/* Initial mount slide-up — applied only via .legend-sheet--entering class
+   that the JSX can add for one frame then remove, so it never re-fires
+   during expand/collapse state changes driven by drag. */
+.legend-sheet--entering {
+  animation: sheet-rise 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 @keyframes sheet-rise {
-  from {
-    transform: translateY(110%);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+  from { transform: translateY(110%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* Snap animation — applied after drag release so the sheet springs to its
+   final position smoothly. The JSX adds this class then removes it once
+   the transition ends. */
+.legend-sheet--snapping {
+  transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* Dark mode sheet */
@@ -45,9 +54,10 @@
     0 -1px 0 rgba(255, 255, 255, 0.06) inset;
 }
 
-/* Dragging state — disable transition */
+/* Dragging state — zero transition so transform follows finger instantly */
 .legend-sheet.dragging {
   transition: none !important;
+  animation: none !important;
   user-select: none;
   -webkit-user-select: none;
 }
