@@ -154,6 +154,7 @@ export default function MapView({
   isNavExpanded = false,
   onNavPanelClose,
   isPanelTransitioning = false,
+  isMapBlurred = false, // NEW PROP for map blur state
 }) {
   const showDestinationMarker = !!destPoint;
   const displayStartPoint =
@@ -211,7 +212,7 @@ export default function MapView({
   }, []);
 
   return (
-    <div className="map-wrap">
+    <div className={`map-wrap ${isMapBlurred ? 'map-blurred' : ''}`}>
       <MapContainer
         center={[UG_CENTER.lat, UG_CENTER.lng]}
         zoom={DEFAULT_ZOOM}
