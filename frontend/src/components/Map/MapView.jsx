@@ -16,7 +16,9 @@ import Legend from "../Legend/Legend";
 import WeatherOverlay from "./WeatherOverlay";
 import FloatingButtonGroup from "./FloatingButtonGroup";
 import { useWeather } from "../../hooks/useWeather";
+import { useFocus } from "../../context/FocusContext";
 import "../Legend/Legend.css";
+import "./MapFocus.css";
 
 import {
   UG_MAX_BOUNDS,
@@ -166,6 +168,9 @@ export default function MapView({
 
   // Weather hook
   const { weather } = useWeather();
+  
+  // Focus context for layering
+  const { hasFocus } = useFocus();
 
   useEffect(() => {
     if (registerLegendCollapse && legendRef.current) {
@@ -212,7 +217,7 @@ export default function MapView({
   }, []);
 
   return (
-    <div className={`map-wrap ${isMapBlurred ? 'map-blurred' : ''}`}>
+    <div className={`map-wrap ${isMapBlurred ? 'map-blurred' : ''} ${hasFocus ? 'has-focus' : ''}`}>
       <MapContainer
         center={[UG_CENTER.lat, UG_CENTER.lng]}
         zoom={DEFAULT_ZOOM}

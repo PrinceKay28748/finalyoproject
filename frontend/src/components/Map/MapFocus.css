@@ -1,0 +1,294 @@
+/* Focus Layering System - Apple Maps Style */
+
+/* ============================================
+   MAP CONTAINER - FOCUS ACTIVE STATE
+   ============================================ */
+
+.map-container.has-focus {
+  /* Enables focus state on map */
+}
+
+/* ============================================
+   FOCUSED ELEMENTS - SHARP & BRIGHT
+   ============================================ */
+
+.map-element--focused {
+  /* Fully saturated, no blur, elevated z-index */
+  filter: saturate(1) brightness(1.05);
+  z-index: 101;
+  transition: filter 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+              z-index 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.map-element--focused.with-glow {
+  filter: saturate(1) brightness(1.1) drop-shadow(0 0 8px rgba(37, 99, 235, 0.6));
+  transition: filter 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ============================================
+   BLURRED ELEMENTS - DIM & DESATURATED
+   ============================================ */
+
+.map-element--blurred {
+  /* Reduced saturation + subtle blur */
+  filter: saturate(0.65) blur(3px);
+  opacity: 0.5;
+  z-index: 100;
+  transition: filter 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+              opacity 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+              z-index 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ============================================
+   DIMMED ELEMENTS - MODERATE DIM
+   ============================================ */
+
+.map-element--dimmed {
+  /* Slight desaturation + lower opacity, no blur */
+  filter: saturate(0.7);
+  opacity: 0.45;
+  z-index: 99;
+  transition: filter 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+              opacity 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+              z-index 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ============================================
+   MAP BACKGROUND BLUR - WHEN FOCUS ACTIVE
+   ============================================ */
+
+.map-container.has-focus {
+  position: relative;
+}
+
+.map-layer {
+  transition: filter 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.map-container.has-focus .map-layer {
+  filter: saturate(0.8);
+}
+
+/* ============================================
+   ROUTES - FOCUS STATES
+   ============================================ */
+
+.route-layer {
+  transition: filter 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+              opacity 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.route-layer.route--focused {
+  filter: saturate(1) brightness(1.1);
+  opacity: 1;
+  z-index: 101;
+}
+
+.route-layer.route--blurred {
+  filter: saturate(0.6) blur(2px);
+  opacity: 0.3;
+  z-index: 99;
+}
+
+/* Completed routes get extra blur when other routes are focused */
+.route-layer.route--completed.route--background {
+  filter: saturate(0.5) blur(4px);
+  opacity: 0.2;
+}
+
+/* ============================================
+   HEATMAP - FOCUS STATES
+   ============================================ */
+
+.heatmap-layer {
+  transition: filter 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+              opacity 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.heatmap-layer.heatmap--focused {
+  filter: saturate(1.1) brightness(1.05);
+  opacity: 1;
+}
+
+.heatmap-layer.heatmap--blurred {
+  filter: saturate(0.5) blur(2px);
+  opacity: 0.4;
+}
+
+/* Individual heatmap cell focus (optional - add data-heatmap-id attribute) */
+.heatmap-cell {
+  transition: filter 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+              opacity 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.heatmap-cell.cell--focused {
+  filter: brightness(1.3);
+  z-index: 105;
+}
+
+.heatmap-cell.cell--blurred {
+  filter: saturate(0.4);
+  opacity: 0.25;
+}
+
+/* ============================================
+   MARKERS & LOCATION ICONS
+   ============================================ */
+
+.location-marker {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+              filter 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+              z-index 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.location-marker.marker--focused {
+  filter: drop-shadow(0 0 12px rgba(37, 99, 235, 0.8));
+  z-index: 110;
+  transform: scale(1.2);
+}
+
+.location-marker.marker--blurred {
+  filter: saturate(0.6) drop-shadow(0 0 4px rgba(0, 0, 0, 0.3));
+  opacity: 0.45;
+  z-index: 95;
+}
+
+/* ============================================
+   LEGEND - CATEGORY FOCUS
+   ============================================ */
+
+.legend-category {
+  transition: filter 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+              opacity 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.legend-category.category--focused {
+  filter: saturate(1);
+  opacity: 1;
+}
+
+.legend-category.category--blurred {
+  filter: saturate(0.6);
+  opacity: 0.5;
+}
+
+.legend-item {
+  transition: background-color 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+              transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.legend-item.item--focused {
+  background-color: rgba(37, 99, 235, 0.15);
+  transform: translateX(4px);
+  box-shadow: inset 2px 0 0 rgba(37, 99, 235, 0.8);
+}
+
+/* ============================================
+   HOVER PREVIEW (DESKTOP ONLY)
+   ============================================ */
+
+@media (hover: hover) and (pointer: fine) {
+  .location-marker.marker--hover-preview {
+    filter: drop-shadow(0 0 8px rgba(37, 99, 235, 0.4));
+    opacity: 0.9;
+  }
+
+  .route-layer.route--hover-preview {
+    filter: saturate(0.85);
+    opacity: 0.8;
+  }
+
+  .heatmap-cell.cell--hover-preview {
+    filter: brightness(1.15);
+  }
+}
+
+/* ============================================
+   ANIMATION - FOCUS ENTRY
+   ============================================ */
+
+@keyframes focusIn {
+  from {
+    filter: saturate(0.5) blur(8px);
+    opacity: 0.3;
+  }
+  to {
+    filter: saturate(1) blur(0);
+    opacity: 1;
+  }
+}
+
+@keyframes blurIn {
+  from {
+    filter: saturate(1) blur(0);
+    opacity: 1;
+  }
+  to {
+    filter: saturate(0.65) blur(3px);
+    opacity: 0.5;
+  }
+}
+
+.map-element--focused.animate-focus-in {
+  animation: focusIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.map-element--blurred.animate-blur-in {
+  animation: blurIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* ============================================
+   ACCESSIBILITY - ENSURE TEXT CONTRAST
+   ============================================ */
+
+/* Desaturated elements should maintain readable contrast */
+.dark .map-element--blurred,
+.dark .map-element--dimmed {
+  /* Colors are already adjusted for dark mode; filter maintains visibility */
+}
+
+/* High contrast mode: disable blur effects if user prefers reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .map-element--focused,
+  .map-element--blurred,
+  .map-element--dimmed,
+  .route-layer,
+  .heatmap-layer,
+  .location-marker,
+  .legend-category,
+  .legend-item {
+    transition: none;
+    animation: none;
+  }
+
+  .map-element--blurred {
+    filter: saturate(0.7); /* Keep saturation change, remove blur */
+    opacity: 0.5;
+  }
+
+  .route-layer.route--blurred {
+    filter: saturate(0.6); /* No blur */
+    opacity: 0.3;
+  }
+
+  .heatmap-layer.heatmap--blurred {
+    filter: saturate(0.5); /* No blur */
+    opacity: 0.4;
+  }
+}
+
+/* High contrast mode: boost focus visibility */
+@media (prefers-contrast: more) {
+  .map-element--focused,
+  .location-marker.marker--focused,
+  .route-layer.route--focused {
+    filter: saturate(1.2) brightness(1.15);
+    text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+  }
+
+  .map-element--blurred,
+  .route-layer.route--blurred {
+    opacity: 0.35;
+  }
+}

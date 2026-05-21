@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Polyline } from "react-leaflet";
 import { ROUTE_COLORS } from "../../function/utils/colors";
 import { useVoiceGuidance } from "../../hooks/useVoiceGuidance";
+import { useFocus } from "../../context/FocusContext";
 import { generateDirections } from "../../services/directions";
 import { findClosestPointOnRoute } from "../../function/utils/geometry";
 import "./RouteLayer.css";
@@ -73,6 +74,7 @@ export default function RouteLayer({
   const remainingColor = mainColor;
 
   const { isVoiceEnabled, speakTurn, speakArrival } = useVoiceGuidance();
+  const focus = useFocus();
 
   // Generate directions (pass roadNames so instructions include street names)
   useEffect(() => {
@@ -262,7 +264,8 @@ export default function RouteLayer({
         smoothFactor={2}
         lineCap="round"
         lineJoin="round"
-        className="route-glow"
+        className={`route-glow ${focus.isFocused('route', route?.id) ? 'map-element--focused with-glow' : focus.hasFocus ? 'map-element--blurred' : ''}`}
+        eventHandlers={{ click: () => focus.setFocus('route', route?.id, 'tap') }}
       />
       <Polyline
         positions={displayedCoords}
@@ -272,7 +275,8 @@ export default function RouteLayer({
         smoothFactor={2}
         lineCap="round"
         lineJoin="round"
-        className={isAnimationComplete ? "route-main route-complete" : "route-main route-animating"}
+        className={`${isAnimationComplete ? "route-main route-complete" : "route-main route-animating"} ${focus.isFocused('route', route?.id) ? 'map-element--focused with-glow' : focus.hasFocus ? 'map-element--blurred' : ''}`}
+        eventHandlers={{ click: () => focus.setFocus('route', route?.id, 'tap') }}
       />
     </>
   );
