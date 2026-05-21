@@ -15,7 +15,6 @@ import {
 import "./NavPanel.css";
 
 // ─── Inline SVG icons ──────────────────────────────────────────────────────
-// These are used only in this component; each is a clean, minimal SVG.
 
 function IconFrom() {
   return (
@@ -51,7 +50,6 @@ function IconArrowRight() {
   );
 }
 
-// Sun icon — shown when dark mode is active (to switch back to light)
 function IconSunInline() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -66,7 +64,6 @@ function IconSunInline() {
   );
 }
 
-// Moon icon — shown when light mode is active (to switch to dark)
 function IconMoonInline() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -81,7 +78,6 @@ function IconMoonInline() {
   );
 }
 
-// Door-with-arrow logout icon
 function IconLogoutInline() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -137,6 +133,7 @@ export default function NavPanel({
   // Allow parent to control expansion
   isExpanded: externalIsExpanded,
   onExpandRequest,
+  onClose,  // NEW: callback when user clicks outside to dismiss
 }) {
   const [internalIsExpanded, setInternalIsExpanded] = useState(false);
   const [hasRoute, setHasRoute] = useState(false);
@@ -174,6 +171,12 @@ export default function NavPanel({
     onReset();
     setHasRoute(false);
     setIsExpanded(false);
+  };
+
+  // Close handler - also closes parent if callback provided
+  const handleClose = () => {
+    setIsExpanded(false);
+    if (onClose) onClose();
   };
 
   const statusClass = locationError
@@ -289,214 +292,224 @@ export default function NavPanel({
 
   // ─── Expanded / collapsed view ───────────────────────────────────────────
   return (
-    <div
-      className={`nav-panel ${isExpanded ? "nav-panel--expanded" : "nav-panel--collapsed"}`}
-    >
-      <div className="nav-header">
-        <div className="nav-header-left">
-          <div className="nav-logo">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              aria-label="UG Navigator logo"
-            >
-              <path
-                d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"
-                fill="white"
-              />
-            </svg>
+    <>
+      {/* Click-outside backdrop — only visible when expanded */}
+      {isExpanded && (
+        <div
+          className="nav-backdrop"
+          onClick={handleClose}
+          aria-hidden="true"
+        />
+      )}
+
+      <div
+        className={`nav-panel ${isExpanded ? "nav-panel--expanded" : "nav-panel--collapsed"}`}
+      >
+        <div className="nav-header">
+          <div className="nav-header-left">
+            <div className="nav-logo">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-label="UG Navigator logo"
+              >
+                <path
+                  d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"
+                  fill="white"
+                />
+              </svg>
+            </div>
+            <div>
+              <p className="nav-title">UG Navigator</p>
+              <p className="nav-subtitle">
+                University of Ghana · Legon
+                {accuracy && (
+                  <span
+                    className={
+                      accuracy < 20
+                        ? "nav-accuracy-good"
+                        : accuracy < 50
+                          ? "nav-accuracy-ok"
+                          : "nav-accuracy-poor"
+                    }
+                  >
+                    · GPS ±{accuracy}m
+                  </span>
+                )}
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="nav-title">UG Navigator</p>
-            <p className="nav-subtitle">
-              University of Ghana · Legon
-              {accuracy && (
-                <span
-                  className={
-                    accuracy < 20
-                      ? "nav-accuracy-good"
-                      : accuracy < 50
-                        ? "nav-accuracy-ok"
-                        : "nav-accuracy-poor"
-                  }
-                >
-                  · GPS ±{accuracy}m
+
+          <div className="nav-header-buttons">
+            <button
+              className="nav-glass-btn nav-mode-btn"
+              onClick={onToggleDarkMode}
+              aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+              title={`${user?.username || "User"} · ${darkMode ? "Light" : "Dark"} mode`}
+            >
+              <span className={`nav-mode-icon ${darkMode ? "nav-mode-icon--spin" : ""}`}>
+                {darkMode ? <IconSunInline /> : <IconMoonInline />}
+              </span>
+            </button>
+            <button
+              className="nav-glass-btn nav-logout-btn"
+              onClick={handleLogout}
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              <IconLogoutInline />
+            </button>
+          </div>
+        </div>
+
+        {!isExpanded && (
+          <button
+            className="nav-where-to"
+            onClick={() => setIsExpanded(true)}
+            aria-label="Search for destination"
+          >
+            <div className="nav-where-to-icon" aria-hidden="true">
+              <IconSearch className="w-4 h-4" />
+            </div>
+            <span className="nav-where-to-text">Where to?</span>
+          </button>
+        )}
+
+        {isExpanded && (
+          <div className="nav-expanded-content">
+            <div className="nav-input-section">
+              <div className="nav-input-label">
+                <span className="nav-input-icon from-icon" aria-hidden="true">
+                  <IconFrom />
                 </span>
+                <span className="nav-input-label-text from-label">From</span>
+              </div>
+              <PortalSearchBox
+                placeholder="Your location"
+                value={startText}
+                onChange={onStartTextChange}
+                onSelect={(location) => {
+                  focus.setFocus('location', location.name || location.lat.toFixed(4), 'search');
+                  onStartSelect(location);
+                }}
+                onUseCurrentLocation={onUseCurrentLocation}
+                showCurrentLocationOption={hasCurrentLocation}
+                accentColor="#2563eb"
+                onFocus={handleSearchFocus}
+              />
+            </div>
+
+            <div className="nav-input-section">
+              <div className="nav-input-label">
+                <span className="nav-input-icon to-icon" aria-hidden="true">
+                  <IconTo />
+                </span>
+                <span className="nav-input-label-text to-label">To</span>
+              </div>
+              <PortalSearchBox
+                placeholder="Where to?"
+                value={destText}
+                onChange={onDestTextChange}
+                onSelect={(location) => {
+                  focus.setFocus('location', location.name || location.lat.toFixed(4), 'search');
+                  onDestSelect(location);
+                }}
+                onUseCurrentLocation={() => {}}
+                showCurrentLocationOption={false}
+                accentColor="#22c55e"
+                onFocus={handleSearchFocus}
+              />
+            </div>
+
+            <div className="nav-action-row">
+              <button
+                className="nav-reset-btn"
+                onClick={handleResetClick}
+                aria-label="Reset route"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M3 12a9 9 0 109-9 9 9 0 00-6.16 2.42L3 8"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M3 3v5h5"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                Reset
+              </button>
+
+              <button
+                className={`nav-directions-btn ${canShow ? "ready" : "disabled"}`}
+                onClick={handleDirectionsClick}
+                disabled={!canShow || isResolving}
+                aria-label="Get directions"
+              >
+                {isResolving ? (
+                  <>
+                    <div className="nav-spinner" aria-hidden="true" />
+                    Finding…
+                  </>
+                ) : (
+                  <>
+                    <IconDirections className="w-4 h-4" aria-hidden="true" />
+                    Directions
+                  </>
+                )}
+              </button>
+            </div>
+
+            <p className={`nav-status ${statusClass}`}>
+              {statusClass === "error" && (
+                <svg
+                  width="11"
+                  height="11"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true"
+                  style={{ display: "inline", marginRight: 4, verticalAlign: "middle" }}
+                >
+                  <path
+                    d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               )}
+              {statusClass === "ready" && (
+                <svg
+                  width="11"
+                  height="11"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true"
+                  style={{ display: "inline", marginRight: 4, verticalAlign: "middle" }}
+                >
+                  <path
+                    d="M20 6L9 17l-5-5"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              )}
+              {statusMsg}
             </p>
           </div>
-        </div>
-
-        <div className="nav-header-buttons">
-          <button
-            className="nav-glass-btn nav-mode-btn"
-            onClick={onToggleDarkMode}
-            aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-            title={`${user?.username || "User"} · ${darkMode ? "Light" : "Dark"} mode`}
-          >
-            <span className={`nav-mode-icon ${darkMode ? "nav-mode-icon--spin" : ""}`}>
-              {darkMode ? <IconSunInline /> : <IconMoonInline />}
-            </span>
-          </button>
-          <button
-            className="nav-glass-btn nav-logout-btn"
-            onClick={handleLogout}
-            aria-label="Sign out"
-            title="Sign out"
-          >
-            <IconLogoutInline />
-          </button>
-        </div>
+        )}
       </div>
-
-      {!isExpanded && (
-        <button
-          className="nav-where-to"
-          onClick={() => setIsExpanded(true)}
-          aria-label="Search for destination"
-        >
-          <div className="nav-where-to-icon" aria-hidden="true">
-            <IconSearch className="w-4 h-4" />
-          </div>
-          <span className="nav-where-to-text">Where to?</span>
-        </button>
-      )}
-
-      {isExpanded && (
-        <div className="nav-expanded-content">
-          <div className="nav-input-section">
-            <div className="nav-input-label">
-              <span className="nav-input-icon from-icon" aria-hidden="true">
-                <IconFrom />
-              </span>
-              <span className="nav-input-label-text from-label">From</span>
-            </div>
-            <PortalSearchBox
-              placeholder="Your location"
-              value={startText}
-              onChange={onStartTextChange}
-              onSelect={(location) => {
-                focus.setFocus('location', location.name || location.lat.toFixed(4), 'search');
-                onStartSelect(location);
-              }}
-              onUseCurrentLocation={onUseCurrentLocation}
-              showCurrentLocationOption={hasCurrentLocation}
-              accentColor="#2563eb"
-              onFocus={handleSearchFocus}
-            />
-          </div>
-
-          <div className="nav-input-section">
-            <div className="nav-input-label">
-              <span className="nav-input-icon to-icon" aria-hidden="true">
-                <IconTo />
-              </span>
-              <span className="nav-input-label-text to-label">To</span>
-            </div>
-            <PortalSearchBox
-              placeholder="Where to?"
-              value={destText}
-              onChange={onDestTextChange}
-              onSelect={(location) => {
-                focus.setFocus('location', location.name || location.lat.toFixed(4), 'search');
-                onDestSelect(location);
-              }}
-              onUseCurrentLocation={() => {}}
-              showCurrentLocationOption={false}
-              accentColor="#22c55e"
-              onFocus={handleSearchFocus}
-            />
-          </div>
-
-          <div className="nav-action-row">
-            <button
-              className="nav-reset-btn"
-              onClick={handleResetClick}
-              aria-label="Reset route"
-            >
-              {/* Circular arrow (refresh) icon */}
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path
-                  d="M3 12a9 9 0 109-9 9 9 0 00-6.16 2.42L3 8"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d="M3 3v5h5"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              Reset
-            </button>
-
-            <button
-              className={`nav-directions-btn ${canShow ? "ready" : "disabled"}`}
-              onClick={handleDirectionsClick}
-              disabled={!canShow || isResolving}
-              aria-label="Get directions"
-            >
-              {isResolving ? (
-                <>
-                  <div className="nav-spinner" aria-hidden="true" />
-                  Finding…
-                </>
-              ) : (
-                <>
-                  <IconDirections className="w-4 h-4" aria-hidden="true" />
-                  Directions
-                </>
-              )}
-            </button>
-          </div>
-
-          <p className={`nav-status ${statusClass}`}>
-            {statusClass === "error" && (
-              <svg
-                width="11"
-                height="11"
-                viewBox="0 0 24 24"
-                fill="none"
-                aria-hidden="true"
-                style={{ display: "inline", marginRight: 4, verticalAlign: "middle" }}
-              >
-                <path
-                  d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            )}
-            {statusClass === "ready" && (
-              <svg
-                width="11"
-                height="11"
-                viewBox="0 0 24 24"
-                fill="none"
-                aria-hidden="true"
-                style={{ display: "inline", marginRight: 4, verticalAlign: "middle" }}
-              >
-                <path
-                  d="M20 6L9 17l-5-5"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            )}
-            {statusMsg}
-          </p>
-        </div>
-      )}
-    </div>
+    </>
   );
 }
