@@ -40,7 +40,6 @@ function findClosestRouteIndexOptimized(coordinates, currentLocation, thresholdM
   return minDistance <= thresholdMeters ? closestIndex : -1;
 }
 
-// Three announcement thresholds in descending order (metres)
 const TURN_THRESHOLDS = [200, 100, 50];
 
 export default function RouteLayer({
@@ -65,8 +64,6 @@ export default function RouteLayer({
   const startTimeRef          = useRef(null);
   const progressIntervalRef   = useRef(null);
 
-  // Ref-based announced turn tracking: Map<turnIndex, Set<threshold>>
-  // Using a ref (not state) prevents stale closures inside setInterval.
   const announcedTurnsRef = useRef(new Map());
 
   const mainColor      = ROUTE_COLORS[profile] || ROUTE_COLORS.standard;
@@ -76,7 +73,7 @@ export default function RouteLayer({
   const { isVoiceEnabled, speakTurn, speakArrival } = useVoiceGuidance();
   const focus = useFocus();
 
-  // Generate directions (pass roadNames so instructions include street names)
+  // Generate directions
   useEffect(() => {
     if (!visible || !route?.coordinates?.length) {
       setInstructions([]);
@@ -104,38 +101,28 @@ export default function RouteLayer({
       const totalDistance = (route.totalDistanceKm ?? route.totalDistance / 1000) * 1000;
       const remaining     = totalDistance - distanceFromStart;
 
-      // Arrival check
       if (remaining <= 30 && !hasAnnouncedArrival) {
         setHasAnnouncedArrival(true);
         speakArrival();
         return;
       }
 
-      // Turn announcements — iterate all upcoming turns
       for (let i = 0; i < instructions.length; i++) {
         const turn = instructions[i];
         if (turn.isDestination) continue;
 
         const distanceToTurn = turn.distance - distanceFromStart;
-
-        // Skip turns already passed
         if (distanceToTurn < 0) continue;
-        // Skip turns too far away (beyond our outermost threshold)
         if (distanceToTurn > TURN_THRESHOLDS[0] + 20) continue;
 
-        // Check each threshold from largest to smallest
         for (const threshold of TURN_THRESHOLDS) {
           if (distanceToTurn <= threshold) {
             const announced = announcedTurnsRef.current.get(i) || new Set();
             if (!announced.has(threshold)) {
               announced.add(threshold);
               announcedTurnsRef.current.set(i, announced);
-
-              // Build the instruction text with road name if available
               const instruction = turn.instruction || 'Continue';
               speakTurn(instruction, distanceToTurn, threshold <= 50 ? 'immediate' : 'normal');
-
-              // Only announce the closest unannounced threshold per interval tick
               break;
             }
           }
@@ -143,7 +130,6 @@ export default function RouteLayer({
       }
     };
 
-    // Run immediately then on interval
     checkProgress();
     progressIntervalRef.current = setInterval(checkProgress, 2000);
 
@@ -153,11 +139,9 @@ export default function RouteLayer({
         progressIntervalRef.current = null;
       }
     };
-    // hasAnnouncedArrival intentionally excluded — we read it inside via closure
-    // but don't want to restart the interval every time it flips.
   }, [currentLocation, route, visible, isVoiceEnabled, instructions, speakTurn, speakArrival]);
 
-  // Debounced progress update (completed/remaining split)
+  // Debounced progress update
   const updateProgress = useCallback((coords, location) => {
     if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
     updateTimeoutRef.current = setTimeout(() => {
@@ -235,19 +219,61 @@ export default function RouteLayer({
     return null;
   }
 
+  // Determine focus classes
+  const isRouteFocused = focus.isFocused('route', route?.id);
+  const routeFocusClass = isRouteFocused ? 'route--focused' : (focus.hasFocus ? 'route--blurred' : '');
+
   if (showProgress && isAnimationComplete && (completedCoords.length > 0 || remainingCoords.length > 0)) {
     return (
       <>
         {completedCoords.length >= 2 && (
           <>
-            <Polyline positions={completedCoords} color={completedColor} weight={5}  opacity={0.4}  smoothFactor={2} lineCap="round" lineJoin="round" className="route-completed" />
-            <Polyline positions={completedCoords} color={completedColor} weight={5}  opacity={0.2}  smoothFactor={2} lineCap="round" lineJoin="round" dashArray="5, 10" className="route-completed-dashed" />
+            <Polyline
+              positions={completedCoords}
+              color={completedColor}
+              weight={5}
+              opacity={isRouteFocused ? 0.5 : 0.4}
+              smoothFactor={2}
+              lineCap="round"
+              lineJoin="round"
+              className={`route-completed ${routeFocusClass}`}
+            />
+            <Polyline
+              positions={completedCoords}
+              color={completedColor}
+              weight={5}
+              opacity={isRouteFocused ? 0.3 : 0.2}
+              smoothFactor={2}
+              lineCap="round"
+              lineJoin="round"
+              dashArray="5, 10"
+              className={`route-completed-dashed ${routeFocusClass}`}
+            />
           </>
         )}
         {remainingCoords.length >= 2 && (
           <>
-            <Polyline positions={remainingCoords} color={remainingColor} weight={6}  opacity={0.95} smoothFactor={2} lineCap="round" lineJoin="round" className="route-remaining" />
-            <Polyline positions={remainingCoords} color={remainingColor} weight={14} opacity={0.15} smoothFactor={2} lineCap="round" lineJoin="round" className="route-remaining-glow" />
+            <Polyline
+              positions={remainingCoords}
+              color={remainingColor}
+              weight={6}
+              opacity={isRouteFocused ? 1 : 0.95}
+              smoothFactor={2}
+              lineCap="round"
+              lineJoin="round"
+              className={`route-remaining ${routeFocusClass}`}
+              eventHandlers={!isRouteFocused ? { click: () => focus.setFocus('route', route?.id, 'tap') } : {}}
+            />
+            <Polyline
+              positions={remainingCoords}
+              color={remainingColor}
+              weight={14}
+              opacity={isRouteFocused ? 0.25 : 0.15}
+              smoothFactor={2}
+              lineCap="round"
+              lineJoin="round"
+              className={`route-remaining-glow ${routeFocusClass}`}
+            />
           </>
         )}
       </>
@@ -264,8 +290,7 @@ export default function RouteLayer({
         smoothFactor={2}
         lineCap="round"
         lineJoin="round"
-        className={`route-glow ${focus.isFocused('route', route?.id) ? 'map-element--focused with-glow' : focus.hasFocus ? 'map-element--blurred' : ''}`}
-        eventHandlers={{ click: () => focus.setFocus('route', route?.id, 'tap') }}
+        className={`route-glow ${routeFocusClass}`}
       />
       <Polyline
         positions={displayedCoords}
@@ -275,8 +300,8 @@ export default function RouteLayer({
         smoothFactor={2}
         lineCap="round"
         lineJoin="round"
-        className={`${isAnimationComplete ? "route-main route-complete" : "route-main route-animating"} ${focus.isFocused('route', route?.id) ? 'map-element--focused with-glow' : focus.hasFocus ? 'map-element--blurred' : ''}`}
-        eventHandlers={{ click: () => focus.setFocus('route', route?.id, 'tap') }}
+        className={`${isAnimationComplete ? "route-main route-complete" : "route-main route-animating"} ${routeFocusClass}`}
+        eventHandlers={!isRouteFocused ? { click: () => focus.setFocus('route', route?.id, 'tap') } : {}}
       />
     </>
   );
