@@ -297,6 +297,7 @@ const Legend = forwardRef(function Legend(
     autoCollapse = false,
     disableDrag = false,
     onNavPanelClose,
+    onDragProgress,  // NEW: callback for blur tracking
   },
   ref,
 ) {
@@ -315,15 +316,13 @@ const Legend = forwardRef(function Legend(
   const dragVelocity = useRef(0);
   const lastDragTime = useRef(0);
   const lastDragY = useRef(0);
-  // expandedTranslateY — the translateY when sheet is fully expanded (0)
-  // peekTranslateY     — the translateY when sheet is in peek mode
   const expandedTranslateY = useRef(0);
   const peekTranslateY = useRef(0);
 
   const sheetRef = useRef(null);
   const headerRef = useRef(null);
   const directionsRef = useRef(null);
-  const peekHeight = 70; // px visible in peek state
+  const peekHeight = 70;
 
   const lastAnnouncedRouteIdRef = useRef(null);
   const pendingRouteSummaryRef = useRef(null);
@@ -333,7 +332,6 @@ const Legend = forwardRef(function Legend(
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
-  /** Apply translateY to the sheet DOM node directly — no React state. */
   const setTranslate = (y) => {
     if (sheetRef.current) {
       const isDesktop = window.innerWidth >= 1024;
@@ -344,8 +342,7 @@ const Legend = forwardRef(function Legend(
       }
     }
   };
-  /** Add the spring-snap transition class, snap to target Y, then remove the
-   *  class once the transition ends so future drags aren't delayed. */
+
   const snapTo = (targetY) => {
     const el = sheetRef.current;
     if (!el) return;
@@ -363,8 +360,6 @@ const Legend = forwardRef(function Legend(
     el.addEventListener("transitionend", onEnd);
   };
 
-  /** Recalculate peekTranslateY from current sheet height. Called on mount
-   *  and whenever the sheet height may change (expand/collapse). */
   const recalcPositions = () => {
     if (!sheetRef.current) return;
     const h = sheetRef.current.offsetHeight;
@@ -378,14 +373,12 @@ const Legend = forwardRef(function Legend(
     el.classList.add("legend-sheet--entering");
     const onEnd = () => el.classList.remove("legend-sheet--entering");
     el.addEventListener("animationend", onEnd, { once: true });
-  }, []); // empty dep — fires once on mount only
+  }, []);
 
   // ── Recalc peek position whenever expanded changes ───────────────────────
   useEffect(() => {
-    // Wait one frame for the DOM to reflect the new expanded state
     requestAnimationFrame(() => {
       recalcPositions();
-      // Snap to the correct resting position without a finger involved
       snapTo(expanded ? expandedTranslateY.current : peekTranslateY.current);
     });
   }, [expanded]);
@@ -510,9 +503,22 @@ const Legend = forwardRef(function Legend(
     );
   }, [route, isVoiceEnabled, vehicleMode, speak]);
 
+  // ── Report drag progress for map blur ────────────────────────────────────
+  const reportDragProgress = (currentY) => {
+    if (!onDragProgress) return;
+    const minY = expandedTranslateY.current;
+    const maxY = peekTranslateY.current;
+    const range = maxY - minY;
+    if (range <= 0) {
+      onDragProgress(0);
+      return;
+    }
+    // Progress: 0 = peek (bottom, no blur), 1 = expanded (top, full blur)
+    const progress = 1 - Math.max(0, Math.min(1, (currentY - minY) / range));
+    onDragProgress(progress);
+  };
+
   // ── DRAG HANDLERS ────────────────────────────────────────────────────────
-  // The sheet's translateY is written directly to the DOM — no React state
-  // involved — so every finger-pixel maps to exactly one pixel of movement.
 
   const handleDragStart = (e) => {
     if (disableDrag) return;
@@ -529,7 +535,6 @@ const Legend = forwardRef(function Legend(
     dragVelocity.current = 0;
     dragStartExpanded.current = expanded;
 
-    // Current resting translate (0 if expanded, peekTranslateY if peeking)
     dragStartScrollTop.current = expanded
       ? expandedTranslateY.current
       : peekTranslateY.current;
@@ -538,7 +543,6 @@ const Legend = forwardRef(function Legend(
 
     const el = sheetRef.current;
     if (el) {
-      // Kill any ongoing snap transition immediately
       el.classList.remove("legend-sheet--snapping");
       el.classList.add("dragging");
     }
@@ -553,32 +557,33 @@ const Legend = forwardRef(function Legend(
     const now = performance.now();
     const dt = Math.max(1, now - lastDragTime.current);
 
-    // Instantaneous velocity (px/ms), smoothed slightly
     dragVelocity.current =
       0.7 * dragVelocity.current + 0.3 * ((clientY - lastDragY.current) / dt);
     lastDragY.current = clientY;
     lastDragTime.current = now;
 
-    // Raw desired translate
     const delta = clientY - dragStartY.current;
     const rawY = dragStartScrollTop.current + delta;
 
-    // Clamp: can't go above expanded (0) or below peek, with rubber-band past peek
     const minY = expandedTranslateY.current;
     const maxY = peekTranslateY.current;
 
     let clampedY;
     if (rawY < minY) {
-      // Rubber-band above expanded — resistance 1:3
       clampedY = minY + (rawY - minY) / 3;
     } else if (rawY > maxY) {
-      // Rubber-band below peek — resistance 1:3
       clampedY = maxY + (rawY - maxY) / 3;
     } else {
       clampedY = rawY;
     }
 
     setTranslate(clampedY);
+
+    // Report drag progress for map blur
+    const currentY = parseFloat(
+      sheetRef.current?.style.transform?.match(/translateY\(([-\d.]+)px\)/)?.[1] ?? "0"
+    );
+    reportDragProgress(currentY);
   };
 
   const handleDragEnd = (e) => {
@@ -590,7 +595,6 @@ const Legend = forwardRef(function Legend(
     if (el) el.classList.remove("dragging");
     setIsDragging(false);
 
-    // Current translate at release
     const currentY = parseFloat(
       el?.style.transform?.match(/translateY\(([-\d.]+)px\)/)?.[1] ?? "0",
     );
@@ -599,18 +603,20 @@ const Legend = forwardRef(function Legend(
     const maxY = peekTranslateY.current;
     const mid = (minY + maxY) / 2;
 
-    // Flick threshold: 0.4 px/ms
     let shouldExpand;
     if (Math.abs(dragVelocity.current) > 0.4) {
-      shouldExpand = dragVelocity.current < 0; // flicking up → expand
+      shouldExpand = dragVelocity.current < 0;
     } else {
-      shouldExpand = currentY < mid; // position-based snap
+      shouldExpand = currentY < mid;
     }
 
-    // Snap to resting position with spring transition
     snapTo(shouldExpand ? minY : maxY);
 
-    // Update React state AFTER the snap so content renders correctly
+    // Reset drag progress after snap
+    if (onDragProgress) {
+      onDragProgress(shouldExpand ? 1 : 0);
+    }
+
     if (shouldExpand !== expanded) {
       setExpanded(shouldExpand);
       if (shouldExpand && onNavPanelClose) onNavPanelClose();

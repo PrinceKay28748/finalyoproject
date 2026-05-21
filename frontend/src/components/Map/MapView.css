@@ -530,6 +530,25 @@
   background: rgba(255, 255, 255, 0.12);
 }
 
+/* ============================================
+   MAP BLUR OVERLAY
+   ============================================ */
+
+.map-blur-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 500;
+  pointer-events: none;
+  backdrop-filter: saturate(0.65) blur(4px);
+  -webkit-backdrop-filter: saturate(0.65) blur(4px);
+  transition: opacity 0.3s ease;
+}
+
+/* When blurred, allow clicks to pass through to close panels */
+.map-wrap.map-blurred .map-blur-overlay {
+  pointer-events: auto;
+}
+
 /* Mobile responsive */
 @media (max-width: 600px) {
   .map-report-btn {

@@ -50,6 +50,7 @@ export default function App() {
   const [useCustomLocation, setUseCustomLocation] = useState(false);
   const [isSharedLocation, setIsSharedLocation] = useState(false);
   const [isLegendExpanded, setIsLegendExpanded] = useState(true);
+  const [legendDragProgress, setLegendDragProgress] = useState(0); // 0 = bottom (no blur), 1 = top (full blur)
 
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [selectedHour, setSelectedHour] = useState(undefined);
@@ -271,6 +272,12 @@ export default function App() {
   };
 
   const handleMapClick = useCallback(async (latlng) => {
+    // Close NavPanel if it's open (clicking away to dismiss)
+    if (isNavExpanded) {
+      setIsNavExpanded(false);
+      return;
+    }
+
     if (isRouteLocked) {
       if (isLegendExpanded && legendCollapseRef.current) {
         legendCollapseRef.current();
@@ -295,7 +302,7 @@ export default function App() {
       setIsNavExpanded(true);
       logSearch(`Map click at ${latlng.lat}, ${latlng.lng}`, name);
     }
-  }, [waitingForStart, isRouteLocked, isLegendExpanded]);
+  }, [waitingForStart, isRouteLocked, isLegendExpanded, isNavExpanded]);
 
   const handleCustomLocationDragEnd = useCallback(async (e) => {
     const { lat, lng } = e.target.getLatLng();
@@ -417,6 +424,9 @@ export default function App() {
     (effectiveStartPoint || effectiveStartText.trim().length > 0) &&
     (destPoint           || destText.trim().length > 0);
 
+  // Compute map blur state
+  const isMapBlurred = isNavExpanded || legendDragProgress > 0;
+
   return (
     <FocusProvider>
       <ErrorBoundary>
@@ -493,6 +503,9 @@ export default function App() {
             isNavExpanded={isNavExpanded}
             onNavPanelClose={handleNavPanelClose}
             isPanelTransitioning={isPanelTransitioning}
+            isMapBlurred={isMapBlurred}
+            legendDragProgress={legendDragProgress}
+            onLegendDragProgressChange={setLegendDragProgress}
           />
         </Suspense>
 

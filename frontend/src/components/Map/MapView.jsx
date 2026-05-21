@@ -16,9 +16,7 @@ import Legend from "../Legend/Legend";
 import WeatherOverlay from "./WeatherOverlay";
 import FloatingButtonGroup from "./FloatingButtonGroup";
 import { useWeather } from "../../hooks/useWeather";
-import { useFocus } from "../../context/FocusContext";
 import "../Legend/Legend.css";
-import "./MapFocus.css";
 
 import {
   UG_MAX_BOUNDS,
@@ -31,7 +29,7 @@ import "./MapView.css";
 
 import { ROUTE_COLORS } from "../../function/utils/colors";
 
-// ── SmartFitBounds (memoized) ────────────────────────────────────────────
+// ── SmartFitBounds (memoized to prevent re-renders) ────────────────────────────
 const SmartFitBounds = memo(function SmartFitBounds({
   startPoint,
   destPoint,
@@ -115,7 +113,7 @@ const MemoizedAlternateRoute = memo(function MemoizedAlternateRoute({
   );
 });
 
-// ── MapView ───────────────────────────────────────────────────────────────
+// ── MapView ───────────────────────────────────────────────────────────────────
 export default function MapView({
   currentLocation,
   accuracy,
@@ -157,6 +155,8 @@ export default function MapView({
   onNavPanelClose,
   isPanelTransitioning = false,
   isMapBlurred = false,
+  legendDragProgress = 0,
+  onLegendDragProgressChange,
 }) {
   const showDestinationMarker = !!destPoint;
   const displayStartPoint =
@@ -166,8 +166,8 @@ export default function MapView({
   const [mapBounds, setMapBounds] = useState(null);
   const [map, setMap] = useState(null);
 
+  // Weather hook
   const { weather } = useWeather();
-  const { hasFocus } = useFocus();
 
   useEffect(() => {
     if (registerLegendCollapse && legendRef.current) {
@@ -177,6 +177,9 @@ export default function MapView({
       if (registerLegendCollapse) registerLegendCollapse(null);
     };
   }, [registerLegendCollapse]);
+
+  const getMap = () =>
+    document.querySelector(".leaflet-container")?._leaflet_map;
 
   const hasValidRoute = primaryRoute?.coordinates?.length > 0;
 
@@ -211,9 +214,18 @@ export default function MapView({
   }, []);
 
   return (
-    <div className={`map-wrap ${isMapBlurred ? 'map-blurred' : ''} ${hasFocus ? 'has-focus' : ''}`}>
-      {/* Apple-style glass blur overlay - sits above map, below focused elements */}
-      <div className="map-blur-overlay" />
+    <div className={`map-wrap ${isMapBlurred ? 'map-blurred' : ''}`}>
+      {/* Apple-style glass blur overlay */}
+      <div
+        className="map-blur-overlay"
+        style={{
+          opacity: legendDragProgress > 0
+            ? legendDragProgress
+            : isNavExpanded
+              ? 1
+              : 0
+        }}
+      />
 
       <MapContainer
         center={[UG_CENTER.lat, UG_CENTER.lng]}
@@ -257,7 +269,7 @@ export default function MapView({
           />
         )}
 
-        {/* Alternative routes */}
+        {/* Alternative routes - Improved visibility */}
         {markersVisible && alternativeRoutes.length > 0 && (
           <>
             {alternativeRoutes.map((alt) => {
@@ -294,15 +306,23 @@ export default function MapView({
           isShared={isSharedLocation}
         />
 
+        {/* Weather Overlay - INSIDE MapContainer */}
         <WeatherOverlay weather={weather} />
       </MapContainer>
 
-      {/* Floating Button Group */}
+      {/* ── iOS-style Glassmorphism Floating Button Group ───────────────────── */}
       <FloatingButtonGroup
         buttons={[
           {
             icon: (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <circle cx="12" cy="12" r="10" />
                 <polygon points="12 6 12 12 16 14" />
                 <line x1="12" y1="12" x2="12" y2="18" />
@@ -314,7 +334,14 @@ export default function MapView({
           },
           {
             icon: (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <circle cx="12" cy="12" r="2" />
                 <path d="M12 2v4M22 12h-4M12 20v4M4 12H2M19.07 4.93l-2.83 2.83M6.9 17.1l-2.83 2.83M17.1 17.1l2.83 2.83M4.93 4.93l2.83 2.83" />
               </svg>
@@ -325,7 +352,14 @@ export default function MapView({
           },
           {
             icon: (
-              <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                stroke="currentColor"
+                strokeWidth="1"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M12 2L2 19h20L12 2z" />
                 <line x1="12" y1="9" x2="12" y2="13" stroke="white" />
                 <line x1="12" y1="17" x2="12.01" y2="17" stroke="white" />
@@ -346,7 +380,7 @@ export default function MapView({
         onSelectedHourChange={onSelectedHourChange}
       />
 
-      {/* Status indicators */}
+      {/* ── Status indicators ─────────────────────────────────────────────── */}
       {isRerouting && (
         <div className="rerouting-indicator">
           <div className="rerouting-spinner-small" />
@@ -382,6 +416,7 @@ export default function MapView({
         autoCollapse={isNavExpanded}
         disableDrag={isPanelTransitioning}
         onNavPanelClose={onNavPanelClose}
+        onDragProgress={onLegendDragProgressChange}
       />
 
       {waitingForStart && (
