@@ -20,6 +20,7 @@ import {
   IconInfo,
 } from "../ui/icon";
 import { useVoiceGuidance } from "../../hooks/useVoiceGuidance";
+import { useFocus } from "../../context/FocusContext";
 import { generateDirections } from "../../services/directions";
 import WeatherBanner from "./WeatherBanner";
 import "./Legend.css";
@@ -328,6 +329,7 @@ const Legend = forwardRef(function Legend(
   const pendingRouteSummaryRef = useRef(null);
 
   const { isVoiceEnabled, toggleVoice, speak } = useVoiceGuidance();
+  const focus = useFocus();
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -729,12 +731,16 @@ const Legend = forwardRef(function Legend(
             {PROFILES.map((p) => {
               const IconComponent = p.icon;
               const isActive = activeProfile === p.key;
+              const isFocused = focus.isFocused('legendItem', `profile-${p.key}`);
               return (
                 <button
                   key={p.key}
                   data-profile={p.key}
-                  className={`legend-profile-btn ${isActive ? "legend-profile-btn--active" : ""}`}
-                  onClick={() => onProfileChange?.(p.key)}
+                  className={`legend-profile-btn ${isActive ? "legend-profile-btn--active" : ""} ${isFocused ? "item--focused" : ""}`}
+                  onClick={() => {
+                    focus.setFocus('legendItem', `profile-${p.key}`, 'legend');
+                    onProfileChange?.(p.key);
+                  }}
                   title={p.label}
                 >
                   <span className="legend-profile-icon">
@@ -879,8 +885,11 @@ const Legend = forwardRef(function Legend(
               <p className="legend-alts-label">Alternative routes</p>
               <div className="legend-alts">
                 <div
-                  className={`legend-alt ${activeAlternativeIndex === 0 ? "legend-alt--active" : ""}`}
-                  onClick={() => onSelectAlternative?.(0)}
+                  className={`legend-alt ${activeAlternativeIndex === 0 ? "legend-alt--active" : ""} ${focus.isFocused('legendItem', 'alt-0') ? 'item--focused' : ''}`}
+                  onClick={() => {
+                    focus.setFocus('legendItem', 'alt-0', 'legend');
+                    onSelectAlternative?.(0);
+                  }}
                 >
                   <span className="alt-line alt-line--primary" />
                   <div className="alt-info">
@@ -892,8 +901,11 @@ const Legend = forwardRef(function Legend(
                 {alternatives.map((alt, i) => (
                   <div
                     key={i}
-                    className={`legend-alt ${activeAlternativeIndex === i + 1 ? "legend-alt--active" : ""}`}
-                    onClick={() => onSelectAlternative?.(i + 1)}
+                    className={`legend-alt ${activeAlternativeIndex === i + 1 ? "legend-alt--active" : ""} ${focus.isFocused('legendItem', `alt-${i + 1}`) ? 'item--focused' : ''}`}
+                    onClick={() => {
+                      focus.setFocus('legendItem', `alt-${i + 1}`, 'legend');
+                      onSelectAlternative?.(i + 1);
+                    }}
                   >
                     <span className="alt-line alt-line--secondary" />
                     <div className="alt-info">

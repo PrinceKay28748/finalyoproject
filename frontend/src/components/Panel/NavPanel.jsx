@@ -1,6 +1,7 @@
 // components/Panel/NavPanel.jsx
 import { useState, useEffect } from "react";
 import { useAuthContext } from "../../context/AuthContext";
+import { useFocus } from "../../context/FocusContext";
 import SearchBox from "../Search/SearchBox";
 import PortalSearchBox from "../Search/PortalSearchBox";
 import {
@@ -140,6 +141,7 @@ export default function NavPanel({
   const [internalIsExpanded, setInternalIsExpanded] = useState(false);
   const [hasRoute, setHasRoute] = useState(false);
   const { logout, user } = useAuthContext();
+  const focus = useFocus();
 
   // Use external control if provided, otherwise use internal state
   const isExpanded = externalIsExpanded !== undefined ? externalIsExpanded : internalIsExpanded;
@@ -375,7 +377,10 @@ export default function NavPanel({
               placeholder="Your location"
               value={startText}
               onChange={onStartTextChange}
-              onSelect={onStartSelect}
+              onSelect={(location) => {
+                focus.setFocus('location', location.name || location.lat.toFixed(4), 'search');
+                onStartSelect(location);
+              }}
               onUseCurrentLocation={onUseCurrentLocation}
               showCurrentLocationOption={hasCurrentLocation}
               accentColor="#2563eb"
@@ -394,7 +399,10 @@ export default function NavPanel({
               placeholder="Where to?"
               value={destText}
               onChange={onDestTextChange}
-              onSelect={onDestSelect}
+              onSelect={(location) => {
+                focus.setFocus('location', location.name || location.lat.toFixed(4), 'search');
+                onDestSelect(location);
+              }}
               onUseCurrentLocation={() => {}}
               showCurrentLocationOption={false}
               accentColor="#22c55e"

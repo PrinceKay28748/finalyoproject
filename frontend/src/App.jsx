@@ -11,6 +11,7 @@ import NavPanel from "./components/Panel/NavPanel";
 import ErrorBoundary from "./components/ErrorBoundary";
 import OfflineIndicator from "./components/OfflineIndicator";
 import { useAuthContext } from "./context/AuthContext";
+import { FocusProvider } from "./context/FocusContext";
 import ReportModal from './components/Map/ReportModal';
 import "./index.css";
 
@@ -417,9 +418,10 @@ export default function App() {
     (destPoint           || destText.trim().length > 0);
 
   return (
-    <ErrorBoundary>
-      <OfflineIndicator />
-      <div className={`ug-root${darkMode ? " dark" : ""}`}>
+    <FocusProvider>
+      <ErrorBoundary>
+        <OfflineIndicator />
+        <div className={`ug-root${darkMode ? " dark" : ""}`}>
         <NavPanel
           startText={effectiveStartText}
           destText={destText}
@@ -503,5 +505,6 @@ export default function App() {
         />
       </div>
     </ErrorBoundary>
+    </FocusProvider>
   );
 }
