@@ -346,7 +346,9 @@ export default function MapView({
           destPoint={destPoint}
           darkMode={darkMode}
           onMapClick={onMapClick}
-          heatmapPoints={heatmapPoints} 
+          weather={weather}
+          showHeatmap={showHeatmap}
+          selectedHour={selectedHour}
         />
       </Suspense>
 
