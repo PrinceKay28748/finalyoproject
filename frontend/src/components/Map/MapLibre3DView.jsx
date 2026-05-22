@@ -1,19 +1,21 @@
 // components/Map/MapLibre3DView.jsx
-import { useEffect, useRef, useState } from 'react';
-import maplibregl from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
+import { useEffect, useRef, useState } from "react";
+import maplibregl from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 
 const MAPTILER_KEY = import.meta.env.VITE_MAPTILER_KEY;
 
 if (!MAPTILER_KEY) {
-  console.warn('[MapLibre3D] VITE_MAPTILER_KEY not set. 3D map will not load tiles.');
+  console.warn(
+    "[MapLibre3D] VITE_MAPTILER_KEY not set. 3D map will not load tiles.",
+  );
 }
 
 const STYLE_EXPLORE = `https://api.maptiler.com/maps/streets-v2/style.json?key=${MAPTILER_KEY}`;
 const TERRAIN_SOURCE = `https://api.maptiler.com/tiles/terrain-rgb-v2/tiles.json?key=${MAPTILER_KEY}`;
 const SATELLITE_IMAGERY_URL = `https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.jpg?key=${MAPTILER_KEY}`;
 
-const UG_CENTER = { lng: -0.1865, lat: 5.6510 };
+const UG_CENTER = { lng: -0.1865, lat: 5.651 };
 
 // ── Pulse animation styles ──────────────────────────────────────────────────
 const PULSE_STYLE = `
@@ -25,7 +27,10 @@ const PULSE_STYLE = `
 
 // ── Weather codes to conditions ─────────────────────────────────────────────
 const WEATHER_CONDITIONS = {
-  rain: [200, 201, 202, 230, 231, 232, 300, 301, 302, 310, 311, 312, 313, 314, 321, 500, 501, 502, 503, 504, 511, 520, 521, 522, 531],
+  rain: [
+    200, 201, 202, 230, 231, 232, 300, 301, 302, 310, 311, 312, 313, 314, 321,
+    500, 501, 502, 503, 504, 511, 520, 521, 522, 531,
+  ],
   thunderstorm: [210, 211, 212, 221],
   drizzle: [300, 301, 302, 310, 311, 312, 313, 314, 321],
   snow: [600, 601, 602, 611, 612, 613, 615, 616, 620, 621, 622],
@@ -35,8 +40,8 @@ const WEATHER_CONDITIONS = {
 class RainEffect {
   constructor(container) {
     this.container = container;
-    this.canvas = document.createElement('canvas');
-    this.canvas.className = 'maplibre-rain-canvas';
+    this.canvas = document.createElement("canvas");
+    this.canvas.className = "maplibre-rain-canvas";
     this.canvas.style.cssText = `
       position: absolute;
       inset: 0;
@@ -45,7 +50,7 @@ class RainEffect {
       opacity: 0;
       transition: opacity 0.5s ease;
     `;
-    this.ctx = this.canvas.getContext('2d');
+    this.ctx = this.canvas.getContext("2d");
     this.drops = [];
     this.isRunning = false;
     this.intensity = 0;
@@ -62,14 +67,14 @@ class RainEffect {
     if (!this.isRunning) {
       this.resize();
       this.isRunning = true;
-      this.canvas.style.opacity = '1';
+      this.canvas.style.opacity = "1";
       this.loop();
     }
   }
 
   stop() {
     this.isRunning = false;
-    this.canvas.style.opacity = '0';
+    this.canvas.style.opacity = "0";
     this.drops = [];
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
   }
@@ -107,10 +112,10 @@ class RainEffect {
       this.drops = this.drops.slice(-200);
     }
 
-    ctx.strokeStyle = '#a8d8ff';
+    ctx.strokeStyle = "#a8d8ff";
     ctx.lineWidth = 1;
 
-    this.drops = this.drops.filter(drop => {
+    this.drops = this.drops.filter((drop) => {
       drop.y += drop.speed;
       if (drop.y > h + 20) return false;
 
@@ -136,9 +141,13 @@ class RainEffect {
 }
 
 // ── Create DOM marker element ───────────────────────────────────────────────
-function createMarkerElement(color = '#2563eb', isDestination = false, label = '') {
-  const el = document.createElement('div');
-  el.className = 'maplibre-marker';
+function createMarkerElement(
+  color = "#2563eb",
+  isDestination = false,
+  label = "",
+) {
+  const el = document.createElement("div");
+  el.className = "maplibre-marker";
   el.innerHTML = isDestination
     ? `<div style="
         width: 24px; height: 24px;
@@ -157,7 +166,7 @@ function createMarkerElement(color = '#2563eb', isDestination = false, label = '
       "></div>`;
 
   if (label) {
-    const labelEl = document.createElement('div');
+    const labelEl = document.createElement("div");
     labelEl.style.cssText = `
       position: absolute;
       top: -28px;
@@ -181,7 +190,7 @@ function createMarkerElement(color = '#2563eb', isDestination = false, label = '
 
 export default function MapLibre3DView({
   visible = false,
-  viewMode = 'explore',
+  viewMode = "explore",
   currentLocation,
   flyTarget,
   primaryRoute,
@@ -207,19 +216,34 @@ export default function MapLibre3DView({
     const weatherId = weather.list[0].weather?.[0]?.id;
     if (!weatherId) return null;
 
-    if (WEATHER_CONDITIONS.thunderstorm.includes(weatherId)) return 'thunderstorm';
-    if (WEATHER_CONDITIONS.snow.includes(weatherId)) return 'snow';
-    if (WEATHER_CONDITIONS.rain.includes(weatherId)) return 'rain';
-    if (WEATHER_CONDITIONS.drizzle.includes(weatherId)) return 'drizzle';
+    if (WEATHER_CONDITIONS.thunderstorm.includes(weatherId))
+      return "thunderstorm";
+    if (WEATHER_CONDITIONS.snow.includes(weatherId)) return "snow";
+    if (WEATHER_CONDITIONS.rain.includes(weatherId)) return "rain";
+    if (WEATHER_CONDITIONS.drizzle.includes(weatherId)) return "drizzle";
     return null;
   };
 
   const weatherCondition = getWeatherCondition();
-  const isRaining = weatherCondition === 'rain' || weatherCondition === 'drizzle' || weatherCondition === 'thunderstorm';
+  const isRaining =
+    weatherCondition === "rain" ||
+    weatherCondition === "drizzle" ||
+    weatherCondition === "thunderstorm";
 
   // ── Rain effect control ───────────────────────────────────────────────────
   useEffect(() => {
     if (!mapContainer.current || !visible) return;
+
+    console.log(
+      "[Rain] weather:",
+      weather,
+      "visible:",
+      visible,
+      "condition:",
+      weatherCondition,
+      "isRaining:",
+      isRaining,
+    );
 
     if (!rainRef.current) {
       rainRef.current = new RainEffect(mapContainer.current);
@@ -227,9 +251,13 @@ export default function MapLibre3DView({
     rainRef.current.resize();
 
     if (isRaining && visible) {
-      const intensity = weatherCondition === 'thunderstorm' ? 1.0
-        : weatherCondition === 'rain' ? 0.7
-        : 0.4;
+      const intensity =
+        weatherCondition === "thunderstorm"
+          ? 1.0
+          : weatherCondition === "rain"
+            ? 0.7
+            : 0.4;
+      console.log("[Rain] Starting rain with intensity:", intensity);
       rainRef.current.updateIntensity(intensity);
     } else {
       rainRef.current.updateIntensity(0);
@@ -245,7 +273,7 @@ export default function MapLibre3DView({
 
   // ── Cleanup all markers ──────────────────────────────────────────────────
   const clearMarkers = () => {
-    markersRef.current.forEach(m => m.remove());
+    markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
   };
 
@@ -255,24 +283,33 @@ export default function MapLibre3DView({
     clearMarkers();
 
     if (currentLocation) {
-      const markerEl = createMarkerElement('#2563eb', false);
-      const marker = new maplibregl.Marker({ element: markerEl, anchor: 'center' })
+      const markerEl = createMarkerElement("#2563eb", false);
+      const marker = new maplibregl.Marker({
+        element: markerEl,
+        anchor: "center",
+      })
         .setLngLat([currentLocation.lng, currentLocation.lat])
         .addTo(mapRef.current);
       markersRef.current.push(marker);
     }
 
     if (startPoint) {
-      const markerEl = createMarkerElement('#2563eb', false, 'Start');
-      const marker = new maplibregl.Marker({ element: markerEl, anchor: 'bottom' })
+      const markerEl = createMarkerElement("#2563eb", false, "Start");
+      const marker = new maplibregl.Marker({
+        element: markerEl,
+        anchor: "bottom",
+      })
         .setLngLat([startPoint.lng, startPoint.lat])
         .addTo(mapRef.current);
       markersRef.current.push(marker);
     }
 
     if (destPoint) {
-      const markerEl = createMarkerElement('#22c55e', true, 'Destination');
-      const marker = new maplibregl.Marker({ element: markerEl, anchor: 'bottom' })
+      const markerEl = createMarkerElement("#22c55e", true, "Destination");
+      const marker = new maplibregl.Marker({
+        element: markerEl,
+        anchor: "bottom",
+      })
         .setLngLat([destPoint.lng, destPoint.lat])
         .addTo(mapRef.current);
       markersRef.current.push(marker);
@@ -284,7 +321,8 @@ export default function MapLibre3DView({
     if (!mapRef.current || !showHeatmap) return;
 
     try {
-      const { fetchHeatmapData } = await import('../../services/heatmapAnalytics');
+      const { fetchHeatmapData } =
+        await import("../../services/heatmapAnalytics");
       const bounds = mapRef.current.getBounds();
       const boundsObj = {
         south: bounds.getSouth(),
@@ -296,18 +334,18 @@ export default function MapLibre3DView({
 
       if (!mapRef.current) return;
 
-      const features = points.map(p => ({
-        type: 'Feature',
+      const features = points.map((p) => ({
+        type: "Feature",
         properties: { intensity: p.weight || 1 },
-        geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
+        geometry: { type: "Point", coordinates: [p.lng, p.lat] },
       }));
 
-      const source = mapRef.current.getSource('heatmap-source');
+      const source = mapRef.current.getSource("heatmap-source");
       if (source) {
-        source.setData({ type: 'FeatureCollection', features });
+        source.setData({ type: "FeatureCollection", features });
       }
     } catch (err) {
-      console.error('[MapLibre3D] Heatmap fetch failed:', err);
+      console.error("[MapLibre3D] Heatmap fetch failed:", err);
     }
   };
 
@@ -315,9 +353,9 @@ export default function MapLibre3DView({
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return;
 
-    if (!document.getElementById('maplibre-marker-styles')) {
-      const styleEl = document.createElement('style');
-      styleEl.id = 'maplibre-marker-styles';
+    if (!document.getElementById("maplibre-marker-styles")) {
+      const styleEl = document.createElement("style");
+      styleEl.id = "maplibre-marker-styles";
       styleEl.textContent = PULSE_STYLE;
       document.head.appendChild(styleEl);
     }
@@ -344,25 +382,47 @@ export default function MapLibre3DView({
         showZoom: true,
         showCompass: true,
       }),
-      'top-right'
+      "top-right",
     );
+    map.on("load", () => {
+      // ── Fix missing sprite images ──────────────────────────────────────────
+      const style = map.getStyle();
+      if (style && style.sprite) {
+        // MapTiler sprite URLs need the API key
+        const spriteUrl = style.sprite;
+        if (!spriteUrl.includes("key=")) {
+          const separator = spriteUrl.includes("?") ? "&" : "?";
+          map.setStyle({
+            ...style,
+            sprite: `${spriteUrl}${separator}key=${MAPTILER_KEY}`,
+          });
+        }
+      }
 
-    map.on('load', () => {
+      // Suppress missing image warnings for non-critical icons
+      map.on("styleimagemissing", (e) => {
+        // Create a tiny placeholder to prevent repeated warnings
+        const canvas = document.createElement("canvas");
+        canvas.width = 1;
+        canvas.height = 1;
+        map.addImage(e.id, canvas);
+      });
+
       // ── Terrain ──────────────────────────────────────────────────────────
-      map.addSource('terrain-source', {
-        type: 'raster-dem',
+      map.addSource("terrain-source", {
+        type: "raster-dem",
         url: TERRAIN_SOURCE,
         tileSize: 256,
-        encoding: 'mapbox',
+        encoding: "mapbox",
       });
       map.setTerrain({
-        source: 'terrain-source',
+        source: "terrain-source",
         exaggeration: 1.2,
       });
 
       // ── Satellite imagery ────────────────────────────────────────────────
-      map.addSource('satellite-imagery', {
-        type: 'raster',
+      map.addSource("satellite-imagery", {
+        type: "raster",
         tiles: [SATELLITE_IMAGERY_URL],
         tileSize: 256,
         minzoom: 0,
@@ -370,36 +430,35 @@ export default function MapLibre3DView({
       });
 
       map.addLayer({
-        id: 'satellite-layer',
-        type: 'raster',
-        source: 'satellite-imagery',
-        layout: { visibility: 'none' },
+        id: "satellite-layer",
+        type: "raster",
+        source: "satellite-imagery",
+        layout: { visibility: "none" },
         paint: {
-          'raster-opacity': 1,
-          'raster-resampling': 'nearest',
-          'raster-fade-duration': 0,
-          'raster-opacity-transition': { duration: 0 },
+          "raster-opacity": 1,
+          "raster-resampling": "nearest",
+          "raster-fade-duration": 0,
+          "raster-opacity-transition": { duration: 0 },
         },
       });
 
-      // Set canvas background
-      map.getCanvas().style.background = '#1a1a2e';
+      map.getCanvas().style.background = "#1a1a2e";
 
       // ── Dark overlay for rain mood ───────────────────────────────────────
       map.addLayer({
-        id: 'weather-overlay',
-        type: 'background',
-        layout: { visibility: 'none' },
+        id: "weather-overlay",
+        type: "background",
+        layout: { visibility: "none" },
         paint: {
-          'background-color': '#0a1628',
-          'background-opacity': 0.15,
+          "background-color": "#0a1628",
+          "background-opacity": 0.15,
         },
       });
 
       setMapLoaded(true);
     });
 
-    map.on('click', (e) => {
+    map.on("click", (e) => {
       if (onMapClick) {
         onMapClick({ lat: e.lngLat.lat, lng: e.lngLat.lng });
       }
@@ -451,11 +510,11 @@ export default function MapLibre3DView({
   // ── Weather overlay toggle ───────────────────────────────────────────────
   useEffect(() => {
     if (!mapRef.current || !mapLoaded) return;
-    if (mapRef.current.getLayer('weather-overlay')) {
+    if (mapRef.current.getLayer("weather-overlay")) {
       mapRef.current.setLayoutProperty(
-        'weather-overlay',
-        'visibility',
-        isRaining ? 'visible' : 'none'
+        "weather-overlay",
+        "visibility",
+        isRaining ? "visible" : "none",
       );
     }
   }, [isRaining, mapLoaded]);
@@ -465,41 +524,57 @@ export default function MapLibre3DView({
     if (!mapRef.current || !mapLoaded) return;
 
     // Remove existing heatmap
-    if (mapRef.current.getLayer('heatmap-layer')) {
-      mapRef.current.removeLayer('heatmap-layer');
+    if (mapRef.current.getLayer("heatmap-layer")) {
+      mapRef.current.removeLayer("heatmap-layer");
     }
-    if (mapRef.current.getSource('heatmap-source')) {
-      mapRef.current.removeSource('heatmap-source');
+    if (mapRef.current.getSource("heatmap-source")) {
+      mapRef.current.removeSource("heatmap-source");
     }
 
     if (!showHeatmap) return;
 
     // Add empty source first, then fetch data
-    mapRef.current.addSource('heatmap-source', {
-      type: 'geojson',
-      data: { type: 'FeatureCollection', features: [] },
+    mapRef.current.addSource("heatmap-source", {
+      type: "geojson",
+      data: { type: "FeatureCollection", features: [] },
     });
 
     mapRef.current.addLayer({
-      id: 'heatmap-layer',
-      type: 'heatmap',
-      source: 'heatmap-source',
+      id: "heatmap-layer",
+      type: "heatmap",
+      source: "heatmap-source",
       paint: {
-        'heatmap-weight': ['get', 'intensity'],
-        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 0, 1, 18, 3],
-        'heatmap-color': [
-          'interpolate',
-          ['linear'],
-          ['heatmap-density'],
-          0, 'rgba(33,102,172,0)',
-          0.2, 'rgb(103,169,207)',
-          0.4, 'rgb(209,229,240)',
-          0.6, 'rgb(253,219,199)',
-          0.8, 'rgb(239,138,98)',
-          1, 'rgb(178,24,43)',
+        "heatmap-weight": ["get", "intensity"],
+        "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 0, 1, 18, 3],
+        "heatmap-color": [
+          "interpolate",
+          ["linear"],
+          ["heatmap-density"],
+          0,
+          "rgba(33,102,172,0)",
+          0.2,
+          "rgb(103,169,207)",
+          0.4,
+          "rgb(209,229,240)",
+          0.6,
+          "rgb(253,219,199)",
+          0.8,
+          "rgb(239,138,98)",
+          1,
+          "rgb(178,24,43)",
         ],
-        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 13, 8, 16, 25, 18, 40],
-        'heatmap-opacity': 0.75,
+        "heatmap-radius": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          13,
+          8,
+          16,
+          25,
+          18,
+          40,
+        ],
+        "heatmap-opacity": 0.75,
       },
     });
 
@@ -515,13 +590,13 @@ export default function MapLibre3DView({
       fetchAndUpdateHeatmap();
     };
 
-    mapRef.current.on('moveend', onMoveEnd);
-    mapRef.current.on('zoomend', onMoveEnd);
+    mapRef.current.on("moveend", onMoveEnd);
+    mapRef.current.on("zoomend", onMoveEnd);
 
     return () => {
       if (mapRef.current) {
-        mapRef.current.off('moveend', onMoveEnd);
-        mapRef.current.off('zoomend', onMoveEnd);
+        mapRef.current.off("moveend", onMoveEnd);
+        mapRef.current.off("zoomend", onMoveEnd);
       }
     };
   }, [showHeatmap, mapLoaded]);
@@ -530,32 +605,32 @@ export default function MapLibre3DView({
   useEffect(() => {
     if (!mapRef.current || !mapLoaded) return;
 
-    const targetPitch = viewMode === 'satellite' ? 55 : 45;
+    const targetPitch = viewMode === "satellite" ? 55 : 45;
 
     // Toggle satellite layer
-    if (mapRef.current.getLayer('satellite-layer')) {
+    if (mapRef.current.getLayer("satellite-layer")) {
       mapRef.current.setLayoutProperty(
-        'satellite-layer',
-        'visibility',
-        viewMode === 'satellite' ? 'visible' : 'none'
+        "satellite-layer",
+        "visibility",
+        viewMode === "satellite" ? "visible" : "none",
       );
     }
 
     // Hide all building/fill layers from the base style in satellite mode
     const style = mapRef.current.getStyle();
     if (style && style.layers) {
-      style.layers.forEach(layer => {
+      style.layers.forEach((layer) => {
         if (
-          layer.id.includes('building') ||
-          layer.id.includes('landuse') ||
-          layer.id.includes('landcover') ||
-          layer.type === 'fill-extrusion'
+          layer.id.includes("building") ||
+          layer.id.includes("landuse") ||
+          layer.id.includes("landcover") ||
+          layer.type === "fill-extrusion"
         ) {
           if (mapRef.current.getLayer(layer.id)) {
             mapRef.current.setLayoutProperty(
               layer.id,
-              'visibility',
-              viewMode === 'satellite' ? 'none' : 'visible'
+              "visibility",
+              viewMode === "satellite" ? "none" : "visible",
             );
           }
         }
@@ -563,8 +638,8 @@ export default function MapLibre3DView({
     }
 
     mapRef.current.setTerrain({
-      source: 'terrain-source',
-      exaggeration: viewMode === 'satellite' ? 1.2 : 1.0,
+      source: "terrain-source",
+      exaggeration: viewMode === "satellite" ? 1.2 : 1.0,
     });
 
     mapRef.current.easeTo({
@@ -577,10 +652,10 @@ export default function MapLibre3DView({
   useEffect(() => {
     if (!mapRef.current || !mapLoaded) return;
 
-    ['primary-route-line', 'alt-route-line'].forEach(id => {
+    ["primary-route-line", "alt-route-line"].forEach((id) => {
       if (mapRef.current.getLayer(id)) mapRef.current.removeLayer(id);
     });
-    ['primary-route', 'alt-routes'].forEach(id => {
+    ["primary-route", "alt-routes"].forEach((id) => {
       if (mapRef.current.getSource(id)) mapRef.current.removeSource(id);
     });
 
@@ -588,56 +663,56 @@ export default function MapLibre3DView({
       return;
     }
 
-    const coords = primaryRoute.coordinates.map(c => [c.lng, c.lat]);
-    mapRef.current.addSource('primary-route', {
-      type: 'geojson',
+    const coords = primaryRoute.coordinates.map((c) => [c.lng, c.lat]);
+    mapRef.current.addSource("primary-route", {
+      type: "geojson",
       data: {
-        type: 'Feature',
+        type: "Feature",
         properties: {},
-        geometry: { type: 'LineString', coordinates: coords },
+        geometry: { type: "LineString", coordinates: coords },
       },
     });
 
     mapRef.current.addLayer({
-      id: 'primary-route-line',
-      type: 'line',
-      source: 'primary-route',
+      id: "primary-route-line",
+      type: "line",
+      source: "primary-route",
       paint: {
-        'line-color': '#2563eb',
-        'line-width': ['interpolate', ['linear'], ['zoom'], 13, 2, 18, 6],
-        'line-opacity': 0.95,
+        "line-color": "#2563eb",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 13, 2, 18, 6],
+        "line-opacity": 0.95,
       },
-      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      layout: { "line-cap": "round", "line-join": "round" },
     });
 
     const altFeatures = alternativeRoutes
-      .filter(alt => alt.route?.coordinates?.length)
-      .map(alt => ({
-        type: 'Feature',
+      .filter((alt) => alt.route?.coordinates?.length)
+      .map((alt) => ({
+        type: "Feature",
         properties: {},
         geometry: {
-          type: 'LineString',
-          coordinates: alt.route.coordinates.map(c => [c.lng, c.lat]),
+          type: "LineString",
+          coordinates: alt.route.coordinates.map((c) => [c.lng, c.lat]),
         },
       }));
 
     if (altFeatures.length > 0) {
-      mapRef.current.addSource('alt-routes', {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: altFeatures },
+      mapRef.current.addSource("alt-routes", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: altFeatures },
       });
 
       mapRef.current.addLayer({
-        id: 'alt-route-line',
-        type: 'line',
-        source: 'alt-routes',
+        id: "alt-route-line",
+        type: "line",
+        source: "alt-routes",
         paint: {
-          'line-color': '#94a3b8',
-          'line-width': ['interpolate', ['linear'], ['zoom'], 13, 1.5, 18, 4],
-          'line-opacity': 0.5,
-          'line-dasharray': [3, 5],
+          "line-color": "#94a3b8",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 13, 1.5, 18, 4],
+          "line-opacity": 0.5,
+          "line-dasharray": [3, 5],
         },
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        layout: { "line-cap": "round", "line-join": "round" },
       });
     }
   }, [primaryRoute, alternativeRoutes, markersVisible, mapLoaded]);
@@ -645,14 +720,14 @@ export default function MapLibre3DView({
   return (
     <div
       ref={mapContainer}
-      className={`maplibre-map ${visible ? 'maplibre-map--visible' : 'maplibre-map--hidden'}`}
+      className={`maplibre-map ${visible ? "maplibre-map--visible" : "maplibre-map--hidden"}`}
       style={{
-        position: 'absolute',
+        position: "absolute",
         inset: 0,
         zIndex: visible ? 1 : 0,
         opacity: visible ? 1 : 0,
-        transition: 'opacity 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
-        pointerEvents: visible ? 'auto' : 'none',
+        transition: "opacity 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)",
+        pointerEvents: visible ? "auto" : "none",
       }}
     />
   );
