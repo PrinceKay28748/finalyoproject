@@ -217,8 +217,8 @@ export default function MapLibre3DView({
         map.addSource("terrain-source", {
           type: "raster-dem",
           url: TERRAIN_SOURCE,
-          tileSize: 128,
-          maxzoom: 15,
+          tileSize: 256,
+          maxzoom: 14,
         });
       }
       map.setTerrain({ source: "terrain-source", exaggeration: 1.0 });
@@ -555,11 +555,13 @@ export default function MapLibre3DView({
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
 
-    ["primary-route-glow", "primary-route-line", "alt-route-line"].forEach((id) => {
-      try {
-        if (map.getLayer(id)) map.removeLayer(id);
-      } catch (_) {}
-    });
+    ["primary-route-glow", "primary-route-line", "alt-route-line"].forEach(
+      (id) => {
+        try {
+          if (map.getLayer(id)) map.removeLayer(id);
+        } catch (_) {}
+      },
+    );
     ["primary-route", "alt-routes"].forEach((id) => {
       try {
         if (map.getSource(id)) map.removeSource(id);
