@@ -10,11 +10,8 @@ if (!MAPTILER_KEY) {
 }
 
 const STYLE_EXPLORE = `https://api.maptiler.com/maps/streets-v2/style.json?key=${MAPTILER_KEY}`;
-const STYLE_SATELLITE = `https://api.maptiler.com/maps/hybrid/style.json?key=${MAPTILER_KEY}`;
 const TERRAIN_SOURCE = `https://api.maptiler.com/tiles/terrain-rgb-v2/tiles.json?key=${MAPTILER_KEY}`;
-
-// OpenMapTiles schema uses "openmaptiles" source — MapTiler serves it via their API
-const BUILDINGS_SOURCE = `https://api.maptiler.com/tiles/v3/tiles.json?key=${MAPTILER_KEY}`;
+const SATELLITE_IMAGERY_URL = `https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.jpg?key=${MAPTILER_KEY}`;
 
 const UG_CENTER = { lng: -0.1865, lat: 5.6510 };
 
@@ -70,18 +67,15 @@ function createMarkerElement(color = '#2563eb', isDestination = false, label = '
   return el;
 }
 
-// ── Add 3D buildings layer (waits for source to exist) ──────────────────────
+// ── Add 3D buildings layer ──────────────────────────────────────────────────
 function addBuildingsLayer(map, sourceId) {
-  // Remove existing layer if any
   if (map.getLayer('3d-buildings')) {
     map.removeLayer('3d-buildings');
   }
 
-  // Wait for the source to be available
   const tryAdd = () => {
     const source = map.getSource(sourceId);
     if (!source) {
-      // Source not ready yet, try again on next idle
       map.once('idle', tryAdd);
       return;
     }
@@ -122,7 +116,6 @@ function addBuildingsLayer(map, sourceId) {
       filter: ['!', ['has', 'hide_3d']],
     });
 
-    // Set lighting for shadows
     map.setLight({
       anchor: 'viewport',
       color: '#ffffff',
@@ -152,13 +145,13 @@ export default function MapLibre3DView({
   const markersRef = useRef([]);
   const [mapLoaded, setMapLoaded] = useState(false);
 
-  // Cleanup all markers
+  // ── Cleanup all markers ──────────────────────────────────────────────────
   const clearMarkers = () => {
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
   };
 
-  // Add markers to map
+  // ── Add markers to map ───────────────────────────────────────────────────
   const updateMarkers = () => {
     if (!mapRef.current) return;
     clearMarkers();
@@ -230,19 +223,43 @@ export default function MapLibre3DView({
     );
 
     map.on('load', () => {
-      // Add terrain
+      // ── Terrain ──────────────────────────────────────────────────────────
       map.addSource('terrain-source', {
         type: 'raster-dem',
         url: TERRAIN_SOURCE,
-        tileSize: 256,
+        tileSize: 512,
+        encoding: 'terrarium',
       });
       map.setTerrain({
         source: 'terrain-source',
-        exaggeration: 1.8,
+        exaggeration: 1.5,
       });
 
-      // MapTiler Streets v2 uses 'maptiler' as the source name
-      // Try common source names for buildings
+      // ── Satellite imagery raster source ──────────────────────────────────
+      map.addSource('satellite-imagery', {
+        type: 'raster',
+        tiles: [SATELLITE_IMAGERY_URL],
+        tileSize: 512,
+        minzoom: 0,
+        maxzoom: 22,
+      });
+
+      map.addLayer({
+        id: 'satellite-layer',
+        type: 'raster',
+        source: 'satellite-imagery',
+        layout: { visibility: 'none' },
+        paint: {
+          'raster-opacity': 1,
+          'raster-saturation': 0.1,
+          'raster-contrast': 0.1,
+          'raster-brightness-max': 0.9,
+          'raster-resampling': 'linear',
+          'raster-fade-duration': 300,
+        },
+      });
+
+      // ── Buildings ────────────────────────────────────────────────────────
       const sourceId = map.getSource('openmaptiles') ? 'openmaptiles'
         : map.getSource('maptiler') ? 'maptiler'
         : map.getSource('maptiler-planet') ? 'maptiler-planet'
@@ -250,13 +267,6 @@ export default function MapLibre3DView({
 
       if (sourceId) {
         addBuildingsLayer(map, sourceId);
-      } else {
-        // If no vector source with buildings, fetch building tiles separately
-        map.addSource('buildings-source', {
-          type: 'vector',
-          url: BUILDINGS_SOURCE,
-        });
-        map.once('idle', () => addBuildingsLayer(map, 'buildings-source'));
       }
 
       setMapLoaded(true);
@@ -311,56 +321,61 @@ export default function MapLibre3DView({
   useEffect(() => {
     if (!mapRef.current || !mapLoaded) return;
 
-    const style = viewMode === 'satellite' ? STYLE_SATELLITE : STYLE_EXPLORE;
     const targetPitch = viewMode === 'satellite' ? 60 : 45;
     const targetZoom = viewMode === 'satellite' ? 17 : 16;
 
-    mapRef.current.setStyle(style);
+    // Toggle satellite layer visibility
+    if (mapRef.current.getLayer('satellite-layer')) {
+      mapRef.current.setLayoutProperty(
+        'satellite-layer',
+        'visibility',
+        viewMode === 'satellite' ? 'visible' : 'none'
+      );
+    }
 
-    mapRef.current.once('style.load', () => {
-      if (!mapRef.current) return;
+    // Toggle building footprints over satellite
+    if (viewMode === 'satellite') {
+      const sourceId = mapRef.current.getSource('openmaptiles') ? 'openmaptiles'
+        : mapRef.current.getSource('maptiler') ? 'maptiler'
+        : mapRef.current.getSource('maptiler-planet') ? 'maptiler-planet'
+        : null;
 
-      // Re-add terrain
-      mapRef.current.addSource('terrain-source', {
-        type: 'raster-dem',
-        url: TERRAIN_SOURCE,
-        tileSize: 256,
-      });
-      mapRef.current.setTerrain({
-        source: 'terrain-source',
-        exaggeration: viewMode === 'satellite' ? 2.0 : 1.5,
-      });
-
-      // Buildings in satellite mode
-      if (viewMode === 'satellite') {
-        const sourceId = mapRef.current.getSource('openmaptiles') ? 'openmaptiles'
-          : mapRef.current.getSource('maptiler') ? 'maptiler'
-          : mapRef.current.getSource('maptiler-planet') ? 'maptiler-planet'
-          : null;
-
-        if (sourceId) {
-          addBuildingsLayer(mapRef.current, sourceId);
-        } else {
-          mapRef.current.addSource('buildings-source', {
-            type: 'vector',
-            url: BUILDINGS_SOURCE,
-          });
-          mapRef.current.once('idle', () => addBuildingsLayer(mapRef.current, 'buildings-source'));
-        }
-
-        mapRef.current.setLight({
-          anchor: 'viewport',
-          color: '#ffeedd',
-          intensity: 0.8,
-          position: [1.5, 70, 70],
-        });
+      if (sourceId && !mapRef.current.getLayer('building-footprints')) {
+        mapRef.current.addLayer({
+          id: 'building-footprints',
+          source: sourceId,
+          'source-layer': 'building',
+          type: 'fill',
+          paint: {
+            'fill-color': '#ffffff',
+            'fill-opacity': 0.15,
+            'fill-outline-color': 'rgba(255,255,255,0.3)',
+          },
+        }, 'satellite-layer');
+      } else if (mapRef.current.getLayer('building-footprints')) {
+        mapRef.current.setLayoutProperty('building-footprints', 'visibility', 'visible');
       }
 
-      mapRef.current.easeTo({
-        pitch: targetPitch,
-        zoom: targetZoom,
-        duration: 1000,
+      mapRef.current.setTerrain({
+        source: 'terrain-source',
+        exaggeration: 1.5,
       });
+    } else {
+      // Hide building footprints in explore mode
+      if (mapRef.current.getLayer('building-footprints')) {
+        mapRef.current.setLayoutProperty('building-footprints', 'visibility', 'none');
+      }
+
+      mapRef.current.setTerrain({
+        source: 'terrain-source',
+        exaggeration: 1.2,
+      });
+    }
+
+    mapRef.current.easeTo({
+      pitch: targetPitch,
+      zoom: targetZoom,
+      duration: 1000,
     });
   }, [viewMode, mapLoaded]);
 
