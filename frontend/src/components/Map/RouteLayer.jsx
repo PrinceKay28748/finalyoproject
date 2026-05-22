@@ -155,7 +155,7 @@ export default function RouteLayer({
     }, 100);
   }, []);
 
-  // Route draw animation
+  // Route draw animation — only runs when route/visible/profile changes
   useEffect(() => {
     if (!visible || !route?.coordinates?.length) {
       setDisplayedCoords([]);
@@ -207,13 +207,13 @@ export default function RouteLayer({
 
     animationRef.current = requestAnimationFrame(animate);
     return () => { if (animationRef.current) { cancelAnimationFrame(animationRef.current); animationRef.current = null; } };
-  }, [route, visible, profile, currentLocation, showProgress]);
+  }, [route, visible, profile]);
 
   // Keep completed/remaining in sync with GPS movement
   useEffect(() => {
     if (!visible || !route?.coordinates?.length || !showProgress || !currentLocation) return;
     updateProgress(route.coordinates, currentLocation);
-  }, [route, visible, currentLocation, showProgress, updateProgress]);
+  }, [currentLocation]);
 
   if (!visible || (displayedCoords.length < 2 && completedCoords.length < 2 && remainingCoords.length < 2)) {
     return null;
