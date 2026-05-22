@@ -297,7 +297,7 @@ const Legend = forwardRef(function Legend(
     autoCollapse = false,
     disableDrag = false,
     onNavPanelClose,
-    onDragProgress,  // NEW: callback for blur tracking
+    onDragProgress,
   },
   ref,
 ) {
@@ -318,6 +318,7 @@ const Legend = forwardRef(function Legend(
   const lastDragY = useRef(0);
   const expandedTranslateY = useRef(0);
   const peekTranslateY = useRef(0);
+  const userManuallyPeeked = useRef(false);
 
   const sheetRef = useRef(null);
   const headerRef = useRef(null);
@@ -407,14 +408,19 @@ const Legend = forwardRef(function Legend(
     }
   };
 
-  // ── Auto-collapse ────────────────────────────────────────────────────────
+  // ── Auto-collapse when NavPanel opens ────────────────────────────────────
   useEffect(() => {
     if (autoCollapse && expanded) {
+      // NavPanel opened — save state and collapse Legend
       setWasExpandedBeforeCollapse(true);
       setExpanded(false);
     } else if (!autoCollapse && wasExpandedBeforeCollapse && !expanded) {
-      setExpanded(true);
+      // NavPanel closed — only re-expand if user didn't manually peek
+      if (!userManuallyPeeked.current) {
+        setExpanded(true);
+      }
       setWasExpandedBeforeCollapse(false);
+      userManuallyPeeked.current = false; // Reset for next cycle
     }
   }, [autoCollapse]);
 
@@ -618,6 +624,10 @@ const Legend = forwardRef(function Legend(
     }
 
     if (shouldExpand !== expanded) {
+      // Track if user manually dragged to peek (bottom)
+      if (!shouldExpand) {
+        userManuallyPeeked.current = true;
+      }
       setExpanded(shouldExpand);
       if (shouldExpand && onNavPanelClose) onNavPanelClose();
     }
