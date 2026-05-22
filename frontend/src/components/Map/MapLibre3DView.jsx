@@ -67,66 +67,6 @@ function createMarkerElement(color = '#2563eb', isDestination = false, label = '
   return el;
 }
 
-// ── Add 3D buildings layer ──────────────────────────────────────────────────
-function addBuildingsLayer(map, sourceId) {
-  if (map.getLayer('3d-buildings')) {
-    map.removeLayer('3d-buildings');
-  }
-
-  const tryAdd = () => {
-    const source = map.getSource(sourceId);
-    if (!source) {
-      map.once('idle', tryAdd);
-      return;
-    }
-
-    map.addLayer({
-      id: '3d-buildings',
-      source: sourceId,
-      'source-layer': 'building',
-      type: 'fill-extrusion',
-      minzoom: 14,
-      paint: {
-        'fill-extrusion-color': [
-          'interpolate',
-          ['linear'],
-          ['get', 'render_height'],
-          0, '#e4e4e7',
-          5, '#a1a1aa',
-          15, '#71717a',
-          40, '#52525b',
-        ],
-        'fill-extrusion-height': [
-          'interpolate',
-          ['linear'],
-          ['zoom'],
-          13, 0,
-          14, ['get', 'render_height'],
-        ],
-        'fill-extrusion-base': ['get', 'render_min_height'],
-        'fill-extrusion-opacity': [
-          'interpolate',
-          ['linear'],
-          ['zoom'],
-          14, 0.4,
-          15, 0.7,
-          17, 0.9,
-        ],
-      },
-      filter: ['!', ['has', 'hide_3d']],
-    });
-
-    map.setLight({
-      anchor: 'viewport',
-      color: '#ffffff',
-      intensity: 0.6,
-      position: [1.5, 80, 80],
-    });
-  };
-
-  map.once('idle', tryAdd);
-}
-
 export default function MapLibre3DView({
   visible = false,
   viewMode = 'explore',
@@ -198,19 +138,15 @@ export default function MapLibre3DView({
       center: [UG_CENTER.lng, UG_CENTER.lat],
       zoom: 15,
       minZoom: 13,
-      maxZoom: 19,
+      maxZoom: 18,          // Reduced from 19
       pitch: 60,
       bearing: 0,
-      antialias: true,
+      antialias: false,     // Disable for performance
       attributionControl: false,
-      sky: {
-        'sky-color': '#a8d8ff',
-        'sky-horizon-blend': 0.5,
-        'horizon-color': '#f0f4ff',
-        'horizon-fog-blend': 0.3,
-        'fog-color': '#e8edf5',
-        'fog-ground-blend': 0.1,
-      },
+      fadeDuration: 0,      // Instant tile transitions
+      // Performance optimizations
+      maxTileCacheSize: 200,
+      localIdeographFontFamily: "'Noto Sans', 'Noto Sans CJK SC', sans-serif",
     });
 
     map.addControl(
@@ -223,25 +159,25 @@ export default function MapLibre3DView({
     );
 
     map.on('load', () => {
-      // ── Terrain ──────────────────────────────────────────────────────────
+      // ── Terrain (256px tiles, mapbox encoding = faster) ──────────────────
       map.addSource('terrain-source', {
         type: 'raster-dem',
         url: TERRAIN_SOURCE,
-        tileSize: 512,
-        encoding: 'terrarium',
+        tileSize: 256,        // Smaller tiles = faster load
+        encoding: 'mapbox',   // Faster than terrarium
       });
       map.setTerrain({
         source: 'terrain-source',
-        exaggeration: 1.5,
+        exaggeration: 1.2,    // Reduced from 1.5
       });
 
-      // ── Satellite imagery raster source ──────────────────────────────────
+      // ── Satellite imagery (256px = 4x faster than 512px) ─────────────────
       map.addSource('satellite-imagery', {
         type: 'raster',
         tiles: [SATELLITE_IMAGERY_URL],
-        tileSize: 512,
+        tileSize: 256,
         minzoom: 0,
-        maxzoom: 22,
+        maxzoom: 18,
       });
 
       map.addLayer({
@@ -251,23 +187,10 @@ export default function MapLibre3DView({
         layout: { visibility: 'none' },
         paint: {
           'raster-opacity': 1,
-          'raster-saturation': 0.1,
-          'raster-contrast': 0.1,
-          'raster-brightness-max': 0.9,
-          'raster-resampling': 'linear',
-          'raster-fade-duration': 300,
+          'raster-resampling': 'nearest',  // Faster than linear
+          'raster-fade-duration': 0,
         },
       });
-
-      // ── Buildings ────────────────────────────────────────────────────────
-      const sourceId = map.getSource('openmaptiles') ? 'openmaptiles'
-        : map.getSource('maptiler') ? 'maptiler'
-        : map.getSource('maptiler-planet') ? 'maptiler-planet'
-        : null;
-
-      if (sourceId) {
-        addBuildingsLayer(map, sourceId);
-      }
 
       setMapLoaded(true);
     });
@@ -292,9 +215,9 @@ export default function MapLibre3DView({
     if (!mapRef.current || !flyTarget) return;
     mapRef.current.flyTo({
       center: [flyTarget.lng, flyTarget.lat],
-      zoom: 17,
+      zoom: 16,
       pitch: 60,
-      duration: 1200,
+      duration: 800,  // Faster fly
     });
   }, [flyTarget]);
 
@@ -304,9 +227,9 @@ export default function MapLibre3DView({
     if (!mapRef.current || !currentLocation || hasFlown.current) return;
     mapRef.current.flyTo({
       center: [currentLocation.lng, currentLocation.lat],
-      zoom: 17,
+      zoom: 16,
       pitch: 60,
-      duration: 1500,
+      duration: 1000,
     });
     hasFlown.current = true;
   }, [currentLocation]);
@@ -321,10 +244,8 @@ export default function MapLibre3DView({
   useEffect(() => {
     if (!mapRef.current || !mapLoaded) return;
 
-    const targetPitch = viewMode === 'satellite' ? 60 : 45;
-    const targetZoom = viewMode === 'satellite' ? 17 : 16;
+    const targetPitch = viewMode === 'satellite' ? 55 : 45;
 
-    // Toggle satellite layer visibility
     if (mapRef.current.getLayer('satellite-layer')) {
       mapRef.current.setLayoutProperty(
         'satellite-layer',
@@ -333,49 +254,14 @@ export default function MapLibre3DView({
       );
     }
 
-    // Toggle building footprints over satellite
-    if (viewMode === 'satellite') {
-      const sourceId = mapRef.current.getSource('openmaptiles') ? 'openmaptiles'
-        : mapRef.current.getSource('maptiler') ? 'maptiler'
-        : mapRef.current.getSource('maptiler-planet') ? 'maptiler-planet'
-        : null;
-
-      if (sourceId && !mapRef.current.getLayer('building-footprints')) {
-        mapRef.current.addLayer({
-          id: 'building-footprints',
-          source: sourceId,
-          'source-layer': 'building',
-          type: 'fill',
-          paint: {
-            'fill-color': '#ffffff',
-            'fill-opacity': 0.15,
-            'fill-outline-color': 'rgba(255,255,255,0.3)',
-          },
-        }, 'satellite-layer');
-      } else if (mapRef.current.getLayer('building-footprints')) {
-        mapRef.current.setLayoutProperty('building-footprints', 'visibility', 'visible');
-      }
-
-      mapRef.current.setTerrain({
-        source: 'terrain-source',
-        exaggeration: 1.5,
-      });
-    } else {
-      // Hide building footprints in explore mode
-      if (mapRef.current.getLayer('building-footprints')) {
-        mapRef.current.setLayoutProperty('building-footprints', 'visibility', 'none');
-      }
-
-      mapRef.current.setTerrain({
-        source: 'terrain-source',
-        exaggeration: 1.2,
-      });
-    }
+    mapRef.current.setTerrain({
+      source: 'terrain-source',
+      exaggeration: viewMode === 'satellite' ? 1.2 : 1.0,
+    });
 
     mapRef.current.easeTo({
       pitch: targetPitch,
-      zoom: targetZoom,
-      duration: 1000,
+      duration: 600,
     });
   }, [viewMode, mapLoaded]);
 
@@ -405,24 +291,12 @@ export default function MapLibre3DView({
     });
 
     mapRef.current.addLayer({
-      id: 'primary-route-glow',
-      type: 'line',
-      source: 'primary-route',
-      paint: {
-        'line-color': '#2563eb',
-        'line-width': ['interpolate', ['linear'], ['zoom'], 13, 6, 19, 20],
-        'line-opacity': 0.2,
-        'line-blur': ['interpolate', ['linear'], ['zoom'], 13, 4, 19, 12],
-      },
-    });
-
-    mapRef.current.addLayer({
       id: 'primary-route-line',
       type: 'line',
       source: 'primary-route',
       paint: {
         'line-color': '#2563eb',
-        'line-width': ['interpolate', ['linear'], ['zoom'], 13, 2, 19, 8],
+        'line-width': ['interpolate', ['linear'], ['zoom'], 13, 2, 18, 6],
         'line-opacity': 0.95,
       },
       layout: { 'line-cap': 'round', 'line-join': 'round' },
@@ -451,7 +325,7 @@ export default function MapLibre3DView({
         source: 'alt-routes',
         paint: {
           'line-color': '#94a3b8',
-          'line-width': ['interpolate', ['linear'], ['zoom'], 13, 1.5, 19, 5],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 13, 1.5, 18, 4],
           'line-opacity': 0.5,
           'line-dasharray': [3, 5],
         },
