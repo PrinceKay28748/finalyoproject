@@ -218,9 +218,10 @@ export default function MapLibre3DView({
           type: "raster-dem",
           url: TERRAIN_SOURCE,
           tileSize: 128,
+          maxzoom: 15,
         });
       }
-      map.setTerrain({ source: "terrain-source", exaggeration: 1.5 });
+      map.setTerrain({ source: "terrain-source", exaggeration: 1.0 });
     } catch (err) {
       console.warn("[MapLibre3D] Terrain skipped:", err.message);
     }
@@ -393,9 +394,13 @@ export default function MapLibre3DView({
       pixelRatio: 1,
       antialias: false,
       attributionControl: false,
-      fadeDuration: 300,
+      fadeDuration: 0,
       maxTileCacheSize: 500,
       failIfMissingGlyphs: false,
+      preserveDrawingBuffer: false,
+      maxWorkerCount: 2,
+      localFontFamily: "system-ui, sans-serif",
+      collectResourceTiming: false,
     });
 
     map.addControl(
@@ -417,13 +422,10 @@ export default function MapLibre3DView({
       if (map.hasImage(id)) return;
       try {
         const img = createFallbackImage(id);
-        // Use a try-catch wrapper to silently handle race conditions
         if (!map.hasImage(id)) {
           map.addImage(id, img, { sdf: false });
         }
-      } catch (_) {
-        // Image might have been added by another event — safe to ignore
-      }
+      } catch (_) {}
     });
 
     map.on("click", (e) => {
@@ -553,7 +555,7 @@ export default function MapLibre3DView({
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
 
-    ["primary-route-line", "alt-route-line"].forEach((id) => {
+    ["primary-route-glow", "primary-route-line", "alt-route-line"].forEach((id) => {
       try {
         if (map.getLayer(id)) map.removeLayer(id);
       } catch (_) {}
@@ -574,11 +576,31 @@ export default function MapLibre3DView({
         geometry: { type: "LineString", coordinates: coords },
       },
     });
+
+    // Outer glow — makes route visible against any terrain
+    map.addLayer({
+      id: "primary-route-glow",
+      type: "line",
+      source: "primary-route",
+      paint: {
+        "line-color": "#2563eb",
+        "line-width": 10,
+        "line-opacity": 0.25,
+        "line-blur": 4,
+      },
+      layout: { "line-cap": "round", "line-join": "round" },
+    });
+
+    // Inner sharp line
     map.addLayer({
       id: "primary-route-line",
       type: "line",
       source: "primary-route",
-      paint: { "line-color": "#2563eb", "line-width": 5, "line-opacity": 0.95 },
+      paint: {
+        "line-color": "#3b82f6",
+        "line-width": 6,
+        "line-opacity": 1,
+      },
       layout: { "line-cap": "round", "line-join": "round" },
     });
 
@@ -602,10 +624,10 @@ export default function MapLibre3DView({
         type: "line",
         source: "alt-routes",
         paint: {
-          "line-color": "#94a3b8",
+          "line-color": "#ffffff",
           "line-width": 4,
           "line-opacity": 0.5,
-          "line-dasharray": [3, 5],
+          "line-dasharray": [4, 6],
         },
         layout: { "line-cap": "round", "line-join": "round" },
       });
