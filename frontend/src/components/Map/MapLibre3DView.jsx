@@ -428,18 +428,8 @@ export default function MapLibre3DView({
       setMapLoaded(true);
     });
 
-    map.on("styleimagemissing", (e) => {
-      // Skip during style transitions
-      if (!map.loaded() || !map.isStyleLoaded()) return;
-
-      const id = e.id;
-      if (map.hasImage(id)) return;
-      try {
-        const img = createFallbackImage(id);
-        if (!map.hasImage(id)) {
-          map.addImage(id, img, { sdf: false });
-        }
-      } catch (_) {}
+    map.on("styleimagemissing", () => {
+      // POI icons aren't critical — silently ignore
     });
 
     map.on("click", (e) => {
