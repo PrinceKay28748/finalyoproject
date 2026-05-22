@@ -15,6 +15,27 @@ const STYLE_EXPLORE = `https://api.maptiler.com/maps/streets-v2/style.json?key=$
 const STYLE_SATELLITE = `https://api.maptiler.com/maps/hybrid/style.json?key=${MAPTILER_KEY}`;
 const TERRAIN_SOURCE = `https://api.maptiler.com/tiles/terrain-rgb-v2/tiles.json?key=${MAPTILER_KEY}`;
 
+// Offline/fallback style with local fonts
+const FALLBACK_STYLE = {
+  version: 8,
+  name: 'Offline Basic',
+  glyphs: 'asset://fonts/{fontstack}/{range}.pbf',
+  sources: {
+    'osm': {
+      type: 'raster',
+      url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      tileSize: 256,
+    },
+  },
+  layers: [
+    {
+      id: 'osm-layer',
+      type: 'raster',
+      source: 'osm',
+    },
+  ],
+};
+
 const UG_CENTER = { lng: -0.1865, lat: 5.6510 };
 
 // Rain condition codes: drizzle (51-55), rain (61-65, 80-82), thunderstorm (95-99)
@@ -149,6 +170,8 @@ export default function MapLibre3DView({
   const heatmapLayerIdRef = useRef(null);
   const heatmapRefreshTimeoutRef = useRef(null);
   const heatmapBoundsRef = useRef(null);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const styleLoadAttemptRef = useRef(0);
 
   const clearMarkers = () => {
     markersRef.current.forEach(m => m.remove());
@@ -202,6 +225,12 @@ export default function MapLibre3DView({
   // Update heatmap on map
   const updateHeatmap = useCallback(async () => {
     if (!mapRef.current || !showHeatmap || !mapLoaded) return;
+
+    // Skip heatmap update if offline
+    if (!navigator.onLine) {
+      console.log('[MapLibre3D] Offline - skipping heatmap update');
+      return;
+    }
 
     try {
       const bounds = mapRef.current.getBounds();
@@ -282,9 +311,26 @@ export default function MapLibre3DView({
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return;
 
+    // Monitor online/offline status
+    const handleOnline = () => {
+      setIsOnline(true);
+      console.log('[MapLibre3D] Back online - attempting to reload style');
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      console.log('[MapLibre3D] Went offline - style loading may fail');
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    const getInitialStyle = () => {
+      return isOnline ? STYLE_EXPLORE : FALLBACK_STYLE;
+    };
+
     const map = new maplibregl.Map({
       container: mapContainer.current,
-      style: STYLE_EXPLORE,
+      style: getInitialStyle(),
       center: [UG_CENTER.lng, UG_CENTER.lat],
       zoom: 15,
       minZoom: 13,
@@ -293,6 +339,7 @@ export default function MapLibre3DView({
       bearing: 0,
       antialias: true,
       attributionControl: false,
+      failIfMissingGlyphs: false, // Don't fail if glyphs can't be loaded
     });
 
     map.addControl(
@@ -304,9 +351,28 @@ export default function MapLibre3DView({
       'top-right'
     );
 
+    // Handle style load errors
+    map.on('error', (e) => {
+      if (e.error && e.error.message) {
+        console.error('[MapLibre3D] Map error:', e.error.message);
+        
+        // If it's a DNS/network error and we haven't tried fallback yet
+        if ((e.error.message.includes('ERR_NAME_NOT_RESOLVED') || 
+             e.error.message.includes('Failed to fetch')) && 
+            styleLoadAttemptRef.current === 0 && isOnline) {
+          styleLoadAttemptRef.current += 1;
+          console.warn('[MapLibre3D] Network error detected, switching to fallback style');
+          map.setStyle(FALLBACK_STYLE);
+        }
+      }
+    });
+
     map.on('load', () => {
-      // Fix sprite URL on load
-      fixSpriteUrl(map);
+      console.log('[MapLibre3D] Map loaded successfully');
+      // Fix sprite URL on load (only if using online style)
+      if (isOnline) {
+        fixSpriteUrl(map);
+      }
 
       map.addSource('terrain-source', {
         type: 'raster-dem',
@@ -336,13 +402,15 @@ export default function MapLibre3DView({
     mapRef.current = map;
 
     return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
       clearMarkers();
       if (heatmapRefreshTimeoutRef.current) clearTimeout(heatmapRefreshTimeoutRef.current);
       if (rainSystemRef.current) rainSystemRef.current.destroy();
       map.remove();
       mapRef.current = null;
     };
-  }, [fixSpriteUrl, onMapClick, showHeatmap, updateHeatmap]);
+  }, [fixSpriteUrl, onMapClick, showHeatmap, updateHeatmap, isOnline]);
 
   // Rain particle system
   useEffect(() => {
