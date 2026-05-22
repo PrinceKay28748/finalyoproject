@@ -173,6 +173,8 @@ export default function MapView({
   const [is3DMode, setIs3DMode] = useState(false);
   const [view3DMode, setView3DMode] = useState("explore"); // 'explore' | 'satellite'
 
+  const [heatmapPoints, setHeatmapPoints] = useState(null);
+
   // Weather hook
   const { weather } = useWeather();
 
@@ -344,6 +346,7 @@ export default function MapView({
           destPoint={destPoint}
           darkMode={darkMode}
           onMapClick={onMapClick}
+          heatmapPoints={heatmapPoints} 
         />
       </Suspense>
 
