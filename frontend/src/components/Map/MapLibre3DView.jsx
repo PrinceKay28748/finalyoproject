@@ -38,6 +38,53 @@ const FALLBACK_STYLE = {
 
 const UG_CENTER = { lng: -0.1865, lat: 5.6510 };
 
+// Color map for different POI types
+const POI_COLORS = {
+  'clothes': '#FF6B9D',
+  'computer': '#4A90E2',
+  'chemist': '#7ED321',
+  'kiosk': '#F5A623',
+  'tailor': '#BD10E0',
+  'bed': '#50E3C2',
+  'cosmetics': '#F8E71C',
+  'default': '#8B572A',
+};
+
+// Helper to create fallback image for missing sprites
+const createFallbackImage = (imageName) => {
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  
+  const color = POI_COLORS[imageName] || POI_COLORS['default'];
+  
+  // Draw circle background
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, size / 2 - 2, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Draw white border
+  ctx.strokeStyle = 'white';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  
+  // Draw centered letter
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 28px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(imageName.charAt(0).toUpperCase(), size / 2, size / 2);
+  
+  return {
+    width: size,
+    height: size,
+    data: ctx.getImageData(0, 0, size, size),
+  };
+};
+
 // Rain condition codes: drizzle (51-55), rain (61-65, 80-82), thunderstorm (95-99)
 const RAIN_CODES = [51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99];
 
@@ -188,37 +235,45 @@ export default function MapLibre3DView({
 
   const updateMarkers = () => {
     if (!mapRef.current) return;
-    clearMarkers();
+    try {
+      clearMarkers();
 
-    if (currentLocation) {
-      new maplibregl.Marker({ element: createMarkerElement('#2563eb', false), anchor: 'center' })
-        .setLngLat([currentLocation.lng, currentLocation.lat])
-        .addTo(mapRef.current);
-    }
-    if (startPoint) {
-      new maplibregl.Marker({ element: createMarkerElement('#2563eb', false), anchor: 'bottom' })
-        .setLngLat([startPoint.lng, startPoint.lat])
-        .addTo(mapRef.current);
-    }
-    if (destPoint) {
-      new maplibregl.Marker({ element: createMarkerElement('#22c55e', true), anchor: 'bottom' })
-        .setLngLat([destPoint.lng, destPoint.lat])
-        .addTo(mapRef.current);
+      if (currentLocation && mapRef.current) {
+        new maplibregl.Marker({ element: createMarkerElement('#2563eb', false), anchor: 'center' })
+          .setLngLat([currentLocation.lng, currentLocation.lat])
+          .addTo(mapRef.current);
+      }
+      if (startPoint && mapRef.current) {
+        new maplibregl.Marker({ element: createMarkerElement('#2563eb', false), anchor: 'bottom' })
+          .setLngLat([startPoint.lng, startPoint.lat])
+          .addTo(mapRef.current);
+      }
+      if (destPoint && mapRef.current) {
+        new maplibregl.Marker({ element: createMarkerElement('#22c55e', true), anchor: 'bottom' })
+          .setLngLat([destPoint.lng, destPoint.lat])
+          .addTo(mapRef.current);
+      }
+    } catch (err) {
+      console.error('[MapLibre3D] Marker update failed:', err);
     }
   };
 
   // Fix sprite URL with API key
   const fixSpriteUrl = useCallback((map) => {
-    if (!map) return;
-    const style = map.getStyle();
-    if (style && style.sprite) {
-      const spriteUrl = style.sprite;
-      // Only add key if not already present
-      if (!spriteUrl.includes('key=')) {
-        const separator = spriteUrl.includes('?') ? '&' : '?';
-        const fixedUrl = `${spriteUrl}${separator}key=${MAPTILER_KEY}`;
-        map.setSprite(fixedUrl);
+    if (!map || !mapRef.current) return;
+    try {
+      const style = map.getStyle();
+      if (style && style.sprite) {
+        const spriteUrl = style.sprite;
+        // Only add key if not already present
+        if (!spriteUrl.includes('key=')) {
+          const separator = spriteUrl.includes('?') ? '&' : '?';
+          const fixedUrl = `${spriteUrl}${separator}key=${MAPTILER_KEY}`;
+          map.setSprite(fixedUrl);
+        }
       }
+    } catch (err) {
+      console.error('[MapLibre3D] Sprite fix failed:', err);
     }
   }, []);
 
@@ -367,29 +422,79 @@ export default function MapLibre3DView({
       }
     });
 
+    // Handle data loading errors (terrain, tiles, etc.)
+    map.on('data', (e) => {
+      if (e.sourceDataType === 'metadata' && e.sourceId === 'terrain-source') {
+        // Check if tile load has errors
+        if (e.isSourceLoaded) {
+          console.log('[MapLibre3D] Terrain source loaded');
+        }
+      }
+    });
+
+    // Handle style errors during rendering
+    map.on('style.load', () => {
+      console.log('[MapLibre3D] Style loaded');
+    });
+
     map.on('load', () => {
       console.log('[MapLibre3D] Map loaded successfully');
+      
+      // Check if map still exists (prevent errors if unmounted during load)
+      if (!mapRef.current) {
+        console.log('[MapLibre3D] Map reference lost during load, skipping terrain setup');
+        return;
+      }
+
       // Fix sprite URL on load (only if using online style)
       if (isOnline) {
         fixSpriteUrl(map);
       }
 
-      map.addSource('terrain-source', {
-        type: 'raster-dem',
-        url: TERRAIN_SOURCE,
-        tileSize: 256,
-      });
-      map.setTerrain({ source: 'terrain-source', exaggeration: 1.5 });
+      // Only add terrain if online and map exists
+      if (isOnline && mapRef.current) {
+        try {
+          // Check if source already exists
+          if (!map.getSource('terrain-source')) {
+            map.addSource('terrain-source', {
+              type: 'raster-dem',
+              url: TERRAIN_SOURCE,
+              tileSize: 256,
+            });
+          }
+          map.setTerrain({ source: 'terrain-source', exaggeration: 1.5 });
+        } catch (err) {
+          console.error('[MapLibre3D] Terrain setup failed:', err);
+        }
+      }
+      
       setMapLoaded(true);
     });
 
+    // Handle missing sprite images with fallback
+    map.on('styleimagemissing', (e) => {
+      const imageName = e.id;
+      console.warn(`[MapLibre3D] Missing image: ${imageName} - creating fallback`);
+      
+      if (!map.hasImage(imageName)) {
+        try {
+          const fallbackImage = createFallbackImage(imageName);
+          map.addImage(imageName, fallbackImage, { sdf: false });
+        } catch (err) {
+          console.error(`[MapLibre3D] Failed to create fallback image for ${imageName}:`, err);
+        }
+      }
+    });
+
     map.on('click', (e) => {
-      if (onMapClick) onMapClick({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+      if (mapRef.current && onMapClick) {
+        onMapClick({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+      }
     });
 
     // Refetch heatmap on map move/zoom
     const onMoveEnd = () => {
-      if (showHeatmap) {
+      if (mapRef.current && showHeatmap) {
         if (heatmapRefreshTimeoutRef.current) clearTimeout(heatmapRefreshTimeoutRef.current);
         heatmapRefreshTimeoutRef.current = setTimeout(() => {
           updateHeatmap();
@@ -402,13 +507,28 @@ export default function MapLibre3DView({
     mapRef.current = map;
 
     return () => {
+      // Remove event listeners first
+      map.off('error');
+      map.off('data');
+      map.off('style.load');
+      map.off('styleimagemissing');
+      map.off('click');
+      map.off('moveend', onMoveEnd);
+      map.off('zoomend', onMoveEnd);
+      map.off('load');
+      
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      
       clearMarkers();
       if (heatmapRefreshTimeoutRef.current) clearTimeout(heatmapRefreshTimeoutRef.current);
       if (rainSystemRef.current) rainSystemRef.current.destroy();
-      map.remove();
-      mapRef.current = null;
+      
+      // Properly clean up map
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
     };
   }, [fixSpriteUrl, onMapClick, showHeatmap, updateHeatmap, isOnline]);
 
@@ -440,25 +560,33 @@ export default function MapLibre3DView({
   // Handle fly to target
   useEffect(() => {
     if (!mapRef.current || !flyTarget) return;
-    mapRef.current.flyTo({
-      center: [flyTarget.lng, flyTarget.lat],
-      zoom: 17,
-      pitch: 60,
-      duration: 1200,
-    });
+    try {
+      mapRef.current.flyTo({
+        center: [flyTarget.lng, flyTarget.lat],
+        zoom: 17,
+        pitch: 60,
+        duration: 1200,
+      });
+    } catch (err) {
+      console.error('[MapLibre3D] Fly to target failed:', err);
+    }
   }, [flyTarget]);
 
   // Handle current location auto-fly
   const hasFlown = useRef(false);
   useEffect(() => {
     if (!mapRef.current || !currentLocation || hasFlown.current) return;
-    mapRef.current.flyTo({
-      center: [currentLocation.lng, currentLocation.lat],
-      zoom: 17,
-      pitch: 60,
-      duration: 1500,
-    });
-    hasFlown.current = true;
+    try {
+      mapRef.current.flyTo({
+        center: [currentLocation.lng, currentLocation.lat],
+        zoom: 17,
+        pitch: 60,
+        duration: 1500,
+      });
+      hasFlown.current = true;
+    } catch (err) {
+      console.error('[MapLibre3D] Auto-fly failed:', err);
+    }
   }, [currentLocation]);
 
   // Update markers
