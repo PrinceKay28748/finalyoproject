@@ -415,13 +415,14 @@ export default function MapLibre3DView({
     map.on("styleimagemissing", (e) => {
       const id = e.id;
       if (map.hasImage(id)) return;
-      // Skip during style transitions to avoid SDF mixing
-      if (!map.isStyleLoaded()) return;
       try {
         const img = createFallbackImage(id);
-        map.addImage(id, img, { sdf: false });
-      } catch (err) {
-        // Silently skip — not critical
+        // Use a try-catch wrapper to silently handle race conditions
+        if (!map.hasImage(id)) {
+          map.addImage(id, img, { sdf: false });
+        }
+      } catch (_) {
+        // Image might have been added by another event — safe to ignore
       }
     });
 
