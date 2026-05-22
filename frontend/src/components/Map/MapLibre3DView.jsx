@@ -167,6 +167,7 @@ export default function MapLibre3DView({
   const [mapLoaded, setMapLoaded] = useState(false);
   const heatmapLayerIdRef = useRef(null);
   const heatmapDebounceRef = useRef(null);
+  const lastRouteKeyRef = useRef('');
 
   const clearMarkers = useCallback(() => {
     markersRef.current.forEach((m) => m.remove());
@@ -198,10 +199,11 @@ export default function MapLibre3DView({
   }, []);
 
   const dimWater = useCallback((map) => {
+    // Apple Maps muted steel blue water
     ["water", "waterway", "water-shadow", "sea", "ocean"].forEach((layerName) => {
       if (map.getLayer(layerName)) {
         try {
-          map.setPaintProperty(layerName, "fill-color", "rgba(170, 195, 215, 0.5)");
+          map.setPaintProperty(layerName, "fill-color", "rgba(160, 175, 190, 0.5)");
         } catch (_) {}
       }
     });
@@ -458,14 +460,27 @@ export default function MapLibre3DView({
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
 
+    if (!markersVisible || !primaryRoute?.coordinates?.length) {
+      ["primary-route-glow", "primary-route-line", "alt-route-line"].forEach((id) => {
+        try { if (map.getLayer(id)) map.removeLayer(id); } catch (_) {}
+      });
+      ["primary-route", "alt-routes"].forEach((id) => {
+        try { if (map.getSource(id)) map.removeSource(id); } catch (_) {}
+      });
+      lastRouteKeyRef.current = '';
+      return;
+    }
+
+    const routeKey = `${primaryRoute.totalDistance}-${primaryRoute.coordinates?.length}-${alternativeRoutes?.length}`;
+    if (routeKey === lastRouteKeyRef.current) return;
+    lastRouteKeyRef.current = routeKey;
+
     ["primary-route-glow", "primary-route-line", "alt-route-line"].forEach((id) => {
       try { if (map.getLayer(id)) map.removeLayer(id); } catch (_) {}
     });
     ["primary-route", "alt-routes"].forEach((id) => {
       try { if (map.getSource(id)) map.removeSource(id); } catch (_) {}
     });
-
-    if (!markersVisible || !primaryRoute?.coordinates?.length) return;
 
     const coords = primaryRoute.coordinates.map((c) => [c.lng, c.lat]);
     map.addSource("primary-route", {
@@ -475,26 +490,15 @@ export default function MapLibre3DView({
 
     map.addLayer({
       id: "primary-route-glow",
-      type: "line",
-      source: "primary-route",
-      paint: {
-        "line-color": "#2563eb",
-        "line-width": 10,
-        "line-opacity": 0.25,
-        "line-blur": 4,
-      },
+      type: "line", source: "primary-route",
+      paint: { "line-color": "#2563eb", "line-width": 10, "line-opacity": 0.25, "line-blur": 4 },
       layout: { "line-cap": "round", "line-join": "round" },
     });
 
     map.addLayer({
       id: "primary-route-line",
-      type: "line",
-      source: "primary-route",
-      paint: {
-        "line-color": "#3b82f6",
-        "line-width": 6,
-        "line-opacity": 1,
-      },
+      type: "line", source: "primary-route",
+      paint: { "line-color": "#3b82f6", "line-width": 6, "line-opacity": 1 },
       layout: { "line-cap": "round", "line-join": "round" },
     });
 
@@ -508,15 +512,8 @@ export default function MapLibre3DView({
     if (altFeatures.length) {
       map.addSource("alt-routes", { type: "geojson", data: { type: "FeatureCollection", features: altFeatures } });
       map.addLayer({
-        id: "alt-route-line",
-        type: "line",
-        source: "alt-routes",
-        paint: {
-          "line-color": "#ffffff",
-          "line-width": 4,
-          "line-opacity": 0.5,
-          "line-dasharray": [4, 6],
-        },
+        id: "alt-route-line", type: "line", source: "alt-routes",
+        paint: { "line-color": "#ffffff", "line-width": 4, "line-opacity": 0.5, "line-dasharray": [4, 6] },
         layout: { "line-cap": "round", "line-join": "round" },
       });
     }
