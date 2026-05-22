@@ -23,6 +23,118 @@ const PULSE_STYLE = `
 }
 `;
 
+// ── Weather codes to conditions ─────────────────────────────────────────────
+const WEATHER_CONDITIONS = {
+  rain: [200, 201, 202, 230, 231, 232, 300, 301, 302, 310, 311, 312, 313, 314, 321, 500, 501, 502, 503, 504, 511, 520, 521, 522, 531],
+  thunderstorm: [210, 211, 212, 221],
+  drizzle: [300, 301, 302, 310, 311, 312, 313, 314, 321],
+  snow: [600, 601, 602, 611, 612, 613, 615, 616, 620, 621, 622],
+};
+
+// ── Rain particle system ────────────────────────────────────────────────────
+class RainEffect {
+  constructor(container) {
+    this.container = container;
+    this.canvas = document.createElement('canvas');
+    this.canvas.className = 'maplibre-rain-canvas';
+    this.canvas.style.cssText = `
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 2;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    `;
+    this.ctx = this.canvas.getContext('2d');
+    this.drops = [];
+    this.isRunning = false;
+    this.intensity = 0;
+    container.appendChild(this.canvas);
+  }
+
+  resize() {
+    this.canvas.width = this.container.clientWidth;
+    this.canvas.height = this.container.clientHeight;
+  }
+
+  start(intensity = 0.5) {
+    this.intensity = intensity;
+    if (!this.isRunning) {
+      this.resize();
+      this.isRunning = true;
+      this.canvas.style.opacity = '1';
+      this.loop();
+    }
+  }
+
+  stop() {
+    this.isRunning = false;
+    this.canvas.style.opacity = '0';
+    this.drops = [];
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+  }
+
+  updateIntensity(intensity) {
+    this.intensity = Math.max(0, Math.min(1, intensity));
+    if (this.intensity > 0 && !this.isRunning) {
+      this.start(this.intensity);
+    } else if (this.intensity === 0 && this.isRunning) {
+      this.stop();
+    }
+  }
+
+  loop() {
+    if (!this.isRunning) return;
+
+    const ctx = this.ctx;
+    const w = this.canvas.width;
+    const h = this.canvas.height;
+
+    ctx.clearRect(0, 0, w, h);
+
+    const dropsToSpawn = Math.floor(this.intensity * 3);
+    for (let i = 0; i < dropsToSpawn; i++) {
+      this.drops.push({
+        x: Math.random() * w,
+        y: -10 - Math.random() * 100,
+        speed: 8 + Math.random() * 14,
+        length: 8 + Math.random() * 12,
+        opacity: 0.15 + Math.random() * 0.3,
+      });
+    }
+
+    if (this.drops.length > 200) {
+      this.drops = this.drops.slice(-200);
+    }
+
+    ctx.strokeStyle = '#a8d8ff';
+    ctx.lineWidth = 1;
+
+    this.drops = this.drops.filter(drop => {
+      drop.y += drop.speed;
+      if (drop.y > h + 20) return false;
+
+      ctx.globalAlpha = drop.opacity * this.intensity;
+      ctx.beginPath();
+      ctx.moveTo(drop.x, drop.y);
+      ctx.lineTo(drop.x - 0.5, drop.y + drop.length);
+      ctx.stroke();
+
+      return true;
+    });
+
+    ctx.globalAlpha = 1;
+    requestAnimationFrame(() => this.loop());
+  }
+
+  destroy() {
+    this.stop();
+    if (this.canvas.parentNode) {
+      this.canvas.parentNode.removeChild(this.canvas);
+    }
+  }
+}
+
 // ── Create DOM marker element ───────────────────────────────────────────────
 function createMarkerElement(color = '#2563eb', isDestination = false, label = '') {
   const el = document.createElement('div');
@@ -79,11 +191,57 @@ export default function MapLibre3DView({
   destPoint,
   darkMode = false,
   onMapClick,
+  weather = null,
+  showHeatmap = false,
+  heatmapPoints = null,
 }) {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
+  const rainRef = useRef(null);
   const [mapLoaded, setMapLoaded] = useState(false);
+
+  // ── Determine weather condition ───────────────────────────────────────────
+  const getWeatherCondition = () => {
+    if (!weather || !weather.list || !weather.list[0]) return null;
+    const weatherId = weather.list[0].weather?.[0]?.id;
+    if (!weatherId) return null;
+
+    if (WEATHER_CONDITIONS.thunderstorm.includes(weatherId)) return 'thunderstorm';
+    if (WEATHER_CONDITIONS.snow.includes(weatherId)) return 'snow';
+    if (WEATHER_CONDITIONS.rain.includes(weatherId)) return 'rain';
+    if (WEATHER_CONDITIONS.drizzle.includes(weatherId)) return 'drizzle';
+    return null;
+  };
+
+  const weatherCondition = getWeatherCondition();
+  const isRaining = weatherCondition === 'rain' || weatherCondition === 'drizzle' || weatherCondition === 'thunderstorm';
+
+  // ── Rain effect control ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (!mapContainer.current || !visible) return;
+
+    if (!rainRef.current) {
+      rainRef.current = new RainEffect(mapContainer.current);
+    }
+    rainRef.current.resize();
+
+    if (isRaining && visible) {
+      const intensity = weatherCondition === 'thunderstorm' ? 1.0
+        : weatherCondition === 'rain' ? 0.7
+        : 0.4;
+      rainRef.current.updateIntensity(intensity);
+    } else {
+      rainRef.current.updateIntensity(0);
+    }
+
+    return () => {
+      if (rainRef.current) {
+        rainRef.current.destroy();
+        rainRef.current = null;
+      }
+    };
+  }, [isRaining, weatherCondition, visible]);
 
   // ── Cleanup all markers ──────────────────────────────────────────────────
   const clearMarkers = () => {
@@ -121,6 +279,38 @@ export default function MapLibre3DView({
     }
   };
 
+  // ── Fetch heatmap data from the same API the Leaflet layer uses ──────────
+  const fetchAndUpdateHeatmap = async () => {
+    if (!mapRef.current || !showHeatmap) return;
+
+    try {
+      const { fetchHeatmapData } = await import('../../services/heatmapAnalytics');
+      const bounds = mapRef.current.getBounds();
+      const boundsObj = {
+        south: bounds.getSouth(),
+        west: bounds.getWest(),
+        north: bounds.getNorth(),
+        east: bounds.getEast(),
+      };
+      const points = await fetchHeatmapData(boundsObj, { hour: undefined });
+
+      if (!mapRef.current) return;
+
+      const features = points.map(p => ({
+        type: 'Feature',
+        properties: { intensity: p.weight || 1 },
+        geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
+      }));
+
+      const source = mapRef.current.getSource('heatmap-source');
+      if (source) {
+        source.setData({ type: 'FeatureCollection', features });
+      }
+    } catch (err) {
+      console.error('[MapLibre3D] Heatmap fetch failed:', err);
+    }
+  };
+
   // ── Initialize map ───────────────────────────────────────────────────────
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return;
@@ -138,13 +328,12 @@ export default function MapLibre3DView({
       center: [UG_CENTER.lng, UG_CENTER.lat],
       zoom: 15,
       minZoom: 13,
-      maxZoom: 18,          // Reduced from 19
+      maxZoom: 18,
       pitch: 60,
       bearing: 0,
-      antialias: false,     // Disable for performance
+      antialias: false,
       attributionControl: false,
-      fadeDuration: 0,      // Instant tile transitions
-      // Performance optimizations
+      fadeDuration: 0,
       maxTileCacheSize: 200,
       localIdeographFontFamily: "'Noto Sans', 'Noto Sans CJK SC', sans-serif",
     });
@@ -159,19 +348,19 @@ export default function MapLibre3DView({
     );
 
     map.on('load', () => {
-      // ── Terrain (256px tiles, mapbox encoding = faster) ──────────────────
+      // ── Terrain ──────────────────────────────────────────────────────────
       map.addSource('terrain-source', {
         type: 'raster-dem',
         url: TERRAIN_SOURCE,
-        tileSize: 256,        // Smaller tiles = faster load
-        encoding: 'mapbox',   // Faster than terrarium
+        tileSize: 256,
+        encoding: 'mapbox',
       });
       map.setTerrain({
         source: 'terrain-source',
-        exaggeration: 1.2,    // Reduced from 1.5
+        exaggeration: 1.2,
       });
 
-      // ── Satellite imagery (256px = 4x faster than 512px) ─────────────────
+      // ── Satellite imagery ────────────────────────────────────────────────
       map.addSource('satellite-imagery', {
         type: 'raster',
         tiles: [SATELLITE_IMAGERY_URL],
@@ -187,8 +376,23 @@ export default function MapLibre3DView({
         layout: { visibility: 'none' },
         paint: {
           'raster-opacity': 1,
-          'raster-resampling': 'nearest',  // Faster than linear
+          'raster-resampling': 'nearest',
           'raster-fade-duration': 0,
+          'raster-opacity-transition': { duration: 0 },
+        },
+      });
+
+      // Set canvas background
+      map.getCanvas().style.background = '#1a1a2e';
+
+      // ── Dark overlay for rain mood ───────────────────────────────────────
+      map.addLayer({
+        id: 'weather-overlay',
+        type: 'background',
+        layout: { visibility: 'none' },
+        paint: {
+          'background-color': '#0a1628',
+          'background-opacity': 0.15,
         },
       });
 
@@ -205,6 +409,10 @@ export default function MapLibre3DView({
 
     return () => {
       clearMarkers();
+      if (rainRef.current) {
+        rainRef.current.destroy();
+        rainRef.current = null;
+      }
       map.remove();
       mapRef.current = null;
     };
@@ -217,7 +425,7 @@ export default function MapLibre3DView({
       center: [flyTarget.lng, flyTarget.lat],
       zoom: 16,
       pitch: 60,
-      duration: 800,  // Faster fly
+      duration: 800,
     });
   }, [flyTarget]);
 
@@ -240,18 +448,118 @@ export default function MapLibre3DView({
     updateMarkers();
   }, [currentLocation, startPoint, destPoint, mapLoaded]);
 
+  // ── Weather overlay toggle ───────────────────────────────────────────────
+  useEffect(() => {
+    if (!mapRef.current || !mapLoaded) return;
+    if (mapRef.current.getLayer('weather-overlay')) {
+      mapRef.current.setLayoutProperty(
+        'weather-overlay',
+        'visibility',
+        isRaining ? 'visible' : 'none'
+      );
+    }
+  }, [isRaining, mapLoaded]);
+
+  // ── Heatmap layer ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!mapRef.current || !mapLoaded) return;
+
+    // Remove existing heatmap
+    if (mapRef.current.getLayer('heatmap-layer')) {
+      mapRef.current.removeLayer('heatmap-layer');
+    }
+    if (mapRef.current.getSource('heatmap-source')) {
+      mapRef.current.removeSource('heatmap-source');
+    }
+
+    if (!showHeatmap) return;
+
+    // Add empty source first, then fetch data
+    mapRef.current.addSource('heatmap-source', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+    });
+
+    mapRef.current.addLayer({
+      id: 'heatmap-layer',
+      type: 'heatmap',
+      source: 'heatmap-source',
+      paint: {
+        'heatmap-weight': ['get', 'intensity'],
+        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 0, 1, 18, 3],
+        'heatmap-color': [
+          'interpolate',
+          ['linear'],
+          ['heatmap-density'],
+          0, 'rgba(33,102,172,0)',
+          0.2, 'rgb(103,169,207)',
+          0.4, 'rgb(209,229,240)',
+          0.6, 'rgb(253,219,199)',
+          0.8, 'rgb(239,138,98)',
+          1, 'rgb(178,24,43)',
+        ],
+        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 13, 8, 16, 25, 18, 40],
+        'heatmap-opacity': 0.75,
+      },
+    });
+
+    // Fetch data
+    fetchAndUpdateHeatmap();
+  }, [showHeatmap, mapLoaded]);
+
+  // ── Refetch heatmap on map movement ──────────────────────────────────────
+  useEffect(() => {
+    if (!mapRef.current || !mapLoaded || !showHeatmap) return;
+
+    const onMoveEnd = () => {
+      fetchAndUpdateHeatmap();
+    };
+
+    mapRef.current.on('moveend', onMoveEnd);
+    mapRef.current.on('zoomend', onMoveEnd);
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.off('moveend', onMoveEnd);
+        mapRef.current.off('zoomend', onMoveEnd);
+      }
+    };
+  }, [showHeatmap, mapLoaded]);
+
   // ── Switch explore/satellite ─────────────────────────────────────────────
   useEffect(() => {
     if (!mapRef.current || !mapLoaded) return;
 
     const targetPitch = viewMode === 'satellite' ? 55 : 45;
 
+    // Toggle satellite layer
     if (mapRef.current.getLayer('satellite-layer')) {
       mapRef.current.setLayoutProperty(
         'satellite-layer',
         'visibility',
         viewMode === 'satellite' ? 'visible' : 'none'
       );
+    }
+
+    // Hide all building/fill layers from the base style in satellite mode
+    const style = mapRef.current.getStyle();
+    if (style && style.layers) {
+      style.layers.forEach(layer => {
+        if (
+          layer.id.includes('building') ||
+          layer.id.includes('landuse') ||
+          layer.id.includes('landcover') ||
+          layer.type === 'fill-extrusion'
+        ) {
+          if (mapRef.current.getLayer(layer.id)) {
+            mapRef.current.setLayoutProperty(
+              layer.id,
+              'visibility',
+              viewMode === 'satellite' ? 'none' : 'visible'
+            );
+          }
+        }
+      });
     }
 
     mapRef.current.setTerrain({
@@ -269,7 +577,7 @@ export default function MapLibre3DView({
   useEffect(() => {
     if (!mapRef.current || !mapLoaded) return;
 
-    ['primary-route-glow', 'primary-route-line', 'alt-route-line'].forEach(id => {
+    ['primary-route-line', 'alt-route-line'].forEach(id => {
       if (mapRef.current.getLayer(id)) mapRef.current.removeLayer(id);
     });
     ['primary-route', 'alt-routes'].forEach(id => {
