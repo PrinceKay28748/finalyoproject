@@ -428,64 +428,61 @@ export default function MapView({
         ]}
       />
 
-      {/* 3D View Mode Toggle (Explore/Satellite) — only visible in 3D mode */}
+      {/* 3D View Mode Toggle — single glass button, right side, only in 3D */}
       {is3DMode && (
-        <div
-          style={{
-            position: "absolute",
-            top: "100px", // Below the NavPanel
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 1001, // Above the map, below NavPanel
-            display: "flex",
-            gap: "4px",
-            background: "rgba(24, 24, 32, 0.9)",
-            backdropFilter: "blur(16px)",
-            WebkitBackdropFilter: "blur(16px)",
-            borderRadius: "12px",
-            padding: "4px",
-            border: "1px solid rgba(255,255,255,0.12)",
-            boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
-          }}
+        <button
+          onClick={() =>
+            setView3DMode((prev) =>
+              prev === "explore" ? "satellite" : "explore",
+            )
+          }
+          className="map-3d-view-toggle"
+          title={
+            view3DMode === "explore"
+              ? "Switch to Satellite"
+              : "Switch to Explore"
+          }
+          aria-label={
+            view3DMode === "explore"
+              ? "Switch to Satellite view"
+              : "Switch to Explore view"
+          }
         >
-          <button
-            onClick={() => setView3DMode("explore")}
-            style={{
-              padding: "8px 18px",
-              borderRadius: "10px",
-              border: "none",
-              background: view3DMode === "explore" ? "#2563eb" : "transparent",
-              color:
-                view3DMode === "explore" ? "white" : "rgba(255,255,255,0.7)",
-              fontSize: "13px",
-              fontWeight: 600,
-              cursor: "pointer",
-              fontFamily: "'Outfit', sans-serif",
-              transition: "all 0.2s ease",
-            }}
-          >
-            🗺️ Explore
-          </button>
-          <button
-            onClick={() => setView3DMode("satellite")}
-            style={{
-              padding: "8px 18px",
-              borderRadius: "10px",
-              border: "none",
-              background:
-                view3DMode === "satellite" ? "#2563eb" : "transparent",
-              color:
-                view3DMode === "satellite" ? "white" : "rgba(255,255,255,0.7)",
-              fontSize: "13px",
-              fontWeight: 600,
-              cursor: "pointer",
-              fontFamily: "'Outfit', sans-serif",
-              transition: "all 0.2s ease",
-            }}
-          >
-            🛰️ Satellite
-          </button>
-        </div>
+          {view3DMode === "explore" ? (
+            // Satellite icon — grid/dish
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M4 20h16" />
+              <path d="M8 20V12a4 4 0 018 0v8" />
+              <circle cx="12" cy="8" r="2" />
+              <line x1="12" y1="2" x2="12" y2="6" />
+            </svg>
+          ) : (
+            // Map/Explore icon — folded map
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+              <line x1="8" y1="2" x2="8" y2="18" />
+              <line x1="16" y1="6" x2="16" y2="22" />
+            </svg>
+          )}
+        </button>
       )}
 
       <HeatmapControls

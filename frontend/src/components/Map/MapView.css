@@ -549,6 +549,46 @@
   pointer-events: auto;
 }
 
+.map-3d-view-toggle {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(60px);
+  width: 44px;
+  height: 44px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  box-shadow: var(--shadow-zoom);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  transition: transform 0.15s, background 0.2s;
+  backdrop-filter: blur(8px);
+  color: var(--text-primary);
+}
+
+.map-3d-view-toggle:hover {
+  transform: translateY(60px) scale(1.05);
+  background: var(--hover-bg);
+}
+
+.map-3d-view-toggle:active {
+  transform: translateY(60px) scale(0.98);
+}
+
+.ug-root.dark .map-3d-view-toggle {
+  background: rgba(24, 24, 32, 0.95);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #f3f4f6;
+}
+
+.ug-root.dark .map-3d-view-toggle:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
 /* Mobile responsive */
 @media (max-width: 600px) {
   .map-report-btn {
