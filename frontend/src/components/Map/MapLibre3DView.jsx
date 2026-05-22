@@ -176,8 +176,8 @@ export default function MapLibre3DView({
 
   const makeMarkerEl = (color, large) => {
     const el = document.createElement("div");
-    const s = large ? 24 : 16;
-    el.style.cssText = `width:${s}px;height:${s}px;background:${color};border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.3);`;
+    const s = large ? 28 : 20;
+    el.style.cssText = `width:${s}px;height:${s}px;background:${color};border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.5),0 0 0 4px rgba(0,0,0,0.2);`;
     return el;
   };
 
@@ -199,7 +199,6 @@ export default function MapLibre3DView({
   }, []);
 
   const dimWater = useCallback((map) => {
-    // Apple Maps muted steel blue water
     ["water", "waterway", "water-shadow", "sea", "ocean"].forEach((layerName) => {
       if (map.getLayer(layerName)) {
         try {
@@ -449,6 +448,7 @@ export default function MapLibre3DView({
           addTerrainSource(mapRef.current);
           dimWater(mapRef.current);
           stripHeavyLayers(mapRef.current);
+          lastRouteKeyRef.current = '';
           if (showHeatmap) setTimeout(updateHeatmap, 200);
         });
       });
