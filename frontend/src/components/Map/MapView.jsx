@@ -171,7 +171,7 @@ export default function MapView({
 
   // 2D/3D toggle state
   const [is3DMode, setIs3DMode] = useState(false);
-  const [view3DMode, setView3DMode] = useState('explore'); // 'explore' | 'satellite'
+  const [view3DMode, setView3DMode] = useState("explore"); // 'explore' | 'satellite'
 
   // Weather hook
   const { weather } = useWeather();
@@ -219,36 +219,33 @@ export default function MapView({
   }, [is3DMode]);
 
   const handleToggle3D = () => {
-    setIs3DMode(prev => !prev);
+    setIs3DMode((prev) => !prev);
   };
 
   const handleToggleViewMode = () => {
-    setView3DMode(prev => prev === 'explore' ? 'satellite' : 'explore');
+    setView3DMode((prev) => (prev === "explore" ? "satellite" : "explore"));
   };
 
   return (
-    <div className={`map-wrap ${isMapBlurred ? 'map-blurred' : ''}`}>
+    <div className={`map-wrap ${isMapBlurred ? "map-blurred" : ""}`}>
       {/* Apple-style glass blur overlay */}
       <div
         className="map-blur-overlay"
         style={{
-          opacity: legendDragProgress > 0
-            ? legendDragProgress
-            : isNavExpanded
-              ? 1
-              : 0
+          opacity:
+            legendDragProgress > 0 ? legendDragProgress : isNavExpanded ? 1 : 0,
         }}
       />
 
       {/* ── 2D Leaflet Map ──────────────────────────────────────────────── */}
       <div
         style={{
-          position: 'absolute',
+          position: "absolute",
           inset: 0,
           zIndex: is3DMode ? 0 : 1,
           opacity: is3DMode ? 0 : 1,
-          transition: 'opacity 0.3s ease',
-          pointerEvents: is3DMode ? 'none' : 'auto',
+          transition: "opacity 0.3s ease",
+          pointerEvents: is3DMode ? "none" : "auto",
         }}
       >
         <MapContainer
@@ -355,7 +352,14 @@ export default function MapView({
         buttons={[
           {
             icon: (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <circle cx="12" cy="12" r="10" />
                 <polygon points="12 6 12 12 16 14" />
                 <line x1="12" y1="12" x2="12" y2="18" />
@@ -368,9 +372,17 @@ export default function MapView({
           {
             // 2D/3D Toggle
             icon: is3DMode ? (
-              <span style={{ fontSize: '14px', fontWeight: 700, lineHeight: 1 }}>2D</span>
+              <span
+                style={{ fontSize: "14px", fontWeight: 700, lineHeight: 1 }}
+              >
+                2D
+              </span>
             ) : (
-              <span style={{ fontSize: '14px', fontWeight: 700, lineHeight: 1 }}>3D</span>
+              <span
+                style={{ fontSize: "14px", fontWeight: 700, lineHeight: 1 }}
+              >
+                3D
+              </span>
             ),
             label: is3DMode ? "Switch to 2D" : "Switch to 3D",
             onClick: handleToggle3D,
@@ -378,7 +390,14 @@ export default function MapView({
           },
           {
             icon: (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <circle cx="12" cy="12" r="2" />
                 <path d="M12 2v4M22 12h-4M12 20v4M4 12H2M19.07 4.93l-2.83 2.83M6.9 17.1l-2.83 2.83M17.1 17.1l2.83 2.83M4.93 4.93l2.83 2.83" />
               </svg>
@@ -389,7 +408,14 @@ export default function MapView({
           },
           {
             icon: (
-              <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                stroke="currentColor"
+                strokeWidth="1"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M12 2L2 19h20L12 2z" />
                 <line x1="12" y1="9" x2="12" y2="13" stroke="white" />
                 <line x1="12" y1="17" x2="12.01" y2="17" stroke="white" />
@@ -406,53 +432,58 @@ export default function MapView({
       {is3DMode && (
         <div
           style={{
-            position: 'absolute',
-            top: '16px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 1000,
-            display: 'flex',
-            gap: '4px',
-            background: 'rgba(24, 24, 32, 0.85)',
-            backdropFilter: 'blur(12px)',
-            borderRadius: '12px',
-            padding: '4px',
-            border: '1px solid rgba(255,255,255,0.1)',
+            position: "absolute",
+            top: "100px", // Below the NavPanel
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 1001, // Above the map, below NavPanel
+            display: "flex",
+            gap: "4px",
+            background: "rgba(24, 24, 32, 0.9)",
+            backdropFilter: "blur(16px)",
+            WebkitBackdropFilter: "blur(16px)",
+            borderRadius: "12px",
+            padding: "4px",
+            border: "1px solid rgba(255,255,255,0.12)",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
           }}
         >
           <button
-            onClick={() => setView3DMode('explore')}
+            onClick={() => setView3DMode("explore")}
             style={{
-              padding: '8px 16px',
-              borderRadius: '10px',
-              border: 'none',
-              background: view3DMode === 'explore' ? '#2563eb' : 'transparent',
-              color: view3DMode === 'explore' ? 'white' : 'rgba(255,255,255,0.7)',
-              fontSize: '13px',
+              padding: "8px 18px",
+              borderRadius: "10px",
+              border: "none",
+              background: view3DMode === "explore" ? "#2563eb" : "transparent",
+              color:
+                view3DMode === "explore" ? "white" : "rgba(255,255,255,0.7)",
+              fontSize: "13px",
               fontWeight: 600,
-              cursor: 'pointer',
+              cursor: "pointer",
               fontFamily: "'Outfit', sans-serif",
-              transition: 'all 0.2s ease',
+              transition: "all 0.2s ease",
             }}
           >
-            Explore
+            🗺️ Explore
           </button>
           <button
-            onClick={() => setView3DMode('satellite')}
+            onClick={() => setView3DMode("satellite")}
             style={{
-              padding: '8px 16px',
-              borderRadius: '10px',
-              border: 'none',
-              background: view3DMode === 'satellite' ? '#2563eb' : 'transparent',
-              color: view3DMode === 'satellite' ? 'white' : 'rgba(255,255,255,0.7)',
-              fontSize: '13px',
+              padding: "8px 18px",
+              borderRadius: "10px",
+              border: "none",
+              background:
+                view3DMode === "satellite" ? "#2563eb" : "transparent",
+              color:
+                view3DMode === "satellite" ? "white" : "rgba(255,255,255,0.7)",
+              fontSize: "13px",
               fontWeight: 600,
-              cursor: 'pointer',
+              cursor: "pointer",
               fontFamily: "'Outfit', sans-serif",
-              transition: 'all 0.2s ease',
+              transition: "all 0.2s ease",
             }}
           >
-            Satellite
+            🛰️ Satellite
           </button>
         </div>
       )}
