@@ -429,6 +429,9 @@ export default function MapLibre3DView({
     });
 
     map.on("styleimagemissing", (e) => {
+      // Skip during style transitions
+      if (!map.loaded() || !map.isStyleLoaded()) return;
+
       const id = e.id;
       if (map.hasImage(id)) return;
       try {
