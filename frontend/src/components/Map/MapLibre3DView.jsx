@@ -285,6 +285,17 @@ export default function MapLibre3DView({
 
     try {
       const bounds = map.getBounds();
+      // Guard: bounds might not be ready yet
+      if (!bounds) return;
+
+      const south = bounds.getSouth();
+      const west = bounds.getWest();
+      const north = bounds.getNorth();
+      const east = bounds.getEast();
+
+      // Guard: skip if any bound is invalid
+      if (isNaN(south) || isNaN(west) || isNaN(north) || isNaN(east)) return;
+
       const points = await fetchHeatmapData(bounds, { hour: selectedHour });
       if (!points?.length) return;
 
