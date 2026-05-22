@@ -382,6 +382,22 @@ export default function MapLibre3DView({
       if (!mapRef.current) return;
       fixSprite(map);
       addTerrainSource(map);
+
+      // Dim water/sea color
+      ["water", "waterway", "water-shadow", "sea", "ocean"].forEach(
+        (layerName) => {
+          if (map.getLayer(layerName)) {
+            try {
+              map.setPaintProperty(
+                layerName,
+                "fill-color",
+                "rgba(170, 195, 215, 0.5)",
+              );
+            } catch (_) {}
+          }
+        },
+      );
+
       setMapLoaded(true);
     });
 
@@ -391,10 +407,7 @@ export default function MapLibre3DView({
       if (map.hasImage(id)) return;
       try {
         const img = createFallbackImage(id);
-
         map.addImage(id, img, { sdf: false });
-        // addImage(id, { data, width, height }) avoids the size-mismatch error
-        map.addImage(id, img);
       } catch (err) {
         console.warn(
           `[MapLibre3D] Could not add fallback for "${id}":`,
