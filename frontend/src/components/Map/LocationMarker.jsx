@@ -3,8 +3,11 @@ import { Marker, Circle } from "react-leaflet";
 import { currentLocationIcon, customLocationIcon } from "../../function/utils/icons";
 import L from "leaflet";
 
-// Create pulsing icon based on speed and accuracy
-function createPulsingIcon(speed, heading, isLowAccuracy = false) {
+// Create pulsing icon with direction arrow (derived from route)
+function createPulsingIcon(speed, heading, isLowAccuracy = false, routeDirection = null) {
+  // Use route direction if available (snapped to route), otherwise use GPS heading
+  const finalHeading = routeDirection !== null ? routeDirection : (heading || 0);
+  
   // Speed determines pulse intensity
   const pulseIntensity = Math.min(1, (speed || 0) / 3);
   
@@ -13,38 +16,60 @@ function createPulsingIcon(speed, heading, isLowAccuracy = false) {
   // Orange for low accuracy, blue for good accuracy
   const arrowColor = isLowAccuracy ? "#f59e0b" : "#2563eb";
   const shadowColor = isLowAccuracy ? "rgba(245, 158, 11, 0.3)" : "rgba(37, 99, 235, 0.3)";
+  const dotColor = isLowAccuracy ? "#f59e0b" : "#2563eb";
   
   const iconHtml = currentLocationIcon.options.html || '';
   
-  const directionArrow = heading && heading !== 0 ? `
+  // Direction arrow - rotates to match route direction
+  const directionArrow = finalHeading && finalHeading !== 0 ? `
     <div style="
       position: absolute;
-      top: -8px;
+      top: -10px;
       left: 50%;
-      transform: translateX(-50%) rotate(${heading}deg);
+      transform: translateX(-50%) rotate(${finalHeading}deg);
       width: 0;
       height: 0;
       border-left: 6px solid transparent;
       border-right: 6px solid transparent;
       border-bottom: 14px solid ${arrowColor};
       filter: drop-shadow(0 2px 4px ${shadowColor});
-      animation: ${pulseIntensity > 0 ? 'wiggle 0.5s ease-in-out infinite' : 'none'};
+      animation: ${pulseIntensity > 0 ? 'arrowWiggle 0.5s ease-in-out infinite' : 'none'};
     "></div>
   ` : '';
+  
+  // Pulsing ring effect
+  const pulseRing = `
+    <div style="
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 40px;
+      height: 40px;
+      margin-left: -20px;
+      margin-top: -20px;
+      border-radius: 50%;
+      background: radial-gradient(circle, ${dotColor}20 0%, ${dotColor}08 70%, transparent 100%);
+      animation: pulseRing 1.5s ease-out infinite;
+      pointer-events: none;
+    "></div>
+  `;
   
   const speedText = speed && speed > 0.1 ? `
     <div style="
       position: absolute;
-      bottom: -20px;
+      bottom: -22px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(0,0,0,0.7);
+      background: rgba(0,0,0,0.75);
       color: white;
       font-size: 10px;
-      padding: 2px 6px;
-      border-radius: 12px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 20px;
       white-space: nowrap;
       font-family: monospace;
+      backdrop-filter: blur(4px);
+      letter-spacing: 0.5px;
     ">
       ${(speed * 3.6).toFixed(1)} km/h
     </div>
@@ -53,6 +78,7 @@ function createPulsingIcon(speed, heading, isLowAccuracy = false) {
   return L.divIcon({
     html: `
       <div class="gps-marker ${pulseClass}" style="position: relative;">
+        ${pulseRing}
         ${iconHtml}
         ${directionArrow}
         ${speedText}
@@ -65,8 +91,8 @@ function createPulsingIcon(speed, heading, isLowAccuracy = false) {
   });
 }
 
-// GPS marker — color changes based on accuracy
-export function GpsLocationMarker({ location, accuracy, isLowAccuracy = false }) {
+// GPS marker — color changes based on accuracy, snaps to route direction
+export function GpsLocationMarker({ location, accuracy, isLowAccuracy = false, routeDirection = null }) {
   if (!location) return null;
 
   const hasHeading = location.heading && location.heading !== 0;
@@ -75,8 +101,9 @@ export function GpsLocationMarker({ location, accuracy, isLowAccuracy = false })
   // Orange for low accuracy, blue for good accuracy
   const markerColor = isLowAccuracy ? "#f59e0b" : "#2563eb";
   
+  // Pass routeDirection to the icon creator (for arrow alignment)
   const markerIcon = (hasHeading || hasSpeed)
-    ? createPulsingIcon(location.speed, location.heading, isLowAccuracy)
+    ? createPulsingIcon(location.speed, location.heading, isLowAccuracy, routeDirection)
     : currentLocationIcon;
 
   // Calculate opacity based on accuracy

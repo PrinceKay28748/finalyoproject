@@ -326,6 +326,7 @@ export default function MapLibre3DView({
           addTerrainSource(map);
           dimWater(map);
           stripHeavyLayers(map);
+          lastRouteKeyRef.current = '';
           setMapLoaded(true);
         });
 
@@ -358,6 +359,14 @@ export default function MapLibre3DView({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── force route redraw when 3D becomes visible ────────────────────────────
+
+  useEffect(() => {
+    if (visible) {
+      lastRouteKeyRef.current = '';
+    }
+  }, [visible]);
 
   // ── rain ──────────────────────────────────────────────────────────────────
 

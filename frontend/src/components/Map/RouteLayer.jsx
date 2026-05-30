@@ -57,6 +57,7 @@ export default function RouteLayer({
   const [animationProgress,  setAnimationProgress]  = useState(0);
   const [instructions,       setInstructions]       = useState([]);
   const [hasAnnouncedArrival, setHasAnnouncedArrival] = useState(false);
+  const [routeDirection, setRouteDirection] = useState(0); // For arrow on blue dot
 
   const animationRef          = useRef(null);
   const lastCompletedIndexRef = useRef(-1);
@@ -67,7 +68,7 @@ export default function RouteLayer({
   const announcedTurnsRef = useRef(new Map());
 
   const mainColor      = ROUTE_COLORS[profile] || ROUTE_COLORS.standard;
-  const completedColor = "#94a3b8";
+  const completedColor = "#94a3b8"; // Solid gray - Google Maps style
   const remainingColor = mainColor;
 
   const { isVoiceEnabled, speakTurn, speakArrival } = useVoiceGuidance();
@@ -86,6 +87,30 @@ export default function RouteLayer({
     announcedTurnsRef.current = new Map();
     setHasAnnouncedArrival(false);
   }, [route, visible]);
+
+  // Calculate route direction from current position for arrow
+  useEffect(() => {
+    if (!route?.coordinates?.length || !currentLocation || !showProgress) return;
+    
+    const closestIndex = findClosestRouteIndexOptimized(route.coordinates, currentLocation);
+    if (closestIndex !== -1 && closestIndex + 1 < route.coordinates.length) {
+      const currentPoint = route.coordinates[closestIndex];
+      const nextPoint = route.coordinates[closestIndex + 1];
+      
+      // Calculate bearing between two points
+      const lat1 = currentPoint.lat * Math.PI / 180;
+      const lat2 = nextPoint.lat * Math.PI / 180;
+      const lng1 = currentPoint.lng * Math.PI / 180;
+      const lng2 = nextPoint.lng * Math.PI / 180;
+      
+      const y = Math.sin(lng2 - lng1) * Math.cos(lat2);
+      const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(lng2 - lng1);
+      let bearing = Math.atan2(y, x) * 180 / Math.PI;
+      bearing = (bearing + 360) % 360;
+      
+      setRouteDirection(bearing);
+    }
+  }, [currentLocation, route, showProgress]);
 
   // Progress monitoring + turn announcements
   useEffect(() => {
@@ -227,36 +252,23 @@ export default function RouteLayer({
     return (
       <>
         {completedCoords.length >= 2 && (
-          <>
-            <Polyline
-              positions={completedCoords}
-              color={completedColor}
-              weight={5}
-              opacity={isRouteFocused ? 0.5 : 0.4}
-              smoothFactor={2}
-              lineCap="round"
-              lineJoin="round"
-              className={`route-completed ${routeFocusClass}`}
-            />
-            <Polyline
-              positions={completedCoords}
-              color={completedColor}
-              weight={5}
-              opacity={isRouteFocused ? 0.3 : 0.2}
-              smoothFactor={2}
-              lineCap="round"
-              lineJoin="round"
-              dashArray="5, 10"
-              className={`route-completed-dashed ${routeFocusClass}`}
-            />
-          </>
+          <Polyline
+            positions={completedCoords}
+            color={completedColor}
+            weight={5}
+            opacity={isRouteFocused ? 0.5 : 0.4}
+            smoothFactor={2}
+            lineCap="round"
+            lineJoin="round"
+            className={`route-completed ${routeFocusClass}`}
+          />
         )}
         {remainingCoords.length >= 2 && (
           <>
             <Polyline
               positions={remainingCoords}
               color={remainingColor}
-              weight={6}
+              weight={9}
               opacity={isRouteFocused ? 1 : 0.95}
               smoothFactor={2}
               lineCap="round"
@@ -295,7 +307,7 @@ export default function RouteLayer({
       <Polyline
         positions={displayedCoords}
         color={mainColor}
-        weight={5}
+        weight={9}
         opacity={0.95}
         smoothFactor={2}
         lineCap="round"

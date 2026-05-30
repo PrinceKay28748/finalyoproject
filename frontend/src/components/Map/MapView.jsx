@@ -228,6 +228,8 @@ export default function MapView({
     setView3DMode((prev) => (prev === "explore" ? "satellite" : "explore"));
   };
 
+  const [currentRouteDirection, setCurrentRouteDirection] = useState(0);
+
   return (
     <div className={`map-wrap ${isMapBlurred ? "map-blurred" : ""}`}>
       {/* Apple-style glass blur overlay */}
@@ -271,7 +273,7 @@ export default function MapView({
           />
           <MapClickHandler onMapClick={onMapClick} />
 
-          <GpsLocationMarker location={currentLocation} accuracy={accuracy} />
+          <GpsLocationMarker  location={currentLocation} accuracy={accuracy} routeDirection={currentRouteDirection} />
 
           <CustomLocationMarker
             location={customStartPoint}
@@ -288,6 +290,7 @@ export default function MapView({
               profile={activeProfile}
               vehicleMode={vehicleMode}
               currentLocation={currentLocation}
+              routeDirection={currentRouteDirection}
               showProgress={true}
             />
           )}
