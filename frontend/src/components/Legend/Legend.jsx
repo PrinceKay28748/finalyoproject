@@ -367,13 +367,17 @@ const Legend = forwardRef(function Legend(
     peekTranslateY.current = Math.max(0, h - peekHeight);
   };
 
-  // ── Mount: slide the sheet up once via the CSS animation class ───────────
+  // ── Mount: NO AUTO-SLIDE ANIMATION - Legend starts at peek position ──────
+  // FIXED: Removed the "shooting up" animation that ran on mount
   useEffect(() => {
     const el = sheetRef.current;
     if (!el) return;
-    el.classList.add("legend-sheet--entering");
-    const onEnd = () => el.classList.remove("legend-sheet--entering");
-    el.addEventListener("animationend", onEnd, { once: true });
+    
+    // Ensure legend starts at peek position (bottom) without animation
+    requestAnimationFrame(() => {
+      recalcPositions();
+      snapTo(peekTranslateY.current);
+    });
   }, []);
 
   // ── Recalc peek position whenever expanded changes ───────────────────────
