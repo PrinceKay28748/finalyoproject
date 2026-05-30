@@ -131,3 +131,25 @@
   opacity: 1;
   filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.2));
 }
+
+/* Animation for pulsing ring on blue dot */
+@keyframes pulseRing {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+/* Arrow wiggle when moving */
+@keyframes arrowWiggle {
+  0%, 100% {
+    transform: translateX(-50%) rotate(var(--rotation, 0deg)) translateY(0);
+  }
+  50% {
+    transform: translateX(-50%) rotate(var(--rotation, 0deg)) translateY(-2px);
+  }
+}
