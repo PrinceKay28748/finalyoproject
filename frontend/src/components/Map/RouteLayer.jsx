@@ -5,6 +5,7 @@ import { Polyline } from "react-leaflet";
 import { ROUTE_COLORS } from "../../function/utils/colors";
 import { useVoiceGuidance } from "../../hooks/useVoiceGuidance";
 import { useFocus } from "../../context/FocusContext";
+import { useSmoothRoutePosition } from "../../hooks/useSmoothRoutePosition";
 import { generateDirections } from "../../services/directions";
 import { findClosestPointOnRoute } from "../../function/utils/geometry";
 import "./RouteLayer.css";
@@ -49,6 +50,7 @@ export default function RouteLayer({
   currentLocation = null,
   showProgress = true,
   onTurnApproach = null,
+  onRouteDirectionChange = null, // New: callback for parent to get direction
 }) {
   const [displayedCoords,    setDisplayedCoords]    = useState([]);
   const [completedCoords,    setCompletedCoords]    = useState([]);
@@ -57,7 +59,7 @@ export default function RouteLayer({
   const [animationProgress,  setAnimationProgress]  = useState(0);
   const [instructions,       setInstructions]       = useState([]);
   const [hasAnnouncedArrival, setHasAnnouncedArrival] = useState(false);
-  const [routeDirection, setRouteDirection] = useState(0); // For arrow on blue dot
+  const [routeDirection, setRouteDirection] = useState(0);
 
   const animationRef          = useRef(null);
   const lastCompletedIndexRef = useRef(-1);
@@ -68,11 +70,18 @@ export default function RouteLayer({
   const announcedTurnsRef = useRef(new Map());
 
   const mainColor      = ROUTE_COLORS[profile] || ROUTE_COLORS.standard;
-  const completedColor = "#94a3b8"; // Solid gray - Google Maps style
+  const completedColor = "#94a3b8";
   const remainingColor = mainColor;
 
   const { isVoiceEnabled, speakTurn, speakArrival } = useVoiceGuidance();
   const focus = useFocus();
+
+  // Use smooth position hook
+  const { position: smoothPosition, index: smoothIndex, progressRatio } = useSmoothRoutePosition(
+    route?.coordinates,
+    currentLocation,
+    visible && showProgress
+  );
 
   // Generate directions
   useEffect(() => {
@@ -88,16 +97,29 @@ export default function RouteLayer({
     setHasAnnouncedArrival(false);
   }, [route, visible]);
 
-  // Calculate route direction from current position for arrow
+  // Update completed/remaining based on smooth index
   useEffect(() => {
-    if (!route?.coordinates?.length || !currentLocation || !showProgress) return;
+    if (!visible || !route?.coordinates?.length || !showProgress || smoothIndex === undefined) return;
     
-    const closestIndex = findClosestRouteIndexOptimized(route.coordinates, currentLocation);
-    if (closestIndex !== -1 && closestIndex + 1 < route.coordinates.length) {
-      const currentPoint = route.coordinates[closestIndex];
-      const nextPoint = route.coordinates[closestIndex + 1];
+    const intIndex = Math.floor(smoothIndex);
+    if (intIndex >= 0 && intIndex !== lastCompletedIndexRef.current) {
+      lastCompletedIndexRef.current = intIndex;
+      setCompletedCoords(route.coordinates.slice(0, intIndex + 1).map((c) => [c.lat, c.lng]));
+      setRemainingCoords(route.coordinates.slice(intIndex).map((c) => [c.lat, c.lng]));
+    }
+  }, [smoothIndex, route, visible, showProgress]);
+
+  // Calculate route direction from smooth position for arrow
+  useEffect(() => {
+    if (!route?.coordinates?.length || !smoothPosition || !showProgress) return;
+    
+    const smoothIdx = smoothIndex;
+    const nextIdx = Math.min(Math.floor(smoothIdx) + 1, route.coordinates.length - 1);
+    
+    if (nextIdx > Math.floor(smoothIdx)) {
+      const currentPoint = route.coordinates[Math.floor(smoothIdx)];
+      const nextPoint = route.coordinates[nextIdx];
       
-      // Calculate bearing between two points
       const lat1 = currentPoint.lat * Math.PI / 180;
       const lat2 = nextPoint.lat * Math.PI / 180;
       const lng1 = currentPoint.lng * Math.PI / 180;
@@ -109,17 +131,25 @@ export default function RouteLayer({
       bearing = (bearing + 360) % 360;
       
       setRouteDirection(bearing);
+      
+      // Notify parent component of direction for LocationMarker
+      if (onRouteDirectionChange) {
+        onRouteDirectionChange(bearing);
+      }
     }
-  }, [currentLocation, route, showProgress]);
+  }, [smoothPosition, smoothIndex, route, showProgress, onRouteDirectionChange]);
 
-  // Progress monitoring + turn announcements
+  // Progress monitoring + turn announcements (uses smooth position or raw location)
   useEffect(() => {
     if (!visible || !route?.coordinates?.length || !currentLocation || !isVoiceEnabled) return;
 
     const checkProgress = () => {
+      // Use smooth position if available for turn announcements
+      const posToUse = smoothPosition || currentLocation;
+      
       const { distanceFromStart } = findClosestPointOnRoute(
-        currentLocation.lat,
-        currentLocation.lng,
+        posToUse.lat,
+        posToUse.lng,
         route.coordinates
       );
 
@@ -164,21 +194,7 @@ export default function RouteLayer({
         progressIntervalRef.current = null;
       }
     };
-  }, [currentLocation, route, visible, isVoiceEnabled, instructions, speakTurn, speakArrival]);
-
-  // Debounced progress update
-  const updateProgress = useCallback((coords, location) => {
-    if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
-    updateTimeoutRef.current = setTimeout(() => {
-      const closestIndex = findClosestRouteIndexOptimized(coords, location);
-      if (closestIndex !== -1 && closestIndex !== lastCompletedIndexRef.current) {
-        lastCompletedIndexRef.current = closestIndex;
-        setCompletedCoords(coords.slice(0, closestIndex + 1).map((c) => [c.lat, c.lng]));
-        setRemainingCoords(coords.slice(closestIndex).map((c) => [c.lat, c.lng]));
-      }
-      updateTimeoutRef.current = null;
-    }, 100);
-  }, []);
+  }, [currentLocation, smoothPosition, route, visible, isVoiceEnabled, instructions, speakTurn, speakArrival, hasAnnouncedArrival]);
 
   // Route draw animation — only runs when route/visible/profile changes
   useEffect(() => {
@@ -215,14 +231,6 @@ export default function RouteLayer({
         setDisplayedCoords(coords);
         setIsAnimationComplete(true);
         setAnimationProgress(1);
-        if (currentLocation && showProgress) {
-          const ci = findClosestRouteIndexOptimized(route.coordinates, currentLocation);
-          if (ci !== -1) {
-            lastCompletedIndexRef.current = ci;
-            setCompletedCoords(route.coordinates.slice(0, ci + 1).map((c) => [c.lat, c.lng]));
-            setRemainingCoords(route.coordinates.slice(ci).map((c) => [c.lat, c.lng]));
-          }
-        }
         animationRef.current = null;
       } else {
         setDisplayedCoords(coords.slice(0, pointsToShow));
@@ -233,12 +241,6 @@ export default function RouteLayer({
     animationRef.current = requestAnimationFrame(animate);
     return () => { if (animationRef.current) { cancelAnimationFrame(animationRef.current); animationRef.current = null; } };
   }, [route, visible, profile]);
-
-  // Keep completed/remaining in sync with GPS movement
-  useEffect(() => {
-    if (!visible || !route?.coordinates?.length || !showProgress || !currentLocation) return;
-    updateProgress(route.coordinates, currentLocation);
-  }, [currentLocation]);
 
   if (!visible || (displayedCoords.length < 2 && completedCoords.length < 2 && remainingCoords.length < 2)) {
     return null;

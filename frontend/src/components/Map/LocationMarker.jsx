@@ -91,19 +91,29 @@ function createPulsingIcon(speed, heading, isLowAccuracy = false, routeDirection
   });
 }
 
-// GPS marker — color changes based on accuracy, snaps to route direction
-export function GpsLocationMarker({ location, accuracy, isLowAccuracy = false, routeDirection = null }) {
-  if (!location) return null;
+// GPS marker — color changes based on accuracy, SNAPS TO ROUTE with smooth gliding
+export function GpsLocationMarker({ 
+  location, 
+  accuracy, 
+  isLowAccuracy = false, 
+  routeDirection = null,
+  smoothedPosition = null  // NEW: Position snapped and smoothed to route
+}) {
+  // Use smoothed route position if available (gliding blue dot)
+  // Otherwise fall back to raw GPS location
+  const displayPosition = smoothedPosition || location;
+  
+  if (!displayPosition) return null;
 
-  const hasHeading = location.heading && location.heading !== 0;
-  const hasSpeed = location.speed && location.speed > 0;
+  const hasHeading = location?.heading && location?.heading !== 0;
+  const hasSpeed = location?.speed && location?.speed > 0;
   
   // Orange for low accuracy, blue for good accuracy
   const markerColor = isLowAccuracy ? "#f59e0b" : "#2563eb";
   
   // Pass routeDirection to the icon creator (for arrow alignment)
   const markerIcon = (hasHeading || hasSpeed)
-    ? createPulsingIcon(location.speed, location.heading, isLowAccuracy, routeDirection)
+    ? createPulsingIcon(location?.speed, location?.heading, isLowAccuracy, routeDirection)
     : currentLocationIcon;
 
   // Calculate opacity based on accuracy
@@ -112,14 +122,14 @@ export function GpsLocationMarker({ location, accuracy, isLowAccuracy = false, r
   return (
     <>
       <Marker
-        position={[location.lat, location.lng]}
+        position={[displayPosition.lat, displayPosition.lng]}
         icon={markerIcon}
         draggable={false}
         zIndexOffset={1000}
       />
       {accuracy && (
         <Circle
-          center={[location.lat, location.lng]}
+          center={[displayPosition.lat, displayPosition.lng]}
           radius={accuracy}
           pathOptions={{
             color: markerColor,
@@ -127,7 +137,7 @@ export function GpsLocationMarker({ location, accuracy, isLowAccuracy = false, r
             fillOpacity: 0.06 * opacity,
             weight: 1.5,
             opacity: 0.4,
-            dashArray: isLowAccuracy ? "5, 5" : undefined, // Dashed circle for low accuracy
+            dashArray: isLowAccuracy ? "5, 5" : undefined,
           }}
         />
       )}

@@ -229,6 +229,7 @@ export default function MapView({
   };
 
   const [currentRouteDirection, setCurrentRouteDirection] = useState(0);
+  const [smoothedRoutePosition, setSmoothedRoutePosition] = useState(null);
 
   return (
     <div className={`map-wrap ${isMapBlurred ? "map-blurred" : ""}`}>
@@ -273,7 +274,7 @@ export default function MapView({
           />
           <MapClickHandler onMapClick={onMapClick} />
 
-          <GpsLocationMarker  location={currentLocation} accuracy={accuracy} routeDirection={currentRouteDirection} />
+          <GpsLocationMarker  location={currentLocation} accuracy={accuracy} routeDirection={currentRouteDirection} smoothedPosition={smoothedRoutePosition}  />
 
           <CustomLocationMarker
             location={customStartPoint}
@@ -291,6 +292,7 @@ export default function MapView({
               vehicleMode={vehicleMode}
               currentLocation={currentLocation}
               routeDirection={currentRouteDirection}
+              smoothedPosition={smoothedRoutePosition}
               showProgress={true}
             />
           )}
