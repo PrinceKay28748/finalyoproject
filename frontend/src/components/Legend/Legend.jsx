@@ -301,7 +301,7 @@ const Legend = forwardRef(function Legend(
   },
   ref,
 ) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [directions, setDirections] = useState([]);
   const [currentStepIndex, setCurrentStepIndex] = useState(-1);
