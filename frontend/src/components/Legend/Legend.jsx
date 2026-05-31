@@ -301,14 +301,12 @@ const Legend = forwardRef(function Legend(
   },
   ref,
 ) {
-  // START COLLAPSED - Critical fix for session restore and first search
   const [expanded, setExpanded] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [directions, setDirections] = useState([]);
   const [currentStepIndex, setCurrentStepIndex] = useState(-1);
   const [wasExpandedBeforeCollapse, setWasExpandedBeforeCollapse] =
     useState(true);
-  const [hasInitialized, setHasInitialized] = useState(false);
 
   // ── Drag state refs (never cause re-renders) ─────────────────────────────
   const dragStartY = useRef(0);
@@ -370,52 +368,26 @@ const Legend = forwardRef(function Legend(
     expandedTranslateY.current = 0;
   };
 
-  // ── Mount: Force peek position - CRITICAL FIX ───────────────────────────
+  // ── Mount: NO AUTO-SLIDE ANIMATION - Legend starts at peek position ──────
+  // FIXED: Removed the "shooting up" animation that ran on mount
   useEffect(() => {
     const el = sheetRef.current;
     if (!el) return;
     
-    // Force collapsed state on mount
-    setExpanded(false);
-    
-    // Snap to bottom position after DOM is ready
-    const timer = setTimeout(() => {
-      if (sheetRef.current) {
-        recalcPositions();
-        snapTo(peekTranslateY.current);
-        setHasInitialized(true);
-      }
-    }, 50);
-    
-    return () => clearTimeout(timer);
+    // Ensure legend starts at peek position (bottom) without animation
+    requestAnimationFrame(() => {
+      recalcPositions();
+      snapTo(peekTranslateY.current);
+    });
   }, []);
-
-  // ── Emergency prevention: Force peek position if anything tries to expand ──
-  useEffect(() => {
-    // If expanded becomes true for any reason (session restore, route load, etc.)
-    // force it back to false and snap to peek
-    if (expanded && hasInitialized) {
-      // Don't force during drag
-      if (!isDragging) {
-        setExpanded(false);
-        if (sheetRef.current) {
-          requestAnimationFrame(() => {
-            recalcPositions();
-            snapTo(peekTranslateY.current);
-          });
-        }
-      }
-    }
-  }, [expanded, hasInitialized, isDragging]);
 
   // ── Recalc peek position whenever expanded changes ───────────────────────
   useEffect(() => {
-    if (!hasInitialized) return;
     requestAnimationFrame(() => {
       recalcPositions();
       snapTo(expanded ? expandedTranslateY.current : peekTranslateY.current);
     });
-  }, [expanded, hasInitialized]);
+  }, [expanded]);
 
   // ── Voice ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -444,16 +416,18 @@ const Legend = forwardRef(function Legend(
   // ── Auto-collapse when NavPanel opens ────────────────────────────────────
   useEffect(() => {
     if (autoCollapse && expanded) {
+      // NavPanel opened — save state and collapse Legend
       setWasExpandedBeforeCollapse(true);
       setExpanded(false);
     } else if (!autoCollapse && wasExpandedBeforeCollapse && !expanded) {
+      // NavPanel closed — only re-expand if user didn't manually peek
       if (!userManuallyPeeked.current) {
         setExpanded(true);
       }
       setWasExpandedBeforeCollapse(false);
-      userManuallyPeeked.current = false;
+      userManuallyPeeked.current = false; // Reset for next cycle
     }
-  }, [autoCollapse, expanded]);
+  }, [autoCollapse]);
 
   // ── Directions ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -550,6 +524,7 @@ const Legend = forwardRef(function Legend(
       onDragProgress(0);
       return;
     }
+    // Progress: 0 = peek (bottom, no blur), 1 = expanded (top, full blur)
     const progress = 1 - Math.max(0, Math.min(1, (currentY - minY) / range));
     onDragProgress(progress);
   };
@@ -615,6 +590,7 @@ const Legend = forwardRef(function Legend(
 
     setTranslate(clampedY);
 
+    // Report drag progress for map blur
     const currentY = parseFloat(
       sheetRef.current?.style.transform?.match(/translateY\(([-\d.]+)px\)/)?.[1] ?? "0"
     );
@@ -647,11 +623,13 @@ const Legend = forwardRef(function Legend(
 
     snapTo(shouldExpand ? minY : maxY);
 
+    // Reset drag progress after snap
     if (onDragProgress) {
       onDragProgress(shouldExpand ? 1 : 0);
     }
 
     if (shouldExpand !== expanded) {
+      // Track if user manually dragged to peek (bottom)
       if (!shouldExpand) {
         userManuallyPeeked.current = true;
       }
