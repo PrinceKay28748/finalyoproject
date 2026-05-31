@@ -365,7 +365,7 @@ const Legend = forwardRef(function Legend(
     if (!sheetRef.current) return;
     const h = sheetRef.current.offsetHeight;
     peekTranslateY.current = Math.max(0, h - peekHeight);
-    expandedTranslateY.current = 0;
+    
   };
 
   // ── Mount: NO AUTO-SLIDE ANIMATION - Legend starts at peek position ──────
