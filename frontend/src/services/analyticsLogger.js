@@ -39,13 +39,38 @@ export async function logRouteCalculated(startLocation, endLocation, profileUsed
 }
 
 export async function logSearch(query, selectedResult) {
-  fetchWithAuth(`${API_URL}/analytics/log`, {
-    method: 'POST',
-    body: JSON.stringify({
-      activity_type: 'search',
-      metadata: JSON.stringify({ query, selected_result: selectedResult })
-    })
-  });
+  // selectedResult can be:
+  // - A location object: {lat, lng, name, ...}
+  // - A string (for map clicks): location name or coordinates text
+  
+  const isLocationObject = selectedResult && typeof selectedResult === 'object' && 'lat' in selectedResult && 'lng' in selectedResult;
+  
+  if (isLocationObject) {
+    // Log search destination with coordinates (fire-and-forget like route logging)
+    // No auth required — same as heatmap route segment logging
+    const { lat, lng, name } = selectedResult;
+    fetch(`${API_URL}/analytics/heatmap/search`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query,
+        destination_name: name,
+        lat,
+        lng,
+      })
+    }).catch(() => {
+      // Silently fail — never surface search logging errors to user
+    });
+  } else {
+    // Fallback: log as regular activity if no coordinates
+    fetchWithAuth(`${API_URL}/analytics/log`, {
+      method: 'POST',
+      body: JSON.stringify({
+        activity_type: 'search',
+        metadata: JSON.stringify({ query, selected_result: selectedResult })
+      })
+    });
+  }
 }
 
 export async function logLogin() {
