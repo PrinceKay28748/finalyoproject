@@ -360,6 +360,79 @@ export default function MapLibre3DView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── Fix 1: Handle missing images to prevent infinite render loop ──────────
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const handleMissingImage = (e) => {
+      // Add a transparent 1x1 placeholder for missing images
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1;
+        canvas.height = 1;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.fillStyle = 'rgba(0,0,0,0)';
+        ctx.fillRect(0, 0, 1, 1);
+        map.addImage(e.id, canvas);
+      } catch (err) {
+        // Silently fail - just don't crash
+      }
+    };
+
+    map.on('styleimagemissing', handleMissingImage);
+
+    return () => {
+      try {
+        map.off('styleimagemissing', handleMissingImage);
+      } catch (_) {}
+    };
+  }, []);
+
+  // ── Fix 2: Handle tile errors to prevent retry loop ──────────────────────
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const handleTileError = (e) => {
+      // Prevent infinite tile retry
+      if (e.tile) {
+        e.tile.retry = false;
+      }
+    };
+
+    map.on('tileerror', handleTileError);
+
+    return () => {
+      try {
+        map.off('tileerror', handleTileError);
+      } catch (_) {}
+    };
+  }, []);
+
+  // ── Fix 3: Suppress known MapLibre warnings ──────────────────────────────
+
+  useEffect(() => {
+    // Suppress known MapLibre missing image warnings
+    const originalWarn = console.warn;
+    console.warn = (...args) => {
+      const msg = args[0] || '';
+      if (typeof msg === 'string') {
+        if (msg.includes('Image " " could not be loaded')) return;
+        if (msg.includes('Image "office" could not be loaded')) return;
+      }
+      originalWarn(...args);
+    };
+
+    // Restore after component unmounts
+    return () => {
+      console.warn = originalWarn;
+    };
+  }, []);
+
   // ── force route redraw when 3D becomes visible ────────────────────────────
 
   useEffect(() => {
