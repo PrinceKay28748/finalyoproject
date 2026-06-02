@@ -10,7 +10,7 @@ if (!MAPTILER_KEY) {
   console.warn("[MapLibre3D] VITE_MAPTILER_KEY not set.");
 }
 
-const STYLE_EXPLORE_URL = `https://api.maptiler.com/maps/streets-v2/style.json?key=${MAPTILER_KEY}`;
+// Always use satellite mode - no terrain/explore toggling
 const STYLE_SATELLITE_URL = `https://api.maptiler.com/maps/hybrid/style.json?key=${MAPTILER_KEY}`;
 const TERRAIN_SOURCE = `https://api.maptiler.com/tiles/terrain-rgb-v2/tiles.json?key=${MAPTILER_KEY}`;
 
@@ -146,7 +146,6 @@ class RainParticles {
 
 export default function MapLibre3DView({
   visible = false,
-  viewMode = "explore",
   currentLocation,
   flyTarget,
   primaryRoute,
@@ -290,7 +289,7 @@ export default function MapLibre3DView({
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return;
 
-    fetch(STYLE_EXPLORE_URL)
+    fetch(STYLE_SATELLITE_URL)
       .then((res) => res.json())
       .then((style) => {
         if (!mapContainer.current) return;
@@ -511,30 +510,7 @@ export default function MapLibre3DView({
     if (destPoint) add(destPoint, "#22c55e", true);
   }, [currentLocation, startPoint, destPoint, mapLoaded, clearMarkers]);
 
-  // ── style switch (explore ↔ satellite) ───────────────────────────────────
 
-  useEffect(() => {
-    if (!mapRef.current || !mapLoaded) return;
-    removeHeatmap(mapRef.current);
-
-    const url = viewMode === "satellite" ? STYLE_SATELLITE_URL : STYLE_EXPLORE_URL;
-
-    fetch(url)
-      .then((res) => res.json())
-      .then((style) => {
-        if (!mapRef.current) return;
-        patchStyleSprite(style);
-        mapRef.current.setStyle(style);
-        mapRef.current.once("style.load", () => {
-          if (!mapRef.current) return;
-          addTerrainSource(mapRef.current);
-          dimWater(mapRef.current);
-          stripHeavyLayers(mapRef.current);
-          lastRouteKeyRef.current = '';
-          if (showHeatmap) setTimeout(updateHeatmap, 200);
-        });
-      });
-  }, [viewMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── routes ────────────────────────────────────────────────────────────────
 
