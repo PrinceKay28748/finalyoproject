@@ -121,7 +121,7 @@ export default function ResetPasswordPage() {
       <div className="auth-container-split">
         <div className="auth-hero">
           <div className="auth-hero-bg">UG</div>
-          <img src="/icon-512.png" alt="UG Navigator" width={80} height={80} />
+          <img src="/icon-512.png" alt="UG Navigator" width={80} height={80} fetchpriority="high" />
           <h1>Loading...</h1>
         </div>
         <div className="auth-form-panel">
@@ -143,7 +143,7 @@ export default function ResetPasswordPage() {
       <div className="auth-container-split">
         <div className="auth-hero">
           <div className="auth-hero-bg">UG</div>
-          <img src="/icon-512.png" alt="UG Navigator" width={80} height={80} />
+          <img src="/icon-512.png" alt="UG Navigator" width={80} height={80} fetchpriority="high" />
           <h1>Invalid or<br />expired link</h1>
           <p>Please request a new password reset link.</p>
         </div>
@@ -179,7 +179,7 @@ export default function ResetPasswordPage() {
     <div className="auth-container-split">
       <div className="auth-hero">
         <div className="auth-hero-bg">UG</div>
-        <img src="/icon-512.png" alt="UG Navigator" width={80} height={80} />
+        <img src="/icon-512.png" alt="UG Navigator" width={80} height={80} fetchpriority="high" />
         <h1>
           Create new
           <br />
