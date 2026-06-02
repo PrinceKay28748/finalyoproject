@@ -156,6 +156,71 @@ heatmapRouter.post('/', heatmapRateLimit, async (req, res) => {
 });
 
 /**
+ * POST /analytics/heatmap/search
+ * Log a search destination with coordinates.
+ * No auth required — we want data from all users (including unauthenticated searchers).
+ * Body: { query, destination_name, lat, lng }
+ */
+heatmapRouter.post('/search', heatmapRateLimit, async (req, res) => {
+  try {
+    const { query, destination_name, lat, lng } = req.body;
+
+    if (lat === undefined || lng === undefined) {
+      return res.status(400).json({ error: 'lat and lng required' });
+    }
+
+    const latitude  = Number(lat);
+    const longitude = Number(lng);
+
+    if (isNaN(latitude) || isNaN(longitude)) {
+      return res.status(400).json({ error: 'Invalid coordinates' });
+    }
+
+    // Sanity-check: must be within greater Accra area
+    if (latitude < 5.5 || latitude > 5.8 || longitude < -0.4 || longitude > 0.1) {
+      return res.status(400).json({ error: 'Coordinates outside service area' });
+    }
+
+    // Bucket to same precision as route segments (5 decimal places)
+    const BUCKET_PRECISION = 5;
+    const lat_bucket = parseFloat(latitude.toFixed(BUCKET_PRECISION));
+    const lng_bucket = parseFloat(longitude.toFixed(BUCKET_PRECISION));
+
+    const now       = new Date();
+    const hour      = now.getHours();
+    const dayOfWeek = now.getDay();
+
+    // Upsert into search_destinations table
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    if (isProduction) {
+      // PostgreSQL upsert
+      await query(
+        `INSERT INTO search_destinations (destination_name, lat_bucket, lng_bucket, hour_of_day, day_of_week, count, updated_at)
+         VALUES (?, ?, ?, ?, ?, 1, NOW())
+         ON CONFLICT (lat_bucket, lng_bucket, hour_of_day, day_of_week)
+         DO UPDATE SET count = search_destinations.count + 1, updated_at = NOW()`,
+        [destination_name || null, lat_bucket, lng_bucket, hour, dayOfWeek]
+      );
+    } else {
+      // SQLite upsert
+      await query(
+        `INSERT INTO search_destinations (destination_name, lat_bucket, lng_bucket, hour_of_day, day_of_week, count, updated_at)
+         VALUES (?, ?, ?, ?, ?, 1, datetime('now'))
+         ON CONFLICT (lat_bucket, lng_bucket, hour_of_day, day_of_week)
+         DO UPDATE SET count = search_destinations.count + 1, updated_at = datetime('now')`,
+        [destination_name || null, lat_bucket, lng_bucket, hour, dayOfWeek]
+      );
+    }
+
+    res.json({ success: true, logged: 1 });
+  } catch (error) {
+    console.error('[Search Destination POST] Error:', error.message);
+    res.status(500).json({ error: 'Failed to log search destination' });
+  }
+});
+
+/**
  * GET /analytics/heatmap?south=&west=&north=&east=&hour=&dayOfWeek=
  * Returns aggregated heatmap cells within the given bounding box.
  * hour and dayOfWeek are optional filters — omit for all-time data.
@@ -180,29 +245,49 @@ heatmapRouter.get('/', async (req, res) => {
     }
 
     // Build dynamic WHERE clause for optional time filters
-    const params     = [s, n, w, e];
+    // We need to build this carefully for the UNION query
     let timeFilter   = '';
+    let timeParams   = [];
 
     if (hour !== undefined && hour !== '') {
-      params.push(Number(hour));
+      const h = Number(hour);
       timeFilter += ` AND hour_of_day = ?`;
+      timeParams.push(h);
     }
 
     if (dayOfWeek !== undefined && dayOfWeek !== '') {
-      params.push(Number(dayOfWeek));
+      const d = Number(dayOfWeek);
       timeFilter += ` AND day_of_week = ?`;
+      timeParams.push(d);
     }
 
+    // UNION both route_segments and search_destinations for combined heatmap data
+    // Parameters: [s, n, w, e] for route_segments bbox + timeParams + [s, n, w, e] for search_destinations bbox + timeParams
+    const allParams = [s, n, w, e, ...timeParams, s, n, w, e, ...timeParams];
+
     const result = await query(
-      `SELECT lat_bucket AS lat, lng_bucket AS lng, SUM(count) AS total
-       FROM route_segments
-       WHERE lat_bucket BETWEEN ? AND ?
-         AND lng_bucket BETWEEN ? AND ?
-         ${timeFilter}
+      `SELECT lat_bucket AS lat, lng_bucket AS lng, SUM(total_count) AS total
+       FROM (
+         SELECT lat_bucket, lng_bucket, SUM(count) AS total_count
+         FROM route_segments
+         WHERE lat_bucket BETWEEN ? AND ?
+           AND lng_bucket BETWEEN ? AND ?
+           ${timeFilter}
+         GROUP BY lat_bucket, lng_bucket
+         
+         UNION ALL
+         
+         SELECT lat_bucket, lng_bucket, SUM(count) AS total_count
+         FROM search_destinations
+         WHERE lat_bucket BETWEEN ? AND ?
+           AND lng_bucket BETWEEN ? AND ?
+           ${timeFilter}
+         GROUP BY lat_bucket, lng_bucket
+       )
        GROUP BY lat_bucket, lng_bucket
        ORDER BY total DESC
        LIMIT 2000`,
-      params
+      allParams
     );
 
     if (!result.rows.length) {

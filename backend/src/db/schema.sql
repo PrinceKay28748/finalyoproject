@@ -105,6 +105,21 @@ CREATE TABLE IF NOT EXISTS route_segments (
   updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ============================================
+-- SEARCH DESTINATIONS TABLE (for heatmap)
+-- ============================================
+-- Aggregates search destinations by location + time
+-- Same structure as route_segments for easy UNION in heatmap queries
+CREATE TABLE IF NOT EXISTS search_destinations (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  destination_name TEXT,
+  lat_bucket    REAL NOT NULL,
+  lng_bucket    REAL NOT NULL,
+  hour_of_day   INTEGER NOT NULL,
+  day_of_week   INTEGER NOT NULL,
+  count         INTEGER NOT NULL DEFAULT 1,
+  updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 
 
 -- ============================================
@@ -123,3 +138,6 @@ CREATE INDEX IF NOT EXISTS idx_user_activity_created_at ON user_activity(created
 CREATE INDEX IF NOT EXISTS idx_route_segments_cell ON route_segments (lat_bucket, lng_bucket, hour_of_day, day_of_week);
 CREATE INDEX IF NOT EXISTS idx_route_segments_lat ON route_segments (lat_bucket);
 CREATE INDEX IF NOT EXISTS idx_route_segments_lng ON route_segments (lng_bucket);
+CREATE INDEX IF NOT EXISTS idx_search_destinations_cell ON search_destinations (lat_bucket, lng_bucket, hour_of_day, day_of_week);
+CREATE INDEX IF NOT EXISTS idx_search_destinations_lat ON search_destinations (lat_bucket);
+CREATE INDEX IF NOT EXISTS idx_search_destinations_lng ON search_destinations (lng_bucket);

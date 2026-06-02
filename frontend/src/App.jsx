@@ -268,7 +268,7 @@ export default function App() {
     setDestPoint(loc);
     setDestText(loc.name);
     setFlyTarget(loc);
-    logSearch(destText, loc.name);
+    logSearch(destText, loc);
   };
 
   const handleMapClick = useCallback(async (latlng) => {
@@ -300,7 +300,7 @@ export default function App() {
       setDestText(name);
       setIsSharedLocation(false);
       setIsNavExpanded(true);
-      logSearch(`Map click at ${latlng.lat}, ${latlng.lng}`, name);
+      logSearch(`Map click at ${latlng.lat}, ${latlng.lng}`, loc);
     }
   }, [waitingForStart, isRouteLocked, isLegendExpanded, isNavExpanded]);
 
