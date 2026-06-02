@@ -108,7 +108,7 @@ export default function RegisterPage({ onSwitchToLogin }) {
       <div className="auth-container-split">
         <div className="auth-hero">
           <div className="auth-hero-bg">UG</div>
-          <img src="/icon-512.png" alt="UG Navigator" width={80} height={80} />
+          <img src="/icon-512.png" alt="UG Navigator" width={80} height={80} fetchpriority="high" />
           <h1>
             Verify your
             <br />
@@ -167,7 +167,7 @@ export default function RegisterPage({ onSwitchToLogin }) {
       {/* Left side — Hero */}
       <div className="auth-hero">
         <div className="auth-hero-bg">UG</div>
-        <img src="/icon-512.png" alt="UG Navigator" width={80} height={80} />
+        <img src="/icon-512.png" alt="UG Navigator" width={80} height={80} fetchpriority="high" />
         <h1>
           Join the
           <br />

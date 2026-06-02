@@ -158,7 +158,7 @@
   border: none;
   border-bottom: 2px solid #e0e0e0;
   color: #111111;
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease, color 0.2s ease;
 }
 
 .form-group-split input:focus {
@@ -179,7 +179,7 @@
   font-size: 16px;
   color: #999999;
   pointer-events: none;
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, color 0.2s ease, font-size 0.2s ease;
 }
 
 .form-group-split input:focus ~ label,
@@ -369,7 +369,7 @@
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, transform 0.2s ease;
   margin: 16px 0 24px 0;
   display: flex;
   align-items: center;
@@ -418,9 +418,12 @@
   border-top-color: white;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
+  will-change: transform;
+  backface-visibility: hidden;
 }
 
 @keyframes spin {
+  from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
 

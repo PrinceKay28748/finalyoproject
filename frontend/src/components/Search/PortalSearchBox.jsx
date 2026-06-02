@@ -139,7 +139,7 @@ export default function PortalSearchBox({
         setLoading(false);
         abortRef.current = null;
       }
-    }, 500);
+    }, 300);
   };
 
   // ── Select ───────────────────────────────────────────────────────────────────

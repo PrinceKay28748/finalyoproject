@@ -128,7 +128,7 @@ export default function SearchBox({
         setLoading(false);
         abortRef.current = null;
       }
-    }, 1000);
+    }, 300);
   };
 
   // ── Select a suggestion ──────────────────────────────────────────────────────
