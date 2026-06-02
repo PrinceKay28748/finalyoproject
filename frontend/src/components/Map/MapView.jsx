@@ -171,7 +171,6 @@ export default function MapView({
 
   // 2D/3D toggle state
   const [is3DMode, setIs3DMode] = useState(false);
-  const [view3DMode, setView3DMode] = useState("explore"); // 'explore' | 'satellite'
 
   const [heatmapPoints, setHeatmapPoints] = useState(null);
 
@@ -222,10 +221,6 @@ export default function MapView({
 
   const handleToggle3D = () => {
     setIs3DMode((prev) => !prev);
-  };
-
-  const handleToggleViewMode = () => {
-    setView3DMode((prev) => (prev === "explore" ? "satellite" : "explore"));
   };
 
   const [currentRouteDirection, setCurrentRouteDirection] = useState(0);
@@ -341,7 +336,6 @@ export default function MapView({
       <Suspense fallback={null}>
         <MapLibre3DView
           visible={is3DMode}
-          viewMode={view3DMode}
           currentLocation={currentLocation}
           flyTarget={flyTarget}
           primaryRoute={primaryRoute}
@@ -438,62 +432,7 @@ export default function MapView({
         ]}
       />
 
-      {/* 3D View Mode Toggle — single glass button, right side, only in 3D */}
-      {is3DMode && (
-        <button
-          onClick={() =>
-            setView3DMode((prev) =>
-              prev === "explore" ? "satellite" : "explore",
-            )
-          }
-          className="map-3d-view-toggle"
-          title={
-            view3DMode === "explore"
-              ? "Switch to Satellite"
-              : "Switch to Explore"
-          }
-          aria-label={
-            view3DMode === "explore"
-              ? "Switch to Satellite view"
-              : "Switch to Explore view"
-          }
-        >
-          {view3DMode === "explore" ? (
-            // Satellite icon — grid/dish
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M4 20h16" />
-              <path d="M8 20V12a4 4 0 018 0v8" />
-              <circle cx="12" cy="8" r="2" />
-              <line x1="12" y1="2" x2="12" y2="6" />
-            </svg>
-          ) : (
-            // Map/Explore icon — folded map
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
-              <line x1="8" y1="2" x2="8" y2="18" />
-              <line x1="16" y1="6" x2="16" y2="22" />
-            </svg>
-          )}
-        </button>
-      )}
+
 
       <HeatmapControls
         visible={showHeatmap && !is3DMode}
