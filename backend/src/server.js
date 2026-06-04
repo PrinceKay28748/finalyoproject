@@ -152,7 +152,7 @@ app.get('/api/locationiq/reverse', async (req, res) => {
 });
 
 // ============================================
-// WEATHER PROXY (with caching & retry logic)
+// WEATHER PROXY (with caching, retry logic & 7Timer fallback)
 // ============================================
 
 // In-memory cache for weather data
@@ -181,12 +181,12 @@ async function fetchWithRetry(url, maxRetries = 2) {
     try {
       const response = await fetch(url, {
         signal: AbortSignal.timeout(10000),
-        headers: { 'User-Agent': 'UG-Navigator/1.0' }
+        headers: { 'User-Agent': 'UG-Navigator/1.0 (https://ugnavigator.onrender.com)' }
       });
       
       if (!response.ok) {
         const errorText = await response.text().catch(() => 'No error body');
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
+        throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 100)}`);
       }
       
       return await response.json();
@@ -194,12 +194,52 @@ async function fetchWithRetry(url, maxRetries = 2) {
       lastError = error;
       console.log(`[Weather] Attempt ${attempt + 1}/${maxRetries + 1} failed: ${error.message}`);
       if (attempt < maxRetries) {
-        const backoffMs = Math.pow(2, attempt) * 500; // Exponential backoff: 500ms, 1s, 2s
+        const backoffMs = Math.pow(2, attempt) * 500;
         await new Promise(resolve => setTimeout(resolve, backoffMs));
       }
     }
   }
   throw lastError;
+}
+
+// FALLBACK: 7Timer API (no API key required)
+async function fetchFrom7Timer(lat, lon) {
+  const url = `http://www.7timer.info/bin/api.pl?lon=${lon}&lat=${lat}&product=civil&output=json`;
+  console.log(`[Weather Fallback] Fetching from 7Timer for (${lat}, ${lon})`);
+  
+  const response = await fetch(url);
+  const data = await response.json();
+  
+  // Map 7Timer weather codes to Open-Meteo compatible format
+  const weatherCodeMap = {
+    'clear': 0,
+    'pcloudy': 2,
+    'cloudy': 3,
+    'rain': 61,
+    'tsrain': 95,
+    'snow': 71,
+    'fog': 45,
+    'mcloudy': 3,
+    'ishower': 61,
+    'lightrain': 61,
+    'lightsnow': 71,
+    'humid': 45
+  };
+  
+  const weatherType = data.dataseries?.[0]?.weather || 'clear';
+  const weatherCode = weatherCodeMap[weatherType] || 0;
+  
+  // Convert 7Timer response to match Open-Meteo structure
+  return {
+    current_weather: {
+      temperature: data.dataseries?.[0]?.temp2m || 24,
+      weathercode: weatherCode,
+      windspeed: data.dataseries?.[0]?.wind10m?.max || 5,
+      is_day: 1
+    },
+    isFallback: true,
+    source: '7Timer'
+  };
 }
 
 app.get('/api/weather', async (req, res) => {
@@ -228,20 +268,34 @@ app.get('/api/weather', async (req, res) => {
     console.log(`[Weather Proxy] Fetching current weather for (${lat}, ${lon})`);
     const data = await fetchWithRetry(url);
     
-    // Cache successful response
     setCachedWeather(cacheKey, data);
-    res.json(data);
+    return res.json(data);
   } catch (error) {
-    console.error('[Weather Proxy] Failed after retries:', error.message);
+    console.error('[Weather Proxy] Open-Meteo failed:', error.message);
     
-    // Try stale cache as fallback
-    const staleCache = weatherCache.get(cacheKey);
-    if (staleCache) {
-      console.log('[Weather Proxy] Using stale cache as fallback');
-      return res.json(staleCache.data);
+    // Try fallback: 7Timer
+    try {
+      console.log('[Weather Proxy] Attempting 7Timer fallback...');
+      const fallbackData = await fetchFrom7Timer(lat, lon);
+      setCachedWeather(cacheKey, fallbackData);
+      return res.json(fallbackData);
+    } catch (fallbackError) {
+      console.error('[Weather Proxy] Fallback also failed:', fallbackError.message);
+      
+      // Try stale cache as last resort
+      const staleCache = weatherCache.get(cacheKey);
+      if (staleCache) {
+        console.log('[Weather Proxy] Using stale cache as final fallback');
+        return res.json(staleCache.data);
+      }
+      
+      res.status(502).json({ 
+        error: 'Weather service temporarily unavailable', 
+        isFallback: true,
+        temperature: 24,
+        condition: 'Weather data unavailable'
+      });
     }
-    
-    res.status(502).json({ error: 'Weather service temporarily unavailable', isFallback: true });
   }
 });
 
@@ -271,11 +325,10 @@ app.get('/api/weather/forecast', async (req, res) => {
     console.log(`[Weather Forecast Proxy] Fetching forecast for (${lat}, ${lon})`);
     const data = await fetchWithRetry(url);
     
-    // Cache successful response
     setCachedWeather(cacheKey, data);
     res.json(data);
   } catch (error) {
-    console.error('[Weather Forecast Proxy] Failed after retries:', error.message);
+    console.error('[Weather Forecast Proxy] Failed:', error.message);
     
     // Try stale cache as fallback
     const staleCache = weatherCache.get(cacheKey);
@@ -284,7 +337,26 @@ app.get('/api/weather/forecast', async (req, res) => {
       return res.json(staleCache.data);
     }
     
-    res.status(502).json({ error: 'Forecast service temporarily unavailable', isFallback: true });
+    // Return minimal forecast fallback
+    const today = new Date();
+    const fallbackForecast = Array.from({ length: 5 }, (_, i) => ({
+      date: new Date(today.setDate(today.getDate() + i)).toISOString().split('T')[0],
+      weathercode: 0,
+      temperature_2m_max: 26,
+      temperature_2m_min: 22,
+      precipitation_probability_max: 10
+    }));
+    
+    res.status(502).json({ 
+      daily: {
+        time: fallbackForecast.map(d => d.date),
+        weathercode: fallbackForecast.map(d => d.weathercode),
+        temperature_2m_max: fallbackForecast.map(d => d.temperature_2m_max),
+        temperature_2m_min: fallbackForecast.map(d => d.temperature_2m_min),
+        precipitation_probability_max: fallbackForecast.map(d => d.precipitation_probability_max)
+      },
+      isFallback: true
+    });
   }
 });
 
@@ -325,8 +397,10 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 ║    • POST   /auth/sync       - Sync user from Supabase    ║
 ║    • GET    /health          - Health check                ║
 ║    • GET    /admin/*         - Admin dashboard            ║
-║    • GET    /api/locationiq/* - LocationIQ proxy          ║║    • GET    /api/weather     - Weather proxy (current)     ║
-║    • GET    /api/weather/forecast - Weather forecast       ║║    • POST   /api/reports     - Submit accessibility report ║
+║    • GET    /api/locationiq/* - LocationIQ proxy          ║
+║    • GET    /api/weather     - Weather proxy (with 7Timer fallback) ║
+║    • GET    /api/weather/forecast - Weather forecast      ║
+║    • POST   /api/reports     - Submit accessibility report ║
 ║    • GET    /api/reports     - List reports (admin)        ║
 ║    • PATCH  /api/reports/:id - Approve/reject report       ║
 ║                                                            ║
