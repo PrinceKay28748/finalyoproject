@@ -850,6 +850,36 @@
   animation: fadeIn 0.2s ease;
 }
 
+
+/* Avatar button styles */
+.nav-avatar-btn {
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+  margin: 0 8px 0 4px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.nav-avatar-btn img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.nav-avatar-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.3);
+}
+
+.nav-avatar-btn:active {
+  transform: scale(0.98);
+}
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }

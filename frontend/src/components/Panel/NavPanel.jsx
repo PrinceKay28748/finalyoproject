@@ -14,20 +14,58 @@ import {
 } from "../ui/icon";
 import "./NavPanel.css";
 
+// Avatar component using Navii
+function Avatar({ username, size = 32, onClick }) {
+  const seed = username || "guest";
+  const avatarUrl = `https://navii.dev/api/avatar?seed=${encodeURIComponent(seed)}&size=${size}&motion=true`;
+
+  return (
+    <button
+      className="nav-avatar-btn"
+      onClick={onClick}
+      aria-label="Profile settings"
+      title={`${username || "User"} · Click to edit profile`}
+      style={{ width: size, height: size }}
+    >
+      <img src={avatarUrl} alt={username || "Avatar"} />
+    </button>
+  );
+}
+
 // ─── Inline SVG icons ──────────────────────────────────────────────────────
 
 function IconFrom() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
       <circle cx="12" cy="12" r="4" fill="currentColor" />
-      <circle cx="12" cy="12" r="7.5" stroke="currentColor" strokeWidth="1.5" fill="none" opacity="0.35" />
+      <circle
+        cx="12"
+        cy="12"
+        r="7.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        fill="none"
+        opacity="0.35"
+      />
     </svg>
   );
 }
 
 function IconTo() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
       <path
         d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"
         fill="currentColor"
@@ -38,7 +76,13 @@ function IconTo() {
 
 function IconArrowRight() {
   return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
       <path
         d="M5 12h14M13 6l6 6-6 6"
         stroke="currentColor"
@@ -52,7 +96,13 @@ function IconArrowRight() {
 
 function IconSunInline() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
       <circle cx="12" cy="12" r="4.5" stroke="currentColor" strokeWidth="1.8" />
       <path
         d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"
@@ -66,7 +116,13 @@ function IconSunInline() {
 
 function IconMoonInline() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
       <path
         d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z"
         stroke="currentColor"
@@ -80,7 +136,13 @@ function IconMoonInline() {
 
 function IconLogoutInline() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
       <path
         d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"
         stroke="currentColor"
@@ -133,7 +195,7 @@ export default function NavPanel({
   // Allow parent to control expansion
   isExpanded: externalIsExpanded,
   onExpandRequest,
-  onClose,  // NEW: callback when user clicks outside to dismiss
+  onClose, // NEW: callback when user clicks outside to dismiss
 }) {
   const [internalIsExpanded, setInternalIsExpanded] = useState(false);
   const [hasRoute, setHasRoute] = useState(false);
@@ -141,7 +203,8 @@ export default function NavPanel({
   const focus = useFocus();
 
   // Use external control if provided, otherwise use internal state
-  const isExpanded = externalIsExpanded !== undefined ? externalIsExpanded : internalIsExpanded;
+  const isExpanded =
+    externalIsExpanded !== undefined ? externalIsExpanded : internalIsExpanded;
   const setIsExpanded = (value) => {
     if (onExpandRequest) {
       onExpandRequest(value);
@@ -217,6 +280,14 @@ export default function NavPanel({
                 />
               </svg>
             </div>
+
+            {/* NEW: Avatar next to logo */}
+            <Avatar
+              username={user?.username}
+              size={32}
+              onClick={() => (window.location.href = "/profile")}
+            />
+
             <div>
               <p className="nav-title">UG Navigator</p>
               <p className="nav-subtitle">
@@ -242,10 +313,14 @@ export default function NavPanel({
             <button
               className="nav-glass-btn nav-mode-btn"
               onClick={onToggleDarkMode}
-              aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+              aria-label={
+                darkMode ? "Switch to light mode" : "Switch to dark mode"
+              }
               title={`${user?.username || "User"} · ${darkMode ? "Light" : "Dark"} mode`}
             >
-              <span className={`nav-mode-icon ${darkMode ? "nav-mode-icon--spin" : ""}`}>
+              <span
+                className={`nav-mode-icon ${darkMode ? "nav-mode-icon--spin" : ""}`}
+              >
                 {darkMode ? <IconSunInline /> : <IconMoonInline />}
               </span>
             </button>
@@ -269,12 +344,18 @@ export default function NavPanel({
             aria-label="Edit route"
             onKeyDown={(e) => e.key === "Enter" && handleSearchFocus()}
           >
-            <span className="nav-compact-dot nav-compact-dot--from" aria-hidden="true" />
+            <span
+              className="nav-compact-dot nav-compact-dot--from"
+              aria-hidden="true"
+            />
             <span className="nav-compact-start">{startText}</span>
             <span className="nav-compact-arrow" aria-hidden="true">
               <IconArrowRight />
             </span>
-            <span className="nav-compact-dot nav-compact-dot--to" aria-hidden="true" />
+            <span
+              className="nav-compact-dot nav-compact-dot--to"
+              aria-hidden="true"
+            />
             <span className="nav-compact-dest">{destText}</span>
           </div>
           <button
@@ -346,10 +427,14 @@ export default function NavPanel({
             <button
               className="nav-glass-btn nav-mode-btn"
               onClick={onToggleDarkMode}
-              aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+              aria-label={
+                darkMode ? "Switch to light mode" : "Switch to dark mode"
+              }
               title={`${user?.username || "User"} · ${darkMode ? "Light" : "Dark"} mode`}
             >
-              <span className={`nav-mode-icon ${darkMode ? "nav-mode-icon--spin" : ""}`}>
+              <span
+                className={`nav-mode-icon ${darkMode ? "nav-mode-icon--spin" : ""}`}
+              >
                 {darkMode ? <IconSunInline /> : <IconMoonInline />}
               </span>
             </button>
@@ -391,7 +476,11 @@ export default function NavPanel({
                 value={startText}
                 onChange={onStartTextChange}
                 onSelect={(location) => {
-                  focus.setFocus('location', location.name || location.lat.toFixed(4), 'search');
+                  focus.setFocus(
+                    "location",
+                    location.name || location.lat.toFixed(4),
+                    "search",
+                  );
                   onStartSelect(location);
                 }}
                 onUseCurrentLocation={onUseCurrentLocation}
@@ -413,7 +502,11 @@ export default function NavPanel({
                 value={destText}
                 onChange={onDestTextChange}
                 onSelect={(location) => {
-                  focus.setFocus('location', location.name || location.lat.toFixed(4), 'search');
+                  focus.setFocus(
+                    "location",
+                    location.name || location.lat.toFixed(4),
+                    "search",
+                  );
                   onDestSelect(location);
                 }}
                 onUseCurrentLocation={() => {}}
@@ -429,7 +522,13 @@ export default function NavPanel({
                 onClick={handleResetClick}
                 aria-label="Reset route"
               >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true"
+                >
                   <path
                     d="M3 12a9 9 0 109-9 9 9 0 00-6.16 2.42L3 8"
                     stroke="currentColor"
@@ -476,7 +575,11 @@ export default function NavPanel({
                   viewBox="0 0 24 24"
                   fill="none"
                   aria-hidden="true"
-                  style={{ display: "inline", marginRight: 4, verticalAlign: "middle" }}
+                  style={{
+                    display: "inline",
+                    marginRight: 4,
+                    verticalAlign: "middle",
+                  }}
                 >
                   <path
                     d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
@@ -494,7 +597,11 @@ export default function NavPanel({
                   viewBox="0 0 24 24"
                   fill="none"
                   aria-hidden="true"
-                  style={{ display: "inline", marginRight: 4, verticalAlign: "middle" }}
+                  style={{
+                    display: "inline",
+                    marginRight: 4,
+                    verticalAlign: "middle",
+                  }}
                 >
                   <path
                     d="M20 6L9 17l-5-5"
