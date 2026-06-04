@@ -152,6 +152,64 @@ app.get('/api/locationiq/reverse', async (req, res) => {
 });
 
 // ============================================
+// WEATHER PROXY
+// ============================================
+
+app.get('/api/weather', async (req, res) => {
+  const { lat, lon } = req.query;
+  if (!lat || !lon) {
+    return res.status(400).json({ error: 'Missing lat or lon parameters' });
+  }
+
+  const url = [
+    'https://api.open-meteo.com/v1/forecast',
+    `?latitude=${lat}&longitude=${lon}`,
+    '&current_weather=true',
+    '&hourly=precipitation_probability',
+    '&timezone=auto'
+  ].join('');
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} from Open-Meteo`);
+    }
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('[Weather Proxy] Error:', error.message);
+    res.status(500).json({ error: 'Failed to fetch weather data' });
+  }
+});
+
+app.get('/api/weather/forecast', async (req, res) => {
+  const { lat, lon } = req.query;
+  if (!lat || !lon) {
+    return res.status(400).json({ error: 'Missing lat or lon parameters' });
+  }
+
+  const url = [
+    'https://api.open-meteo.com/v1/forecast',
+    `?latitude=${lat}&longitude=${lon}`,
+    '&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max',
+    '&timezone=auto',
+    '&forecast_days=5'
+  ].join('');
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} from Open-Meteo`);
+    }
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('[Weather Forecast Proxy] Error:', error.message);
+    res.status(500).json({ error: 'Failed to fetch forecast data' });
+  }
+});
+
+// ============================================
 // REPORTS ROUTES
 // ============================================
 app.use('/api/reports', reportsRoutes);
@@ -188,8 +246,8 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 ║    • POST   /auth/sync       - Sync user from Supabase    ║
 ║    • GET    /health          - Health check                ║
 ║    • GET    /admin/*         - Admin dashboard            ║
-║    • GET    /api/locationiq/* - LocationIQ proxy          ║
-║    • POST   /api/reports     - Submit accessibility report ║
+║    • GET    /api/locationiq/* - LocationIQ proxy          ║║    • GET    /api/weather     - Weather proxy (current)     ║
+║    • GET    /api/weather/forecast - Weather forecast       ║║    • POST   /api/reports     - Submit accessibility report ║
 ║    • GET    /api/reports     - List reports (admin)        ║
 ║    • PATCH  /api/reports/:id - Approve/reject report       ║
 ║                                                            ║

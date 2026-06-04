@@ -1,5 +1,8 @@
 // Weather service - Open-Meteo API (free, no API key required)
 // Cached for 10 minutes to respect rate limits
+// Uses backend proxy to avoid CORS issues
+
+import { API_URL } from '../config';
 
 const CACHE_KEY          = 'ug_weather_cache';
 const FORECAST_CACHE_KEY = 'ug_forecast_cache';
@@ -75,7 +78,7 @@ export async function fetchWeather() {
     return cached;
   }
 
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${LEGON_LAT}&longitude=${LEGON_LNG}&current_weather=true&hourly=precipitation_probability&timezone=auto`;
+  const url = `${API_URL}/api/weather?lat=${LEGON_LAT}&lon=${LEGON_LNG}`;
 
   try {
     const res = await fetch(url);
@@ -123,13 +126,7 @@ export async function fetchForecast() {
     return cached;
   }
 
-  const url = [
-    `https://api.open-meteo.com/v1/forecast`,
-    `?latitude=${LEGON_LAT}&longitude=${LEGON_LNG}`,
-    `&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max`,
-    `&timezone=auto`,
-    `&forecast_days=5`,
-  ].join('');
+  const url = `${API_URL}/api/weather/forecast?lat=${LEGON_LAT}&lon=${LEGON_LNG}`;
 
   try {
     const res = await fetch(url);
