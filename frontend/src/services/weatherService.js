@@ -81,8 +81,12 @@ export async function fetchWeather() {
   const url = `${API_URL}/api/weather?lat=${LEGON_LAT}&lon=${LEGON_LNG}`;
 
   try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      console.warn(`[Weather] HTTP ${res.status}: ${errorData.error || 'Unknown error'}`);
+      throw new Error(`HTTP ${res.status}`);
+    }
     const data = await res.json();
 
     if (!data.current_weather) throw new Error('No weather data in response');
@@ -107,7 +111,9 @@ export async function fetchWeather() {
     return weatherData;
 
   } catch (error) {
-    console.error('[Weather] Fetch failed:', error);
+    console.error('[Weather] Fetch failed:', error.message);
+    
+    // Return safe fallback - routing will continue with default multipliers
     return {
       temperature: 24, weatherCode: 0, windSpeed: 5, isDay: true,
       precipitationProb: 0, condition: 'Weather data unavailable',
@@ -129,8 +135,12 @@ export async function fetchForecast() {
   const url = `${API_URL}/api/weather/forecast?lat=${LEGON_LAT}&lon=${LEGON_LNG}`;
 
   try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      console.warn(`[Weather] HTTP ${res.status}: ${errorData.error || 'Unknown error'}`);
+      throw new Error(`HTTP ${res.status}`);
+    }
     const data = await res.json();
 
     const { daily } = data;
@@ -159,7 +169,7 @@ export async function fetchForecast() {
     return days;
 
   } catch (error) {
-    console.error('[Weather] Forecast fetch failed:', error);
+    console.error('[Weather] Forecast fetch failed:', error.message);
     // Fallback: 5 days of placeholder data so the UI never hard-crashes
     return Array.from({ length: 5 }, (_, i) => ({
       date:        '',

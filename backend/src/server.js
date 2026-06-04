@@ -152,13 +152,68 @@ app.get('/api/locationiq/reverse', async (req, res) => {
 });
 
 // ============================================
-// WEATHER PROXY
+// WEATHER PROXY (with caching & retry logic)
 // ============================================
+
+// In-memory cache for weather data
+const weatherCache = new Map();
+const WEATHER_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+function getCachedWeather(key) {
+  const cached = weatherCache.get(key);
+  if (!cached) return null;
+  if (Date.now() - cached.timestamp > WEATHER_CACHE_TTL) {
+    weatherCache.delete(key);
+    return null;
+  }
+  console.log(`[Weather Cache] HIT for ${key}`);
+  return cached.data;
+}
+
+function setCachedWeather(key, data) {
+  weatherCache.set(key, { data, timestamp: Date.now() });
+  console.log(`[Weather Cache] SET for ${key}`);
+}
+
+async function fetchWithRetry(url, maxRetries = 2) {
+  let lastError;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(10000),
+        headers: { 'User-Agent': 'UG-Navigator/1.0' }
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'No error body');
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      lastError = error;
+      console.log(`[Weather] Attempt ${attempt + 1}/${maxRetries + 1} failed: ${error.message}`);
+      if (attempt < maxRetries) {
+        const backoffMs = Math.pow(2, attempt) * 500; // Exponential backoff: 500ms, 1s, 2s
+        await new Promise(resolve => setTimeout(resolve, backoffMs));
+      }
+    }
+  }
+  throw lastError;
+}
 
 app.get('/api/weather', async (req, res) => {
   const { lat, lon } = req.query;
   if (!lat || !lon) {
     return res.status(400).json({ error: 'Missing lat or lon parameters' });
+  }
+
+  const cacheKey = `weather_${lat}_${lon}`;
+  
+  // Try cache first
+  const cached = getCachedWeather(cacheKey);
+  if (cached) {
+    return res.json(cached);
   }
 
   const url = [
@@ -170,15 +225,23 @@ app.get('/api/weather', async (req, res) => {
   ].join('');
 
   try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status} from Open-Meteo`);
-    }
-    const data = await response.json();
+    console.log(`[Weather Proxy] Fetching current weather for (${lat}, ${lon})`);
+    const data = await fetchWithRetry(url);
+    
+    // Cache successful response
+    setCachedWeather(cacheKey, data);
     res.json(data);
   } catch (error) {
-    console.error('[Weather Proxy] Error:', error.message);
-    res.status(500).json({ error: 'Failed to fetch weather data' });
+    console.error('[Weather Proxy] Failed after retries:', error.message);
+    
+    // Try stale cache as fallback
+    const staleCache = weatherCache.get(cacheKey);
+    if (staleCache) {
+      console.log('[Weather Proxy] Using stale cache as fallback');
+      return res.json(staleCache.data);
+    }
+    
+    res.status(502).json({ error: 'Weather service temporarily unavailable', isFallback: true });
   }
 });
 
@@ -186,6 +249,14 @@ app.get('/api/weather/forecast', async (req, res) => {
   const { lat, lon } = req.query;
   if (!lat || !lon) {
     return res.status(400).json({ error: 'Missing lat or lon parameters' });
+  }
+
+  const cacheKey = `forecast_${lat}_${lon}`;
+  
+  // Try cache first
+  const cached = getCachedWeather(cacheKey);
+  if (cached) {
+    return res.json(cached);
   }
 
   const url = [
@@ -197,15 +268,23 @@ app.get('/api/weather/forecast', async (req, res) => {
   ].join('');
 
   try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status} from Open-Meteo`);
-    }
-    const data = await response.json();
+    console.log(`[Weather Forecast Proxy] Fetching forecast for (${lat}, ${lon})`);
+    const data = await fetchWithRetry(url);
+    
+    // Cache successful response
+    setCachedWeather(cacheKey, data);
     res.json(data);
   } catch (error) {
-    console.error('[Weather Forecast Proxy] Error:', error.message);
-    res.status(500).json({ error: 'Failed to fetch forecast data' });
+    console.error('[Weather Forecast Proxy] Failed after retries:', error.message);
+    
+    // Try stale cache as fallback
+    const staleCache = weatherCache.get(cacheKey);
+    if (staleCache) {
+      console.log('[Weather Forecast Proxy] Using stale cache as fallback');
+      return res.json(staleCache.data);
+    }
+    
+    res.status(502).json({ error: 'Forecast service temporarily unavailable', isFallback: true });
   }
 });
 
