@@ -131,7 +131,7 @@ export function useAuth() {
     };
   }, [syncUserWithBackend]);
 
-  // Register with Supabase
+  // Register with Supabase - IMPROVED with duplicate email handling
   const register = useCallback(async (email, username, password) => {
     try {
       const { data, error: signUpError } = await supabase.auth.signUp({
@@ -145,7 +145,29 @@ export function useAuth() {
         }
       });
 
+      // Handle duplicate email error
       if (signUpError) {
+        console.error('[useAuth] Signup error:', signUpError);
+        
+        // Check for duplicate email (user already registered)
+        if (signUpError.message?.toLowerCase().includes('already registered') ||
+            signUpError.message?.toLowerCase().includes('user already registered') ||
+            signUpError.status === 400 && signUpError.message?.includes('email')) {
+          return {
+            success: false,
+            error: `An account with ${email} already exists. Please sign in instead.`,
+            isDuplicate: true
+          };
+        }
+        
+        // Handle rate limiting
+        if (signUpError.message?.toLowerCase().includes('rate limit')) {
+          return {
+            success: false,
+            error: 'Too many attempts. Please wait a few minutes before trying again.',
+          };
+        }
+        
         return {
           success: false,
           error: signUpError.message
