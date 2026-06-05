@@ -1,18 +1,15 @@
-/* ProfilePage.css - Complete file */
+/* ProfilePage.css - No nested cards, just one clean page */
 
 .ug-root {
   min-height: 100vh;
   background: var(--bg);
-}
-
-.profile-container {
   padding: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: calc(100vh - 40px);
 }
 
+/* The ONLY card - no containers around it */
 .profile-card {
   max-width: 500px;
   width: 100%;
@@ -29,7 +26,7 @@
   border-color: rgba(255, 255, 255, 0.08);
 }
 
-/* Header */
+/* Rest of your styles... */
 .profile-header {
   display: flex;
   align-items: center;
@@ -48,7 +45,6 @@
   color: #2563eb;
   padding: 8px 12px;
   border-radius: 40px;
-  transition: all 0.2s ease;
   font-size: 14px;
   font-weight: 500;
   font-family: 'Inter', sans-serif;
@@ -57,15 +53,10 @@
 .profile-back-btn svg {
   width: 18px;
   height: 18px;
-  transition: transform 0.2s ease;
 }
 
 .profile-back-btn:hover {
   background: rgba(37, 99, 235, 0.1);
-}
-
-.profile-back-btn:hover svg {
-  transform: translateX(-2px);
 }
 
 .profile-header h1 {
@@ -76,7 +67,6 @@
   margin: 0;
 }
 
-/* Avatar section */
 .profile-avatar-section {
   text-align: center;
   padding: 32px 24px;
@@ -89,13 +79,7 @@
   border-radius: 50%;
   margin-bottom: 20px;
   border: 3px solid #2563eb;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   object-fit: cover;
-  transition: transform 0.2s ease;
-}
-
-.profile-avatar:hover {
-  transform: scale(1.02);
 }
 
 .profile-avatar-section h2 {
@@ -120,7 +104,6 @@
   opacity: 0.7;
 }
 
-/* Sections */
 .profile-section {
   padding: 20px 24px;
   border-bottom: 0.5px solid var(--border);
@@ -138,7 +121,6 @@
   color: #ef4444;
 }
 
-/* Settings list */
 .profile-settings-list {
   display: flex;
   flex-direction: column;
@@ -168,7 +150,6 @@
   background: rgba(96, 165, 250, 0.15);
 }
 
-/* Setting icon */
 .profile-setting-icon {
   display: flex;
   align-items: center;
@@ -234,7 +215,6 @@
   transform: translateX(3px);
 }
 
-/* Danger zone */
 .profile-danger-btn {
   border: 1px solid rgba(239, 68, 68, 0.2);
 }
@@ -248,7 +228,6 @@
   color: #ef4444;
 }
 
-/* Loading */
 .profile-loading {
   text-align: center;
   padding: 60px;
@@ -267,13 +246,6 @@
   color: #2563eb;
 }
 
-.profile-loading p {
-  font-family: 'Inter', sans-serif;
-  font-size: 14px;
-  color: var(--sub);
-}
-
-/* Error */
 .profile-error {
   text-align: center;
   padding: 48px;
@@ -281,101 +253,25 @@
   border-radius: 32px;
 }
 
-.profile-error span {
-  font-size: 48px;
-  display: block;
-  margin-bottom: 16px;
-}
-
-.profile-error p {
-  font-family: 'Inter', sans-serif;
-  color: var(--text);
-  margin-bottom: 20px;
-}
-
-.profile-error button {
-  padding: 10px 24px;
-  background: #2563eb;
-  color: white;
-  border: none;
-  border-radius: 40px;
-  cursor: pointer;
-  font-size: 14px;
-  font-family: 'Inter', sans-serif;
-  transition: background 0.2s;
-}
-
-.profile-error button:hover {
-  background: #1d4ed8;
-}
-
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
-/* Mobile */
 @media (max-width: 600px) {
-  .profile-container {
-    padding: 12px;
-  }
-
-  .profile-card {
-    border-radius: 24px;
-  }
-
-  .profile-header {
-    padding: 16px 18px;
-  }
-
-  .profile-header h1 {
-    font-size: 20px;
-  }
-
-  .profile-back-btn {
-    padding: 6px 10px;
-  }
-
-  .profile-back-btn span {
-    display: none;
-  }
-
-  .profile-avatar-section {
-    padding: 24px 18px;
-  }
-
-  .profile-avatar {
-    width: 100px;
-    height: 100px;
-  }
-
-  .profile-avatar-section h2 {
-    font-size: 20px;
-  }
-
-  .profile-section {
-    padding: 16px 18px;
-  }
-
-  .profile-setting-btn {
-    padding: 12px 14px;
-  }
-
-  .profile-setting-icon {
-    width: 38px;
-    height: 38px;
-  }
-
-  .profile-setting-icon svg {
-    width: 18px;
-    height: 18px;
-  }
+  .ug-root { padding: 12px; }
+  .profile-card { border-radius: 24px; }
+  .profile-header { padding: 16px 18px; }
+  .profile-header h1 { font-size: 20px; }
+  .profile-back-btn span { display: none; }
+  .profile-avatar-section { padding: 24px 18px; }
+  .profile-avatar { width: 100px; height: 100px; }
+  .profile-avatar-section h2 { font-size: 20px; }
+  .profile-section { padding: 16px 18px; }
+  .profile-setting-btn { padding: 12px 14px; }
+  .profile-setting-icon { width: 38px; height: 38px; }
+  .profile-setting-icon svg { width: 18px; height: 18px; }
 }
 
-/* Tablet & Desktop */
 @media (min-width: 601px) {
-  .profile-back-btn span {
-    display: inline;
-  }
+  .profile-back-btn span { display: inline; }
 }
