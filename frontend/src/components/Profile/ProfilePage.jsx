@@ -2,13 +2,64 @@
 import { useState, useEffect } from "react";
 import { useAuthContext } from "../../context/AuthContext";
 import { API_URL } from "../../config";
+import EditProfileModal from "./EditProfileModal";
+import ChangePasswordModal from "./ChangePasswordModal";
+import DeleteAccountModal from "./DeleteAccountModal";
 import "./ProfilePage.css";
+
+// Modern SVG Icons
+const IconBack = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M19 12H5M12 19l-7-7 7-7" />
+  </svg>
+);
+
+const IconEdit = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 3l4 4-7 7-4-4 7-7z" />
+    <path d="M4 20l4-4 4 4" />
+    <path d="M3 21h18" />
+  </svg>
+);
+
+const IconLock = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="5" y="11" width="14" height="11" rx="2" ry="2" />
+    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+  </svg>
+);
+
+const IconTrash = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <line x1="10" y1="11" x2="10" y2="17" />
+    <line x1="14" y1="11" x2="14" y2="17" />
+  </svg>
+);
+
+const IconArrowRight = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="9 18 15 12 9 6" />
+  </svg>
+);
+
+const IconSpinner = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="profile-spinner-icon">
+    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+  </svg>
+);
 
 export default function ProfilePage() {
   const { user, getAuthHeader } = useAuthContext();
   const [profile, setProfile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Modal states
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   // Fetch user profile from backend
   useEffect(() => {
@@ -49,11 +100,25 @@ export default function ProfilePage() {
     });
   };
 
+  const handleUsernameUpdate = (newUsername) => {
+    setProfile(prev => ({ ...prev, username: newUsername }));
+  };
+
+  const handlePasswordUpdate = () => {
+    // Password updated successfully
+    console.log("[ProfilePage] Password updated");
+  };
+
+  const handleAccountDelete = () => {
+    // Account deleted, redirect to login
+    window.location.href = "/login";
+  };
+
   if (isLoading) {
     return (
       <div className="profile-container">
         <div className="profile-loading">
-          <div className="profile-spinner" />
+          <IconSpinner />
           <p>Loading profile...</p>
         </div>
       </div>
@@ -93,7 +158,8 @@ export default function ProfilePage() {
             onClick={() => (window.location.href = "/")}
             aria-label="Go back"
           >
-            ← Back
+            <IconBack />
+            <span>Back</span>
           </button>
           <h1>My Profile</h1>
         </div>
@@ -116,22 +182,28 @@ export default function ProfilePage() {
         <div className="profile-section">
           <h3>Account Settings</h3>
           <div className="profile-settings-list">
-            <button className="profile-setting-btn">
-              <span>✏️</span>
+            <button 
+              className="profile-setting-btn"
+              onClick={() => setIsEditModalOpen(true)}
+            >
+              <span className="profile-setting-icon"><IconEdit /></span>
               <div className="profile-setting-info">
                 <strong>Edit Username</strong>
                 <span>Change your display name</span>
               </div>
-              <span className="profile-setting-arrow">→</span>
+              <span className="profile-setting-arrow"><IconArrowRight /></span>
             </button>
 
-            <button className="profile-setting-btn">
-              <span>🔒</span>
+            <button 
+              className="profile-setting-btn"
+              onClick={() => setIsPasswordModalOpen(true)}
+            >
+              <span className="profile-setting-icon"><IconLock /></span>
               <div className="profile-setting-info">
                 <strong>Change Password</strong>
                 <span>Update your password</span>
               </div>
-              <span className="profile-setting-arrow">→</span>
+              <span className="profile-setting-arrow"><IconArrowRight /></span>
             </button>
           </div>
         </div>
@@ -140,17 +212,40 @@ export default function ProfilePage() {
         <div className="profile-section profile-danger-zone">
           <h3>Danger Zone</h3>
           <div className="profile-settings-list">
-            <button className="profile-setting-btn profile-danger-btn">
-              <span>🗑️</span>
+            <button 
+              className="profile-setting-btn profile-danger-btn"
+              onClick={() => setIsDeleteModalOpen(true)}
+            >
+              <span className="profile-setting-icon"><IconTrash /></span>
               <div className="profile-setting-info">
                 <strong>Delete Account</strong>
                 <span>Permanently delete your account and all data</span>
               </div>
-              <span className="profile-setting-arrow">→</span>
+              <span className="profile-setting-arrow"><IconArrowRight /></span>
             </button>
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      <EditProfileModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        currentUsername={profile.username}
+        onUpdate={handleUsernameUpdate}
+      />
+
+      <ChangePasswordModal
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+        onSuccess={handlePasswordUpdate}
+      />
+
+      <DeleteAccountModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleAccountDelete}
+      />
     </div>
   );
 }
