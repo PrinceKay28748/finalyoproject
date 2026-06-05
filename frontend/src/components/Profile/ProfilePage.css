@@ -1,9 +1,7 @@
 /* ProfilePage.css - Clean, matches system theme */
 
-.ug-root.profile-container {
+.profile-container {
   min-height: 100vh;
-  /* Fix 1: Use --bg (true page background), not --panel (card surface).
-     --panel behind a glass card creates the double-card visual. */
   background: var(--bg);
   padding: 20px;
   display: flex;
@@ -11,20 +9,18 @@
   justify-content: center;
 }
 
-/* Fix 2: Profile card is the ONLY surface layer.
-   Removed backdrop-filter — it only adds visual noise when --bg is a flat
-   color; the card gets its depth from border + shadow alone. */
 .profile-card {
   max-width: 500px;
   width: 100%;
   background: var(--panel);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-radius: 32px;
-  border: 0.5px solid var(--border);
+  border: 0.5px solid rgba(255, 255, 255, 0.2);
   box-shadow: var(--shadow-card);
   overflow: hidden;
 }
 
-/* Dark mode — tighten border so card reads against dark --bg */
 .ug-root.dark .profile-card {
   background: var(--panel);
   border-color: rgba(255, 255, 255, 0.08);
@@ -330,7 +326,7 @@
 
 /* Mobile */
 @media (max-width: 600px) {
-  .ug-root.profile-container {
+  .profile-container {
     padding: 12px;
   }
 
