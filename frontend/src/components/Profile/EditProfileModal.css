@@ -1,4 +1,4 @@
-/* EditProfileModal.css - Uses CSS variables, matches system theme */
+/* EditProfileModal.css - Glassmorphism with good contrast */
 
 .modal-overlay {
   position: fixed;
@@ -6,8 +6,8 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -16,19 +16,23 @@
 }
 
 .modal-content {
-  background: var(--card);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-radius: 28px;
   width: 90%;
   max-width: 400px;
   overflow: hidden;
   animation: slideUp 0.3s ease;
-  box-shadow: var(--shadow-card);
-  border: 0.5px solid var(--border);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.2);
+  border: 0.5px solid rgba(255, 255, 255, 0.5);
 }
 
 .ug-root.dark .modal-content {
-  background: var(--card);
-  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(18, 18, 24, 0.95);
+  backdrop-filter: blur(20px);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
 }
 
 .modal-header {
@@ -36,30 +40,44 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 0.5px solid var(--border);
+  border-bottom: 0.5px solid rgba(0, 0, 0, 0.08);
+}
+
+.ug-root.dark .modal-header {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
 }
 
 .modal-header h3 {
   font-size: 18px;
   font-weight: 700;
   font-family: 'Outfit', sans-serif;
-  color: var(--text);
+  color: #111827;
   margin: 0;
 }
 
+.ug-root.dark .modal-header h3 {
+  color: #f9fafb;
+}
+
 .modal-close {
-  background: var(--hover-row);
-  border: 0.5px solid var(--border);
+  background: rgba(0, 0, 0, 0.06);
+  border: 0.5px solid rgba(0, 0, 0, 0.1);
   border-radius: 40px;
   width: 32px;
   height: 32px;
   font-size: 16px;
   cursor: pointer;
-  color: var(--text);
+  color: #374151;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
+}
+
+.ug-root.dark .modal-close {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #d1d5db;
 }
 
 .modal-close:hover {
@@ -76,20 +94,30 @@
   font-size: 13px;
   font-weight: 600;
   font-family: 'Outfit', sans-serif;
-  color: var(--text);
+  color: #111827;
   margin-bottom: 8px;
+}
+
+.ug-root.dark .modal-form-group label {
+  color: #f9fafb;
 }
 
 .modal-form-group input {
   width: 100%;
   padding: 14px 16px;
-  background: var(--input-bg);
-  border: 0.5px solid var(--border);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 16px;
   font-size: 14px;
   font-family: 'Inter', sans-serif;
-  color: var(--text);
+  color: #111827;
   transition: all 0.2s ease;
+}
+
+.ug-root.dark .modal-form-group input {
+  background: #2c2c2e;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #f9fafb;
 }
 
 .modal-form-group input:focus {
@@ -98,11 +126,19 @@
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
+.ug-root.dark .modal-form-group input:focus {
+  background: #3a3a3c;
+}
+
 .modal-hint {
   font-size: 11px;
   font-family: 'Inter', sans-serif;
-  color: var(--sub);
+  color: #6b7280;
   margin-top: 8px;
+}
+
+.ug-root.dark .modal-hint {
+  color: #9ca3af;
 }
 
 .modal-error {
@@ -116,14 +152,18 @@
   border-radius: 14px;
   font-size: 13px;
   font-family: 'Inter', sans-serif;
-  border: 0.5px solid rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
 .modal-actions {
   display: flex;
   gap: 12px;
   padding: 20px 24px;
-  border-top: 0.5px solid var(--border);
+  border-top: 0.5px solid rgba(0, 0, 0, 0.08);
+}
+
+.ug-root.dark .modal-actions {
+  border-top-color: rgba(255, 255, 255, 0.08);
 }
 
 .modal-btn-cancel,
@@ -141,12 +181,21 @@
 
 .modal-btn-cancel {
   background: transparent;
-  color: var(--text);
-  border: 0.5px solid var(--border);
+  color: #374151;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.ug-root.dark .modal-btn-cancel {
+  color: #d1d5db;
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .modal-btn-cancel:hover {
-  background: var(--hover-row);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.ug-root.dark .modal-btn-cancel:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .modal-btn-save {
