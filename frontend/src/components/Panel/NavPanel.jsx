@@ -14,10 +14,11 @@ import {
 } from "../ui/icon";
 import "./NavPanel.css";
 
-// Avatar component using Navii
+// Avatar component using Navii (CORRECTED URL)
 function Avatar({ username, size = 32, onClick }) {
   const seed = username || "guest";
-  const avatarUrl = `https://navii.dev/api/avatar?seed=${encodeURIComponent(seed)}&size=${size}&motion=true`;
+  // FIXED: Use api.navii.dev/avatar/{seed} format
+  const avatarUrl = `https://api.navii.dev/avatar/${encodeURIComponent(seed)}?size=${size}&motion=true`;
 
   return (
     <button
@@ -195,7 +196,7 @@ export default function NavPanel({
   // Allow parent to control expansion
   isExpanded: externalIsExpanded,
   onExpandRequest,
-  onClose, // NEW: callback when user clicks outside to dismiss
+  onClose,
 }) {
   const [internalIsExpanded, setInternalIsExpanded] = useState(false);
   const [hasRoute, setHasRoute] = useState(false);
@@ -236,7 +237,6 @@ export default function NavPanel({
     setIsExpanded(false);
   };
 
-  // Close handler - also closes parent if callback provided
   const handleClose = () => {
     setIsExpanded(false);
     if (onClose) onClose();
@@ -281,7 +281,7 @@ export default function NavPanel({
               </svg>
             </div>
 
-            {/* NEW: Avatar next to logo */}
+            {/* Avatar in COMPACT view */}
             <Avatar
               username={user?.username}
               size={32}
@@ -402,6 +402,14 @@ export default function NavPanel({
                 />
               </svg>
             </div>
+
+            {/* Avatar in EXPANDED view */}
+            <Avatar
+              username={user?.username}
+              size={32}
+              onClick={() => (window.location.href = "/profile")}
+            />
+
             <div>
               <p className="nav-title">UG Navigator</p>
               <p className="nav-subtitle">
