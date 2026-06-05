@@ -24,7 +24,7 @@ setInterval(() => {
 function isEmailRateLimited(email) {
   const now = Date.now();
   const record = passwordResetRequests.get(email);
-  
+
   if (!record) return false;
   if (now > record.resetTime) {
     passwordResetRequests.delete(email);
@@ -36,7 +36,7 @@ function isEmailRateLimited(email) {
 function updateEmailRateLimit(email) {
   const now = Date.now();
   const record = passwordResetRequests.get(email);
-  
+
   if (!record) {
     passwordResetRequests.set(email, {
       count: 1,
@@ -59,7 +59,7 @@ async function getOrCreateResetToken(email) {
      LIMIT 1`,
     [email.toLowerCase()]
   );
-  
+
   if (existing.rows.length > 0) {
     // Refresh expiry (extend by 1 hour)
     const tokenHash = existing.rows[0].token_hash;
@@ -72,18 +72,18 @@ async function getOrCreateResetToken(email) {
     );
     return tokenHash;
   }
-  
+
   // Create new token
   const token = crypto.randomBytes(32).toString('hex');
   const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
-  
+
   await query(
     `INSERT INTO password_resets (email, token_hash, expires_at, created_at)
      VALUES (?, ?, ?, NOW())`,
     [email.toLowerCase(), tokenHash, expiresAt.toISOString()]
   );
-  
+
   return token;
 }
 
@@ -91,25 +91,25 @@ async function getOrCreateResetToken(email) {
 router.post('/forgot-password', async (req, res) => {
   const { email } = req.body;
   const ip = req.ip || req.socket.remoteAddress;
-  
+
   if (!email) {
     return res.status(400).json({ error: 'Email is required' });
   }
-  
+
   if (isEmailRateLimited(email.toLowerCase())) {
     console.warn(`[RateLimit] Password reset rate limit exceeded for email: ${email}, IP: ${ip}`);
     return res.json({
       message: 'If an account exists with that email, you will receive a password reset link.'
     });
   }
-  
+
   try {
     // Get or create token (idempotent)
     const tokenHash = await getOrCreateResetToken(email);
-    
+
     // Update rate limit
     updateEmailRateLimit(email.toLowerCase());
-    
+
     // Initialize Supabase client
     const supabase = createClient(
       process.env.SUPABASE_URL,
@@ -121,22 +121,22 @@ router.post('/forgot-password', async (req, res) => {
         }
       }
     );
-    
+
     // Send email via Supabase with the token
     const resetLink = `${process.env.FRONTEND_URL || 'https://ugnavigator.onrender.com'}/reset-password?token=${tokenHash}`;
-    
+
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: resetLink,
     });
-    
+
     if (error) {
       console.error('[ForgotPassword] Supabase error:', error.message);
     }
-    
+
     res.json({
       message: 'If an account exists with that email, you will receive a password reset link.'
     });
-    
+
   } catch (error) {
     console.error('[ForgotPassword] Error:', error.message);
     res.json({
@@ -185,11 +185,11 @@ router.patch('/update-username', verifyToken, async (req, res) => {
 router.post('/resend', async (req, res) => {
   const { email } = req.body;
   const ip = req.ip || req.socket.remoteAddress;
-  
+
   if (!email) {
     return res.status(400).json({ error: 'Email is required' });
   }
-  
+
   // Check rate limit (same as forgot-password)
   if (isEmailRateLimited(email.toLowerCase())) {
     console.warn(`[RateLimit] Resend rate limit exceeded for email: ${email}, IP: ${ip}`);
@@ -197,7 +197,7 @@ router.post('/resend', async (req, res) => {
       message: 'If an account exists with that email, you will receive a password reset link.'
     });
   }
-  
+
   try {
     // Get existing token (don't create new if doesn't exist)
     const existing = await query(
@@ -209,10 +209,10 @@ router.post('/resend', async (req, res) => {
        LIMIT 1`,
       [email.toLowerCase()]
     );
-    
+
     let tokenHash;
     let isNewToken = false;
-    
+
     if (existing.rows.length > 0) {
       // Refresh existing token
       tokenHash = existing.rows[0].token_hash;
@@ -228,7 +228,7 @@ router.post('/resend', async (req, res) => {
       const token = crypto.randomBytes(32).toString('hex');
       tokenHash = crypto.createHash('sha256').update(token).digest('hex');
       const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
-      
+
       await query(
         `INSERT INTO password_resets (email, token_hash, expires_at, created_at)
          VALUES (?, ?, ?, NOW())`,
@@ -236,10 +236,10 @@ router.post('/resend', async (req, res) => {
       );
       isNewToken = true;
     }
-    
+
     // Update rate limit
     updateEmailRateLimit(email.toLowerCase());
-    
+
     // Send email via Supabase
     const supabase = createClient(
       process.env.SUPABASE_URL,
@@ -251,23 +251,23 @@ router.post('/resend', async (req, res) => {
         }
       }
     );
-    
+
     const resetLink = `${process.env.FRONTEND_URL || 'https://ugnavigator.onrender.com'}/reset-password?token=${tokenHash}`;
-    
+
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: resetLink,
     });
-    
+
     if (error) {
       console.error('[Resend] Supabase error:', error.message);
     }
-    
+
     res.json({
-      message: isNewToken 
+      message: isNewToken
         ? 'A new password reset link has been sent to your email.'
         : 'Your password reset link has been refreshed and resent.'
     });
-    
+
   } catch (error) {
     console.error('[Resend] Error:', error.message);
     res.json({
@@ -314,8 +314,8 @@ router.patch('/preferences', verifyToken, async (req, res) => {
            notifications_enabled = COALESCE(?, notifications_enabled),
            updated_at = CURRENT_TIMESTAMP
        WHERE user_id = ?`,
-      [activeProfile || null, darkMode !== undefined ? darkMode : null, 
-       notificationsEnabled !== undefined ? notificationsEnabled : null, userId]
+      [activeProfile || null, darkMode !== undefined ? darkMode : null,
+      notificationsEnabled !== undefined ? notificationsEnabled : null, userId]
     );
 
     const prefs = await query(
@@ -330,19 +330,80 @@ router.patch('/preferences', verifyToken, async (req, res) => {
   }
 });
 
-// ─── Delete Account (soft delete in your users table) ───────────────────────
+// ─── Delete Account (soft delete + remove Supabase Auth access) ─────────────
 router.delete('/me', verifyToken, async (req, res) => {
+  const { userId, email } = req.user;
+
   try {
-    const { userId } = req.user;
+    // 1. FIRST: Delete from Supabase Auth (prevents future logins)
+    const supabaseAdmin = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
+
+    const { error: supabaseError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+
+    if (supabaseError) {
+      console.error('[Auth Delete] Supabase error:', supabaseError);
+      // Continue with local deletion even if Supabase fails
+      // (user might not exist in Supabase or service key issue)
+    } else {
+      console.log('[Auth Delete] Supabase user deleted:', userId);
+    }
+
+    // 2. Soft delete and anonymize in local users table
+    const timestamp = new Date().toISOString();
+    const anonymizedEmail = `${email.split('@')[0]}.deleted.${Date.now()}@deleted.com`;
+    const anonymizedUsername = `deleted_${Date.now()}`;
 
     await query(
-      `UPDATE users SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      `UPDATE users 
+       SET deleted_at = ?,
+           email = ?,
+           username = ?,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [timestamp, anonymizedEmail, anonymizedUsername, userId]
+    );
+
+    // 3. Anonymize user's reports (keep data for audit)
+    await query(
+      `UPDATE accessibility_reports 
+       SET submitted_by = NULL,
+           submitter_email = NULL
+       WHERE submitted_by = ?`,
       [userId]
     );
 
-    res.json({ message: 'Account deleted successfully' });
+    // 4. Delete user preferences (no need to keep)
+    await query(
+      `DELETE FROM user_preferences WHERE user_id = ?`,
+      [userId]
+    );
+
+    // 5. Revoke any refresh tokens
+    await query(
+      `UPDATE refresh_tokens 
+       SET revoked_at = CURRENT_TIMESTAMP 
+       WHERE user_id = ? AND revoked_at IS NULL`,
+      [userId]
+    );
+
+    console.log('[Auth Delete] User soft deleted and anonymized:', userId);
+
+    res.json({
+      message: 'Account deleted successfully. You have been logged out.',
+      deletedAt: timestamp
+    });
+
   } catch (error) {
-    console.error('[Auth Delete]', error.message);
+    console.error('[Auth Delete] Error:', error.message);
     res.status(500).json({ error: 'Failed to delete account' });
   }
 });
