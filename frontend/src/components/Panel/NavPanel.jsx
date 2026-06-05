@@ -14,21 +14,24 @@ import {
 } from "../ui/icon";
 import "./NavPanel.css";
 
-// Avatar component using Navii (CORRECTED URL)
+// Avatar component using Navii (styled like glass buttons)
 function Avatar({ username, size = 32, onClick }) {
   const seed = username || "guest";
-  // FIXED: Use api.navii.dev/avatar/{seed} format
   const avatarUrl = `https://api.navii.dev/avatar/${encodeURIComponent(seed)}?size=${size}&motion=true`;
 
   return (
     <button
-      className="nav-avatar-btn"
+      className="nav-glass-btn nav-avatar-btn"
       onClick={onClick}
       aria-label="Profile settings"
       title={`${username || "User"} · Click to edit profile`}
-      style={{ width: size, height: size }}
+      style={{ width: size, height: size, padding: 0, overflow: "hidden" }}
     >
-      <img src={avatarUrl} alt={username || "Avatar"} />
+      <img 
+        src={avatarUrl} 
+        alt={username || "Avatar"} 
+        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+      />
     </button>
   );
 }
@@ -193,7 +196,6 @@ export default function NavPanel({
   locationError,
   darkMode,
   onToggleDarkMode,
-  // Allow parent to control expansion
   isExpanded: externalIsExpanded,
   onExpandRequest,
   onClose,
@@ -203,7 +205,6 @@ export default function NavPanel({
   const { logout, user } = useAuthContext();
   const focus = useFocus();
 
-  // Use external control if provided, otherwise use internal state
   const isExpanded =
     externalIsExpanded !== undefined ? externalIsExpanded : internalIsExpanded;
   const setIsExpanded = (value) => {
@@ -266,25 +267,10 @@ export default function NavPanel({
       <div className="nav-panel nav-panel--compact">
         <div className="nav-header">
           <div className="nav-header-left">
-            <div className="nav-logo">
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                aria-label="UG Navigator logo"
-              >
-                <path
-                  d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"
-                  fill="white"
-                />
-              </svg>
-            </div>
-
-            {/* Avatar in COMPACT view */}
+            {/* Avatar ONLY - no logo */}
             <Avatar
               username={user?.username}
-              size={32}
+              size={36}
               onClick={() => (window.location.href = "/profile")}
             />
 
@@ -313,14 +299,10 @@ export default function NavPanel({
             <button
               className="nav-glass-btn nav-mode-btn"
               onClick={onToggleDarkMode}
-              aria-label={
-                darkMode ? "Switch to light mode" : "Switch to dark mode"
-              }
+              aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
               title={`${user?.username || "User"} · ${darkMode ? "Light" : "Dark"} mode`}
             >
-              <span
-                className={`nav-mode-icon ${darkMode ? "nav-mode-icon--spin" : ""}`}
-              >
+              <span className={`nav-mode-icon ${darkMode ? "nav-mode-icon--spin" : ""}`}>
                 {darkMode ? <IconSunInline /> : <IconMoonInline />}
               </span>
             </button>
@@ -344,18 +326,12 @@ export default function NavPanel({
             aria-label="Edit route"
             onKeyDown={(e) => e.key === "Enter" && handleSearchFocus()}
           >
-            <span
-              className="nav-compact-dot nav-compact-dot--from"
-              aria-hidden="true"
-            />
+            <span className="nav-compact-dot nav-compact-dot--from" aria-hidden="true" />
             <span className="nav-compact-start">{startText}</span>
             <span className="nav-compact-arrow" aria-hidden="true">
               <IconArrowRight />
             </span>
-            <span
-              className="nav-compact-dot nav-compact-dot--to"
-              aria-hidden="true"
-            />
+            <span className="nav-compact-dot nav-compact-dot--to" aria-hidden="true" />
             <span className="nav-compact-dest">{destText}</span>
           </div>
           <button
@@ -374,39 +350,17 @@ export default function NavPanel({
   // ─── Expanded / collapsed view ───────────────────────────────────────────
   return (
     <>
-      {/* Click-outside backdrop — only visible when expanded */}
       {isExpanded && (
-        <div
-          className="nav-backdrop"
-          onClick={handleClose}
-          aria-hidden="true"
-        />
+        <div className="nav-backdrop" onClick={handleClose} aria-hidden="true" />
       )}
 
-      <div
-        className={`nav-panel ${isExpanded ? "nav-panel--expanded" : "nav-panel--collapsed"}`}
-      >
+      <div className={`nav-panel ${isExpanded ? "nav-panel--expanded" : "nav-panel--collapsed"}`}>
         <div className="nav-header">
           <div className="nav-header-left">
-            <div className="nav-logo">
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                aria-label="UG Navigator logo"
-              >
-                <path
-                  d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"
-                  fill="white"
-                />
-              </svg>
-            </div>
-
-            {/* Avatar in EXPANDED view */}
+            {/* Avatar ONLY - no logo */}
             <Avatar
               username={user?.username}
-              size={32}
+              size={36}
               onClick={() => (window.location.href = "/profile")}
             />
 
@@ -435,14 +389,10 @@ export default function NavPanel({
             <button
               className="nav-glass-btn nav-mode-btn"
               onClick={onToggleDarkMode}
-              aria-label={
-                darkMode ? "Switch to light mode" : "Switch to dark mode"
-              }
+              aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
               title={`${user?.username || "User"} · ${darkMode ? "Light" : "Dark"} mode`}
             >
-              <span
-                className={`nav-mode-icon ${darkMode ? "nav-mode-icon--spin" : ""}`}
-              >
+              <span className={`nav-mode-icon ${darkMode ? "nav-mode-icon--spin" : ""}`}>
                 {darkMode ? <IconSunInline /> : <IconMoonInline />}
               </span>
             </button>
@@ -484,11 +434,7 @@ export default function NavPanel({
                 value={startText}
                 onChange={onStartTextChange}
                 onSelect={(location) => {
-                  focus.setFocus(
-                    "location",
-                    location.name || location.lat.toFixed(4),
-                    "search",
-                  );
+                  focus.setFocus("location", location.name || location.lat.toFixed(4), "search");
                   onStartSelect(location);
                 }}
                 onUseCurrentLocation={onUseCurrentLocation}
@@ -510,11 +456,7 @@ export default function NavPanel({
                 value={destText}
                 onChange={onDestTextChange}
                 onSelect={(location) => {
-                  focus.setFocus(
-                    "location",
-                    location.name || location.lat.toFixed(4),
-                    "search",
-                  );
+                  focus.setFocus("location", location.name || location.lat.toFixed(4), "search");
                   onDestSelect(location);
                 }}
                 onUseCurrentLocation={() => {}}
@@ -525,18 +467,8 @@ export default function NavPanel({
             </div>
 
             <div className="nav-action-row">
-              <button
-                className="nav-reset-btn"
-                onClick={handleResetClick}
-                aria-label="Reset route"
-              >
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  aria-hidden="true"
-                >
+              <button className="nav-reset-btn" onClick={handleResetClick} aria-label="Reset route">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path
                     d="M3 12a9 9 0 109-9 9 9 0 00-6.16 2.42L3 8"
                     stroke="currentColor"
@@ -544,13 +476,7 @@ export default function NavPanel({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   />
-                  <path
-                    d="M3 3v5h5"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
+                  <path d="M3 3v5h5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
                 Reset
               </button>
@@ -583,11 +509,7 @@ export default function NavPanel({
                   viewBox="0 0 24 24"
                   fill="none"
                   aria-hidden="true"
-                  style={{
-                    display: "inline",
-                    marginRight: 4,
-                    verticalAlign: "middle",
-                  }}
+                  style={{ display: "inline", marginRight: 4, verticalAlign: "middle" }}
                 >
                   <path
                     d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
@@ -605,11 +527,7 @@ export default function NavPanel({
                   viewBox="0 0 24 24"
                   fill="none"
                   aria-hidden="true"
-                  style={{
-                    display: "inline",
-                    marginRight: 4,
-                    verticalAlign: "middle",
-                  }}
+                  style={{ display: "inline", marginRight: 4, verticalAlign: "middle" }}
                 >
                   <path
                     d="M20 6L9 17l-5-5"
