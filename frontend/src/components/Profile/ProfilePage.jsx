@@ -56,33 +56,10 @@ export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Modal states
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-  // Read dark mode from localStorage to apply class
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
-  useEffect(() => {
-    const checkDarkMode = () => {
-      try {
-        const prefs = localStorage.getItem("ug_preferences");
-        if (prefs) {
-          const { darkMode } = JSON.parse(prefs);
-          setIsDarkMode(darkMode === true);
-        }
-      } catch (e) {}
-    };
-    
-    checkDarkMode();
-    
-    // Listen for changes
-    window.addEventListener("storage", checkDarkMode);
-    return () => window.removeEventListener("storage", checkDarkMode);
-  }, []);
-
-  // Fetch user profile from backend
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -110,7 +87,6 @@ export default function ProfilePage() {
     fetchProfile();
   }, [getAuthHeader]);
 
-  // Format date for display
   const formatDate = (dateString) => {
     if (!dateString) return "Unknown";
     const date = new Date(dateString);
@@ -133,44 +109,36 @@ export default function ProfilePage() {
     window.location.href = "/login";
   };
 
-  const rootClass = `ug-root ${isDarkMode ? "dark" : ""} profile-container`;
-
   if (isLoading) {
     return (
-      <div className={rootClass}>
-        <div className="profile-loading">
-          <IconSpinner />
-          <p>Loading profile...</p>
-        </div>
+      <div className="profile-loading">
+        <IconSpinner />
+        <p>Loading profile...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className={rootClass}>
-        <div className="profile-error">
-          <span>⚠️</span>
-          <p>{error}</p>
-          <button onClick={() => window.location.reload()}>Try Again</button>
-        </div>
+      <div className="profile-error">
+        <span>⚠️</span>
+        <p>{error}</p>
+        <button onClick={() => window.location.reload()}>Try Again</button>
       </div>
     );
   }
 
   if (!profile) {
     return (
-      <div className={rootClass}>
-        <div className="profile-error">
-          <p>No profile data found</p>
-          <button onClick={() => (window.location.href = "/")}>Go Home</button>
-        </div>
+      <div className="profile-error">
+        <p>No profile data found</p>
+        <button onClick={() => (window.location.href = "/")}>Go Home</button>
       </div>
     );
   }
 
   return (
-    <div className={rootClass}>
+    <>
       <div className="profile-card">
         {/* Header with back button */}
         <div className="profile-header">
@@ -267,6 +235,6 @@ export default function ProfilePage() {
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={handleAccountDelete}
       />
-    </div>
+    </>
   );
 }
