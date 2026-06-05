@@ -15,7 +15,7 @@ import {
 import "./NavPanel.css";
 
 // Avatar component using Navii (styled like glass buttons)
-function Avatar({ username, size = 32, onClick }) {
+function Avatar({ username, size = 44, onClick }) {
   const seed = username || "guest";
   const avatarUrl = `https://api.navii.dev/avatar/${encodeURIComponent(seed)}?size=${size}&motion=true`;
 
@@ -270,7 +270,7 @@ export default function NavPanel({
             {/* Avatar ONLY - no logo */}
             <Avatar
               username={user?.username}
-              size={36}
+              size={44}
               onClick={() => (window.location.href = "/profile")}
             />
 
@@ -360,7 +360,7 @@ export default function NavPanel({
             {/* Avatar ONLY - no logo */}
             <Avatar
               username={user?.username}
-              size={36}
+              size={44}
               onClick={() => (window.location.href = "/profile")}
             />
 

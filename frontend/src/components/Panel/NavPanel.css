@@ -851,7 +851,7 @@
 }
 
 
-/* Avatar button - same as other glass buttons */
+/* Avatar button - HCI compliant 44×44px touch target */
 .nav-avatar-btn {
   flex-shrink: 0;
   margin-right: 8px;
@@ -860,10 +860,10 @@
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
   border: 0.5px solid rgba(255, 255, 255, 0.55);
-  min-width: 36px;
-  min-height: 36px;
-  width: 36px;
-  height: 36px;
+  min-width: 44px;
+  min-height: 44px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   cursor: pointer;
   transition:
@@ -901,6 +901,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: 50%;
 }
 
 /* Dark mode avatar button */
