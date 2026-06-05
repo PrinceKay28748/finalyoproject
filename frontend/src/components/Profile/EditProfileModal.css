@@ -151,6 +151,22 @@
   cursor: not-allowed;
 }
 
+/* Additional styles for password and delete modals */
+.modal-form-group input[type="password"] {
+  font-family: monospace;
+  letter-spacing: 2px;
+}
+
+.modal-btn-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modal-btn-save[style*="background: #ef4444"]:hover:not(:disabled) {
+  background: #dc2626 !important;
+  transform: translateY(-1px);
+}
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
