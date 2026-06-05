@@ -15,20 +15,26 @@
   animation: fadeIn 0.2s ease;
 }
 
+/* Fix 3: Use explicit opaque surface colors instead of CSS variables that may
+   resolve to semi-transparent glass values in this design system.
+   Light mode: white card. Dark mode: dark elevated surface.
+   This guarantees readable text in both modes regardless of --card / --drop-bg values. */
 .modal-content {
-  background: var(--card);
+  background: #ffffff;
   border-radius: 28px;
   width: 90%;
   max-width: 400px;
   overflow: hidden;
   animation: slideUp 0.3s ease;
-  box-shadow: var(--shadow-card);
-  border: 1px solid var(--border);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18), 0 4px 16px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
-/* Solid background for readability - no glass blur on content */
 .ug-root.dark .modal-content {
-  background: var(--drop-bg);
+  /* Solid dark surface — no transparency, no blur — guarantees legibility */
+  background: #1c1c1e;
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5), 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
 .modal-header {
@@ -36,30 +42,46 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.ug-root.dark .modal-header {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
 }
 
 .modal-header h3 {
   font-size: 18px;
   font-weight: 700;
   font-family: 'Outfit', sans-serif;
-  color: var(--text);
+  /* Fix: explicit colors instead of --text, which could be near-white on a
+     light background if the variable was set in a glass context */
+  color: #111827;
   margin: 0;
 }
 
+.ug-root.dark .modal-header h3 {
+  color: #f9fafb;
+}
+
 .modal-close {
-  background: var(--hover-row);
-  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 40px;
   width: 32px;
   height: 32px;
   font-size: 16px;
   cursor: pointer;
-  color: var(--text);
+  color: #374151;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
+}
+
+.ug-root.dark .modal-close {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #d1d5db;
 }
 
 .modal-close:hover {
@@ -76,33 +98,62 @@
   font-size: 13px;
   font-weight: 600;
   font-family: 'Outfit', sans-serif;
-  color: var(--text);
+  color: #111827;
   margin-bottom: 8px;
 }
 
+.ug-root.dark .modal-form-group label {
+  color: #f9fafb;
+}
+
+/* Fix: Opaque input background so typed text is always visible */
 .modal-form-group input {
   width: 100%;
   padding: 14px 16px;
-  background: var(--input-bg);
-  border: 1px solid var(--border);
+  background: #f3f4f6;
+  border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 16px;
   font-size: 14px;
   font-family: 'Inter', sans-serif;
-  color: var(--text);
+  color: #111827;
   transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.ug-root.dark .modal-form-group input {
+  background: #2c2c2e;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #f9fafb;
+}
+
+.modal-form-group input::placeholder {
+  color: #9ca3af;
+}
+
+.ug-root.dark .modal-form-group input::placeholder {
+  color: #6b7280;
 }
 
 .modal-form-group input:focus {
   outline: none;
   border-color: #2563eb;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  background: #ffffff;
+}
+
+.ug-root.dark .modal-form-group input:focus {
+  background: #3a3a3c;
 }
 
 .modal-hint {
   font-size: 11px;
   font-family: 'Inter', sans-serif;
-  color: var(--sub);
+  color: #6b7280;
   margin-top: 8px;
+}
+
+.ug-root.dark .modal-hint {
+  color: #9ca3af;
 }
 
 .modal-error {
@@ -123,7 +174,11 @@
   display: flex;
   gap: 12px;
   padding: 20px 24px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.ug-root.dark .modal-actions {
+  border-top-color: rgba(255, 255, 255, 0.08);
 }
 
 .modal-btn-cancel,
@@ -141,12 +196,21 @@
 
 .modal-btn-cancel {
   background: transparent;
-  color: var(--text);
-  border: 1px solid var(--border);
+  color: #374151;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.ug-root.dark .modal-btn-cancel {
+  color: #d1d5db;
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .modal-btn-cancel:hover {
-  background: var(--hover-row);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.ug-root.dark .modal-btn-cancel:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .modal-btn-save {
