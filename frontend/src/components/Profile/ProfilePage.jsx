@@ -164,84 +164,81 @@ export default function ProfilePage() {
     );
   }
 
+  // DIRECT CONTENT - NO profile-container, NO profile-card
   return (
     <div className={`ug-root ${darkMode ? "dark" : ""}`}>
-      <div className="profile-container">
-        <div className="profile-card">
-          {/* Header */}
-          <div className="profile-header">
-            <button
-              className="profile-back-btn"
-              onClick={() => (window.location.href = "/")}
-              aria-label="Go back"
-            >
-              <IconBack />
-              <span>Back</span>
-            </button>
-            <h1>My Profile</h1>
-          </div>
+      {/* Header */}
+      <div className="profile-header">
+        <button
+          className="profile-back-btn"
+          onClick={() => (window.location.href = "/")}
+          aria-label="Go back"
+        >
+          <IconBack />
+          <span>Back</span>
+        </button>
+        <h1>My Profile</h1>
+      </div>
 
-          {/* Avatar Section */}
-          <div className="profile-avatar-section">
-            <img
-              src={`https://api.navii.dev/avatar/${encodeURIComponent(profile.username || profile.email)}?size=120&motion=true`}
-              alt="Profile avatar"
-              className="profile-avatar"
-            />
-            <h2>{profile.username || "User"}</h2>
-            <p className="profile-email">{profile.email}</p>
-            <p className="profile-member-since">
-              Member since {formatDate(profile.created_at)}
-            </p>
-          </div>
+      {/* Avatar Section */}
+      <div className="profile-avatar-section">
+        <img
+          src={`https://api.navii.dev/avatar/${encodeURIComponent(profile.username || profile.email)}?size=120&motion=true`}
+          alt="Profile avatar"
+          className="profile-avatar"
+        />
+        <h2>{profile.username || "User"}</h2>
+        <p className="profile-email">{profile.email}</p>
+        <p className="profile-member-since">
+          Member since {formatDate(profile.created_at)}
+        </p>
+      </div>
 
-          {/* Account Settings */}
-          <div className="profile-section">
-            <h3>Account Settings</h3>
-            <div className="profile-settings-list">
-              <button 
-                className="profile-setting-btn"
-                onClick={() => setIsEditModalOpen(true)}
-              >
-                <span className="profile-setting-icon"><IconEdit /></span>
-                <div className="profile-setting-info">
-                  <strong>Edit Username</strong>
-                  <span>Change your display name</span>
-                </div>
-                <span className="profile-setting-arrow"><IconArrowRight /></span>
-              </button>
-
-              <button 
-                className="profile-setting-btn"
-                onClick={() => setIsPasswordModalOpen(true)}
-              >
-                <span className="profile-setting-icon"><IconLock /></span>
-                <div className="profile-setting-info">
-                  <strong>Change Password</strong>
-                  <span>Update your password</span>
-                </div>
-                <span className="profile-setting-arrow"><IconArrowRight /></span>
-              </button>
+      {/* Account Settings */}
+      <div className="profile-section">
+        <h3>Account Settings</h3>
+        <div className="profile-settings-list">
+          <button 
+            className="profile-setting-btn"
+            onClick={() => setIsEditModalOpen(true)}
+          >
+            <span className="profile-setting-icon"><IconEdit /></span>
+            <div className="profile-setting-info">
+              <strong>Edit Username</strong>
+              <span>Change your display name</span>
             </div>
-          </div>
+            <span className="profile-setting-arrow"><IconArrowRight /></span>
+          </button>
 
-          {/* Danger Zone */}
-          <div className="profile-section profile-danger-zone">
-            <h3>Danger Zone</h3>
-            <div className="profile-settings-list">
-              <button 
-                className="profile-setting-btn profile-danger-btn"
-                onClick={() => setIsDeleteModalOpen(true)}
-              >
-                <span className="profile-setting-icon"><IconTrash /></span>
-                <div className="profile-setting-info">
-                  <strong>Delete Account</strong>
-                  <span>Permanently delete your account and all data</span>
-                </div>
-                <span className="profile-setting-arrow"><IconArrowRight /></span>
-              </button>
+          <button 
+            className="profile-setting-btn"
+            onClick={() => setIsPasswordModalOpen(true)}
+          >
+            <span className="profile-setting-icon"><IconLock /></span>
+            <div className="profile-setting-info">
+              <strong>Change Password</strong>
+              <span>Update your password</span>
             </div>
-          </div>
+            <span className="profile-setting-arrow"><IconArrowRight /></span>
+          </button>
+        </div>
+      </div>
+
+      {/* Danger Zone */}
+      <div className="profile-section profile-danger-zone">
+        <h3>Danger Zone</h3>
+        <div className="profile-settings-list">
+          <button 
+            className="profile-setting-btn profile-danger-btn"
+            onClick={() => setIsDeleteModalOpen(true)}
+          >
+            <span className="profile-setting-icon"><IconTrash /></span>
+            <div className="profile-setting-info">
+              <strong>Delete Account</strong>
+              <span>Permanently delete your account and all data</span>
+            </div>
+            <span className="profile-setting-arrow"><IconArrowRight /></span>
+          </button>
         </div>
       </div>
 
