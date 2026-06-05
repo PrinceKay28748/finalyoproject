@@ -1,8 +1,8 @@
-/* ProfilePage.css */
+/* ProfilePage.css - Modern UI with smooth animations */
 
 .profile-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #0f2b3d 0%, #145c74 100%);
+  background: var(--bg);
   padding: 20px;
   display: flex;
   align-items: center;
@@ -12,17 +12,25 @@
 .profile-card {
   max-width: 500px;
   width: 100%;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
+  background: var(--panel);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
   border-radius: 32px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  border: 0.5px solid rgba(255, 255, 255, 0.3);
+  box-shadow: var(--shadow-card);
   overflow: hidden;
-  animation: slideUp 0.3s ease;
+  transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1), box-shadow 0.3s ease;
+}
+
+.profile-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.15);
 }
 
 /* Dark mode */
 .ug-root.dark .profile-card {
-  background: rgba(18, 18, 24, 0.95);
+  background: var(--panel);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 /* Header */
@@ -31,84 +39,107 @@
   align-items: center;
   gap: 16px;
   padding: 20px 24px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-}
-
-.ug-root.dark .profile-header {
-  border-bottom-color: rgba(255, 255, 255, 0.08);
+  border-bottom: 0.5px solid var(--border);
 }
 
 .profile-back-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: none;
-  border: none;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 0.5px solid rgba(255, 255, 255, 0.5);
+  border-radius: 40px;
   cursor: pointer;
   color: var(--text);
-  padding: 8px 12px;
-  border-radius: 12px;
-  transition: background 0.2s;
+  padding: 8px 16px;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
   font-size: 14px;
   font-weight: 500;
+  font-family: 'Inter', sans-serif;
 }
 
 .profile-back-btn svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
+  transition: transform 0.2s ease;
 }
 
 .profile-back-btn:hover {
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(255, 255, 255, 0.75);
+  transform: scale(1.02);
+}
+
+.profile-back-btn:hover svg {
+  transform: translateX(-2px);
+}
+
+.profile-back-btn:active {
+  transform: scale(0.98);
+}
+
+.ug-root.dark .profile-back-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--text);
 }
 
 .ug-root.dark .profile-back-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .profile-header h1 {
   font-size: 24px;
-  font-weight: 600;
+  font-weight: 700;
+  font-family: 'Outfit', sans-serif;
   color: var(--text);
   margin: 0;
+  letter-spacing: -0.3px;
 }
 
 /* Avatar section */
 .profile-avatar-section {
   text-align: center;
   padding: 32px 24px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-}
-
-.ug-root.dark .profile-avatar-section {
-  border-bottom-color: rgba(255, 255, 255, 0.08);
+  border-bottom: 0.5px solid var(--border);
 }
 
 .profile-avatar {
   width: 120px;
   height: 120px;
   border-radius: 50%;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   border: 3px solid #2563eb;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.2);
   object-fit: cover;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+}
+
+.profile-avatar:hover {
+  transform: scale(1.02);
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.3);
 }
 
 .profile-avatar-section h2 {
   font-size: 24px;
-  font-weight: 600;
+  font-weight: 700;
+  font-family: 'Outfit', sans-serif;
   color: var(--text);
-  margin: 0 0 4px 0;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.3px;
 }
 
 .profile-email {
   font-size: 14px;
+  font-family: 'Inter', sans-serif;
   color: var(--sub);
-  margin: 0 0 8px 0;
+  margin: 0 0 10px 0;
 }
 
 .profile-member-since {
   font-size: 12px;
+  font-family: 'Inter', sans-serif;
   color: var(--sub);
   opacity: 0.7;
 }
@@ -116,18 +147,16 @@
 /* Sections */
 .profile-section {
   padding: 20px 24px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-}
-
-.ug-root.dark .profile-section {
-  border-bottom-color: rgba(255, 255, 255, 0.08);
+  border-bottom: 0.5px solid var(--border);
 }
 
 .profile-section h3 {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
+  font-family: 'Outfit', sans-serif;
   color: var(--text);
   margin: 0 0 16px 0;
+  letter-spacing: -0.2px;
 }
 
 .profile-danger-zone h3 {
@@ -138,34 +167,34 @@
 .profile-settings-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .profile-setting-btn {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
   width: 100%;
-  padding: 14px 16px;
-  background: rgba(0, 0, 0, 0.03);
+  padding: 14px 18px;
+  background: var(--hover-row);
   border: none;
-  border-radius: 16px;
+  border-radius: 20px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
   text-align: left;
 }
 
-.ug-root.dark .profile-setting-btn {
-  background: rgba(255, 255, 255, 0.05);
-}
-
 .profile-setting-btn:hover {
-  background: rgba(0, 0, 0, 0.06);
-  transform: translateX(4px);
+  background: rgba(37, 99, 235, 0.08);
+  transform: translateX(6px);
 }
 
 .ug-root.dark .profile-setting-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(96, 165, 250, 0.12);
+}
+
+.profile-setting-btn:active {
+  transform: translateX(2px) scale(0.99);
 }
 
 /* Setting icon styling */
@@ -173,27 +202,37 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   background: rgba(37, 99, 235, 0.1);
-  border-radius: 12px;
+  border-radius: 16px;
   color: #2563eb;
   flex-shrink: 0;
+  transition: all 0.2s ease;
 }
 
 .profile-setting-icon svg {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
+}
+
+.profile-setting-btn:hover .profile-setting-icon {
+  background: rgba(37, 99, 235, 0.2);
+  transform: scale(1.02);
 }
 
 .ug-root.dark .profile-setting-icon {
-  background: rgba(96, 165, 250, 0.15);
+  background: rgba(96, 165, 250, 0.12);
   color: #60a5fa;
 }
 
 .profile-danger-btn .profile-setting-icon {
   background: rgba(239, 68, 68, 0.1);
   color: #ef4444;
+}
+
+.profile-danger-btn:hover .profile-setting-icon {
+  background: rgba(239, 68, 68, 0.2);
 }
 
 .profile-setting-info {
@@ -204,12 +243,14 @@
   display: block;
   font-size: 15px;
   font-weight: 600;
+  font-family: 'Outfit', sans-serif;
   color: var(--text);
-  margin-bottom: 2px;
+  margin-bottom: 4px;
 }
 
 .profile-setting-info span {
   font-size: 12px;
+  font-family: 'Inter', sans-serif;
   color: var(--sub);
 }
 
@@ -218,8 +259,9 @@
   align-items: center;
   justify-content: center;
   color: var(--sub);
-  opacity: 0.5;
+  opacity: 0.4;
   flex-shrink: 0;
+  transition: all 0.2s ease;
 }
 
 .profile-setting-arrow svg {
@@ -227,14 +269,20 @@
   height: 18px;
 }
 
+.profile-setting-btn:hover .profile-setting-arrow {
+  opacity: 0.8;
+  transform: translateX(2px);
+}
+
 /* Danger zone button */
 .profile-danger-btn {
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.02);
 }
 
 .profile-danger-btn:hover {
-  background: rgba(239, 68, 68, 0.1);
-  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.4);
 }
 
 .profile-danger-btn .profile-setting-info strong {
@@ -245,29 +293,37 @@
 .profile-loading {
   text-align: center;
   padding: 60px;
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--panel);
+  backdrop-filter: blur(24px) saturate(180%);
   border-radius: 32px;
-  backdrop-filter: blur(20px);
+  border: 0.5px solid rgba(255, 255, 255, 0.3);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: 20px;
 }
 
 .profile-spinner-icon {
   animation: spin 0.8s linear infinite;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   color: #2563eb;
+}
+
+.profile-loading p {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: var(--sub);
 }
 
 /* Error state */
 .profile-error {
   text-align: center;
-  padding: 40px;
-  background: rgba(255, 255, 255, 0.95);
+  padding: 48px;
+  background: var(--panel);
+  backdrop-filter: blur(24px) saturate(180%);
   border-radius: 32px;
-  backdrop-filter: blur(20px);
+  border: 0.5px solid rgba(255, 255, 255, 0.3);
 }
 
 .profile-error span {
@@ -277,8 +333,9 @@
 }
 
 .profile-error p {
+  font-family: 'Inter', sans-serif;
   color: var(--text);
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .profile-error button {
@@ -286,22 +343,24 @@
   background: #2563eb;
   color: white;
   border: none;
-  border-radius: 24px;
+  border-radius: 40px;
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
-  transition: background 0.2s;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.2s ease;
 }
 
 .profile-error button:hover {
   background: #1d4ed8;
+  transform: scale(1.02);
 }
 
 /* Animations */
 @keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateY(30px);
+    transform: translateY(40px);
   }
   to {
     opacity: 1;
@@ -326,7 +385,7 @@
   }
 
   .profile-header {
-    padding: 16px 20px;
+    padding: 16px 18px;
   }
 
   .profile-header h1 {
@@ -334,7 +393,7 @@
   }
 
   .profile-back-btn {
-    padding: 6px 10px;
+    padding: 6px 12px;
   }
 
   .profile-back-btn span {
@@ -342,12 +401,12 @@
   }
 
   .profile-back-btn svg {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
   }
 
   .profile-avatar-section {
-    padding: 24px 20px;
+    padding: 24px 18px;
   }
 
   .profile-avatar {
@@ -360,7 +419,7 @@
   }
 
   .profile-section {
-    padding: 16px 20px;
+    padding: 16px 18px;
   }
 
   .profile-setting-btn {
@@ -368,8 +427,8 @@
   }
 
   .profile-setting-icon {
-    width: 36px;
-    height: 36px;
+    width: 38px;
+    height: 38px;
   }
 
   .profile-setting-icon svg {
@@ -400,11 +459,11 @@
   }
 
   .profile-section h3 {
-    font-size: 17px;
+    font-size: 16px;
   }
 
   .profile-setting-info strong {
-    font-size: 16px;
+    font-size: 15px;
   }
 
   .profile-setting-info span {
