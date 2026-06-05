@@ -4,6 +4,7 @@ import { useAuthContext } from "../../context/AuthContext";
 import { useFocus } from "../../context/FocusContext";
 import SearchBox from "../Search/SearchBox";
 import PortalSearchBox from "../Search/PortalSearchBox";
+import { useNavigate } from 'react-router-dom';
 import {
   IconSun,
   IconMoonNav,
@@ -204,6 +205,7 @@ export default function NavPanel({
   const [hasRoute, setHasRoute] = useState(false);
   const { logout, user } = useAuthContext();
   const focus = useFocus();
+  const navigate = useNavigate();
 
   const isExpanded =
     externalIsExpanded !== undefined ? externalIsExpanded : internalIsExpanded;
@@ -271,7 +273,7 @@ export default function NavPanel({
             <Avatar
               username={user?.username}
               size={44}
-              onClick={() => (window.location.href = "/profile")}
+              onClick={() => navigate("/profile")}
             />
 
             <div>
@@ -361,7 +363,7 @@ export default function NavPanel({
             <Avatar
               username={user?.username}
               size={44}
-              onClick={() => (window.location.href = "/profile")}
+              onClick={() => navigate("/profile")}
             />
 
             <div>
