@@ -42,11 +42,11 @@ export function useAuth() {
     const initializeAuth = async () => {
       console.log('[useAuth] Initializing auth...');
       setIsLoading(true);
-      
+
       try {
         // Get session from Supabase
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
+
         if (sessionError) {
           console.error('[useAuth] Session error:', sessionError);
           setIsLoading(false);
@@ -57,9 +57,9 @@ export function useAuth() {
           console.log('[useAuth] Session found, syncing user...');
           const supabaseUser = session.user;
           const accessToken = session.access_token;
-          
+
           const backendUser = await syncUserWithBackend(supabaseUser, accessToken);
-          
+
           if (backendUser) {
             const userData = {
               id: backendUser.id,
@@ -68,10 +68,10 @@ export function useAuth() {
               is_admin: backendUser.is_admin || 0,
               created_at: backendUser.created_at,
             };
-            
+
             sessionStorage.setItem('accessToken', accessToken);
             sessionStorage.setItem('user', JSON.stringify(userData));
-            
+
             setUser(userData);
             setIsAuthenticated(true);
             console.log('[useAuth] User restored:', userData.email);
@@ -95,13 +95,13 @@ export function useAuth() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('[useAuth] Auth state changed:', event);
-        
+
         if (event === 'SIGNED_IN' && session) {
           const supabaseUser = session.user;
           const accessToken = session.access_token;
-          
+
           const backendUser = await syncUserWithBackend(supabaseUser, accessToken);
-          
+
           if (backendUser) {
             const userData = {
               id: backendUser.id,
@@ -110,10 +110,10 @@ export function useAuth() {
               is_admin: backendUser.is_admin || 0,
               created_at: backendUser.created_at,
             };
-            
+
             sessionStorage.setItem('accessToken', accessToken);
             sessionStorage.setItem('user', JSON.stringify(userData));
-            
+
             setUser(userData);
             setIsAuthenticated(true);
           }
@@ -131,9 +131,26 @@ export function useAuth() {
     };
   }, [syncUserWithBackend]);
 
-  // Register with Supabase - IMPROVED with duplicate email handling
+  // Register with Supabase - WITH pre-check for existing email
   const register = useCallback(async (email, username, password) => {
     try {
+      // STEP 1: Check if email already exists in your users table (BEFORE calling Supabase)
+      const { data: existingUser, error: fetchError } = await supabase
+        .from('users')
+        .select('email')
+        .eq('email', email.toLowerCase())
+        .maybeSingle();
+
+      if (existingUser) {
+        console.log('[useAuth] Email already exists in users table:', email);
+        return {
+          success: false,
+          error: `An account with ${email} already exists. Please sign in instead.`,
+          isDuplicate: true
+        };
+      }
+
+      // STEP 2: If email doesn't exist, proceed with registration
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -145,21 +162,20 @@ export function useAuth() {
         }
       });
 
-      // Handle duplicate email error
+      // Handle duplicate email error (fallback in case race condition)
       if (signUpError) {
         console.error('[useAuth] Signup error:', signUpError);
-        
-        // Check for duplicate email (user already registered)
+
+        // Check for duplicate email
         if (signUpError.message?.toLowerCase().includes('already registered') ||
-            signUpError.message?.toLowerCase().includes('user already registered') ||
-            signUpError.status === 400 && signUpError.message?.includes('email')) {
+          signUpError.message?.toLowerCase().includes('user already registered')) {
           return {
             success: false,
             error: `An account with ${email} already exists. Please sign in instead.`,
             isDuplicate: true
           };
         }
-        
+
         // Handle rate limiting
         if (signUpError.message?.toLowerCase().includes('rate limit')) {
           return {
@@ -167,7 +183,7 @@ export function useAuth() {
             error: 'Too many attempts. Please wait a few minutes before trying again.',
           };
         }
-        
+
         return {
           success: false,
           error: signUpError.message
@@ -176,11 +192,11 @@ export function useAuth() {
 
       if (data?.user) {
         const needsEmailConfirmation = !data.user?.email_confirmed_at;
-        
+
         const accessToken = data.session?.access_token;
         if (accessToken && !needsEmailConfirmation) {
           const backendUser = await syncUserWithBackend(data.user, accessToken);
-          
+
           if (backendUser) {
             const userData = {
               id: backendUser.id,
@@ -189,22 +205,22 @@ export function useAuth() {
               is_admin: backendUser.is_admin || 0,
               created_at: backendUser.created_at,
             };
-            
+
             sessionStorage.setItem('accessToken', accessToken);
             sessionStorage.setItem('user', JSON.stringify(userData));
-            
+
             setUser(userData);
             setIsAuthenticated(true);
           }
         }
-        
+
         console.log('[useAuth] Registration successful:', email);
-        return { 
-          success: true, 
-          needsEmailConfirmation: needsEmailConfirmation 
+        return {
+          success: true,
+          needsEmailConfirmation: needsEmailConfirmation
         };
       }
-      
+
       return { success: false, error: 'Registration failed' };
     } catch (err) {
       console.error('[useAuth] Register error:', err);
@@ -215,68 +231,17 @@ export function useAuth() {
     }
   }, [syncUserWithBackend]);
 
-  // Login with Supabase
-  const login = useCallback(async (email, password) => {
-    try {
-      const { data, error: loginError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (loginError) {
-        return {
-          success: false,
-          error: loginError.message
-        };
-      }
-
-      if (data?.user && data?.session) {
-        const supabaseUser = data.user;
-        const accessToken = data.session.access_token;
-        
-        const backendUser = await syncUserWithBackend(supabaseUser, accessToken);
-        
-        if (backendUser) {
-          const userData = {
-            id: backendUser.id,
-            email: backendUser.email,
-            username: backendUser.username,
-            is_admin: backendUser.is_admin || 0,
-            created_at: backendUser.created_at,
-          };
-          
-          sessionStorage.setItem('accessToken', accessToken);
-          sessionStorage.setItem('user', JSON.stringify(userData));
-          
-          setUser(userData);
-          setIsAuthenticated(true);
-        }
-        
-        console.log('[useAuth] Login successful:', email);
-        return { success: true };
-      }
-      
-      return { success: false, error: 'Login failed' };
-    } catch (err) {
-      console.error('[useAuth] Login error:', err);
-      return {
-        success: false,
-        error: 'Could not connect to server — check your connection',
-      };
-    }
-  }, [syncUserWithBackend]);
-
   // Logout from Supabase
   const logout = useCallback(async () => {
     const { error } = await supabase.auth.signOut();
-    
+
     if (error) {
       console.warn('[useAuth] Logout error:', error);
     }
-    
+
     sessionStorage.removeItem('accessToken');
     sessionStorage.removeItem('user');
-    
+
     setUser(null);
     setIsAuthenticated(false);
     console.log('[useAuth] Logout complete');
