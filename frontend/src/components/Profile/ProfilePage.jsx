@@ -7,6 +7,39 @@ import ChangePasswordModal from "./ChangePasswordModal";
 import DeleteAccountModal from "./DeleteAccountModal";
 import "./ProfilePage.css";
 
+// ── Read dark mode from persisted preferences ──────────────────────────────
+// ProfilePage renders outside the App.jsx ug-root wrapper (separate route),
+// so CSS variables like --bg / --text are not inherited. We apply ug-root
+// directly on this page's root element using the saved preference.
+function useDarkModeFromStorage() {
+  const [darkMode, setDarkMode] = useState(() => {
+    try {
+      const raw = localStorage.getItem("ug_preferences");
+      if (raw) {
+        const prefs = JSON.parse(raw);
+        return prefs.darkMode === true;
+      }
+    } catch {}
+    return false;
+  });
+
+  // Keep in sync if another tab or the main app changes the preference
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key === "ug_preferences") {
+        try {
+          const prefs = JSON.parse(e.newValue);
+          setDarkMode(prefs.darkMode === true);
+        } catch {}
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  return darkMode;
+}
+
 // Modern SVG Icons
 const IconBack = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -52,6 +85,8 @@ const IconSpinner = () => (
 
 export default function ProfilePage() {
   const { user, getAuthHeader } = useAuthContext();
+  const darkMode = useDarkModeFromStorage();
+
   const [profile, setProfile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -105,18 +140,19 @@ export default function ProfilePage() {
   };
 
   const handlePasswordUpdate = () => {
-    // Password updated successfully
     console.log("[ProfilePage] Password updated");
   };
 
   const handleAccountDelete = () => {
-    // Account deleted, redirect to login
     window.location.href = "/login";
   };
 
+  // Root class — applies ug-root + dark so CSS variables resolve correctly
+  const rootClass = `ug-root${darkMode ? " dark" : ""} profile-container`;
+
   if (isLoading) {
     return (
-      <div className="profile-container">
+      <div className={rootClass}>
         <div className="profile-loading">
           <IconSpinner />
           <p>Loading profile...</p>
@@ -127,7 +163,7 @@ export default function ProfilePage() {
 
   if (error) {
     return (
-      <div className="profile-container">
+      <div className={rootClass}>
         <div className="profile-error">
           <span>⚠️</span>
           <p>{error}</p>
@@ -139,7 +175,7 @@ export default function ProfilePage() {
 
   if (!profile) {
     return (
-      <div className="profile-container">
+      <div className={rootClass}>
         <div className="profile-error">
           <p>No profile data found</p>
           <button onClick={() => (window.location.href = "/")}>Go Home</button>
@@ -149,7 +185,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="profile-container">
+    <div className={rootClass}>
       <div className="profile-card">
         {/* Header with back button */}
         <div className="profile-header">
