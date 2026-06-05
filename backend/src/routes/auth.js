@@ -145,6 +145,42 @@ router.post('/forgot-password', async (req, res) => {
   }
 });
 
+// ─── Update Username ───────────────────────────────────────────────────────
+router.patch('/update-username', verifyToken, async (req, res) => {
+  try {
+    const { userId } = req.user;
+    const { username } = req.body;
+
+    if (!username || username.length < 3 || username.length > 50) {
+      return res.status(400).json({ error: 'Username must be 3-50 characters' });
+    }
+
+    if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+      return res.status(400).json({ error: 'Invalid username format' });
+    }
+
+    // Check if username is already taken
+    const existing = await query(
+      'SELECT id FROM users WHERE username = ? AND id != ? AND deleted_at IS NULL',
+      [username, userId]
+    );
+
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ error: 'Username already taken' });
+    }
+
+    await query(
+      'UPDATE users SET username = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [username, userId]
+    );
+
+    res.json({ message: 'Username updated successfully', username });
+  } catch (error) {
+    console.error('[Update Username] Error:', error.message);
+    res.status(500).json({ error: 'Failed to update username' });
+  }
+});
+
 // ─── Resend Password Reset Email (idempotent) ──────────────────────────────
 router.post('/resend', async (req, res) => {
   const { email } = req.body;
