@@ -61,6 +61,27 @@ export default function ProfilePage() {
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
+  // Read dark mode from localStorage to apply class
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    const checkDarkMode = () => {
+      try {
+        const prefs = localStorage.getItem("ug_preferences");
+        if (prefs) {
+          const { darkMode } = JSON.parse(prefs);
+          setIsDarkMode(darkMode === true);
+        }
+      } catch (e) {}
+    };
+    
+    checkDarkMode();
+    
+    // Listen for changes
+    window.addEventListener("storage", checkDarkMode);
+    return () => window.removeEventListener("storage", checkDarkMode);
+  }, []);
+
   // Fetch user profile from backend
   useEffect(() => {
     const fetchProfile = async () => {
@@ -112,9 +133,11 @@ export default function ProfilePage() {
     window.location.href = "/login";
   };
 
+  const rootClass = `ug-root ${isDarkMode ? "dark" : ""} profile-container`;
+
   if (isLoading) {
     return (
-      <div className="profile-container">
+      <div className={rootClass}>
         <div className="profile-loading">
           <IconSpinner />
           <p>Loading profile...</p>
@@ -125,7 +148,7 @@ export default function ProfilePage() {
 
   if (error) {
     return (
-      <div className="profile-container">
+      <div className={rootClass}>
         <div className="profile-error">
           <span>⚠️</span>
           <p>{error}</p>
@@ -137,7 +160,7 @@ export default function ProfilePage() {
 
   if (!profile) {
     return (
-      <div className="profile-container">
+      <div className={rootClass}>
         <div className="profile-error">
           <p>No profile data found</p>
           <button onClick={() => (window.location.href = "/")}>Go Home</button>
@@ -147,7 +170,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="profile-container">
+    <div className={rootClass}>
       <div className="profile-card">
         {/* Header with back button */}
         <div className="profile-header">
