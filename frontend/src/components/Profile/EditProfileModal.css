@@ -1,4 +1,4 @@
-/* EditProfileModal.css - Solid, readable modals */
+/* EditProfileModal.css - Uses CSS variables, matches system theme */
 
 .modal-overlay {
   position: fixed;
@@ -15,26 +15,20 @@
   animation: fadeIn 0.2s ease;
 }
 
-/* Fix 3: Use explicit opaque surface colors instead of CSS variables that may
-   resolve to semi-transparent glass values in this design system.
-   Light mode: white card. Dark mode: dark elevated surface.
-   This guarantees readable text in both modes regardless of --card / --drop-bg values. */
 .modal-content {
-  background: #ffffff;
+  background: var(--card);
   border-radius: 28px;
   width: 90%;
   max-width: 400px;
   overflow: hidden;
   animation: slideUp 0.3s ease;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18), 0 4px 16px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-card);
+  border: 0.5px solid var(--border);
 }
 
 .ug-root.dark .modal-content {
-  /* Solid dark surface — no transparency, no blur — guarantees legibility */
-  background: #1c1c1e;
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5), 0 4px 16px rgba(0, 0, 0, 0.3);
+  background: var(--card);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 .modal-header {
@@ -42,46 +36,30 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-}
-
-.ug-root.dark .modal-header {
-  border-bottom-color: rgba(255, 255, 255, 0.08);
+  border-bottom: 0.5px solid var(--border);
 }
 
 .modal-header h3 {
   font-size: 18px;
   font-weight: 700;
   font-family: 'Outfit', sans-serif;
-  /* Fix: explicit colors instead of --text, which could be near-white on a
-     light background if the variable was set in a glass context */
-  color: #111827;
+  color: var(--text);
   margin: 0;
 }
 
-.ug-root.dark .modal-header h3 {
-  color: #f9fafb;
-}
-
 .modal-close {
-  background: rgba(0, 0, 0, 0.06);
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: var(--hover-row);
+  border: 0.5px solid var(--border);
   border-radius: 40px;
   width: 32px;
   height: 32px;
   font-size: 16px;
   cursor: pointer;
-  color: #374151;
+  color: var(--text);
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
-}
-
-.ug-root.dark .modal-close {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.1);
-  color: #d1d5db;
 }
 
 .modal-close:hover {
@@ -98,62 +76,33 @@
   font-size: 13px;
   font-weight: 600;
   font-family: 'Outfit', sans-serif;
-  color: #111827;
+  color: var(--text);
   margin-bottom: 8px;
 }
 
-.ug-root.dark .modal-form-group label {
-  color: #f9fafb;
-}
-
-/* Fix: Opaque input background so typed text is always visible */
 .modal-form-group input {
   width: 100%;
   padding: 14px 16px;
-  background: #f3f4f6;
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: var(--input-bg);
+  border: 0.5px solid var(--border);
   border-radius: 16px;
   font-size: 14px;
   font-family: 'Inter', sans-serif;
-  color: #111827;
+  color: var(--text);
   transition: all 0.2s ease;
-  box-sizing: border-box;
-}
-
-.ug-root.dark .modal-form-group input {
-  background: #2c2c2e;
-  border-color: rgba(255, 255, 255, 0.1);
-  color: #f9fafb;
-}
-
-.modal-form-group input::placeholder {
-  color: #9ca3af;
-}
-
-.ug-root.dark .modal-form-group input::placeholder {
-  color: #6b7280;
 }
 
 .modal-form-group input:focus {
   outline: none;
   border-color: #2563eb;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-  background: #ffffff;
-}
-
-.ug-root.dark .modal-form-group input:focus {
-  background: #3a3a3c;
 }
 
 .modal-hint {
   font-size: 11px;
   font-family: 'Inter', sans-serif;
-  color: #6b7280;
+  color: var(--sub);
   margin-top: 8px;
-}
-
-.ug-root.dark .modal-hint {
-  color: #9ca3af;
 }
 
 .modal-error {
@@ -167,18 +116,14 @@
   border-radius: 14px;
   font-size: 13px;
   font-family: 'Inter', sans-serif;
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  border: 0.5px solid rgba(239, 68, 68, 0.2);
 }
 
 .modal-actions {
   display: flex;
   gap: 12px;
   padding: 20px 24px;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
-}
-
-.ug-root.dark .modal-actions {
-  border-top-color: rgba(255, 255, 255, 0.08);
+  border-top: 0.5px solid var(--border);
 }
 
 .modal-btn-cancel,
@@ -196,21 +141,12 @@
 
 .modal-btn-cancel {
   background: transparent;
-  color: #374151;
-  border: 1px solid rgba(0, 0, 0, 0.12);
-}
-
-.ug-root.dark .modal-btn-cancel {
-  color: #d1d5db;
-  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--text);
+  border: 0.5px solid var(--border);
 }
 
 .modal-btn-cancel:hover {
-  background: rgba(0, 0, 0, 0.05);
-}
-
-.ug-root.dark .modal-btn-cancel:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--hover-row);
 }
 
 .modal-btn-save {
