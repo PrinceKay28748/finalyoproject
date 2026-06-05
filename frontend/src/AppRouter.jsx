@@ -5,6 +5,7 @@ import AuthPage from './components/Auth/AuthPage';
 import AuthCallback from './pages/AuthCallback';
 import AdminDashboard from './components/Admin/AdminDashboard';
 import ResetPasswordPage from './components/Auth/ResetPasswordPage';
+import ProfilePage from './components/Profile/ProfilePage';
 import App from './App';
 
 // Protected route wrapper
@@ -67,6 +68,14 @@ export default function AppRouter() {
             <AdminRoute>
               <AdminDashboard />
             </AdminRoute>
+          } 
+        />
+        <Route 
+          path="/profile" 
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
           } 
         />
         <Route 
