@@ -1,48 +1,20 @@
-/* ProfilePage.css - Clean, matches system theme */
-
-.profile-container {
-  min-height: 100vh;
-  background: var(--bg);
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.ug-root {
-  --bg: #f0f6ff;
-  --panel: rgba(255, 255, 255, 0.97);
-  --card: #ffffff;
-  --text: #0f172a;
-  --sub: #64748b;
-  --border: #e2e8f0;
-  --hover-row: rgba(0, 0, 0, 0.03);
-}
-
-.ug-root.dark {
-  --bg: #060d1a;
-  --panel: rgba(10, 18, 35, 0.97);
-  --card: #1e293b;
-  --text: #e2e8f0;
-  --sub: #94a3b8;
-  --border: #1e3a5f;
-  --hover-row: rgba(255, 255, 255, 0.05);
-}
+/* ProfilePage.css - Clean styling only, no container wrapper */
 
 .profile-card {
   max-width: 500px;
   width: 100%;
-  background: var(--card);
+  margin: 20px auto;
+  background: var(--panel);
+  backdrop-filter: blur(20px) saturate(180%);
   border-radius: 32px;
-  border: 0.5px solid var(--border);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  border: 0.5px solid rgba(255, 255, 255, 0.2);
+  box-shadow: var(--shadow-card);
   overflow: hidden;
 }
 
 .ug-root.dark .profile-card {
-  background: var(--card);
+  background: var(--panel);
   border-color: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
 }
 
 /* Header */
@@ -268,12 +240,9 @@
 .profile-loading {
   text-align: center;
   padding: 60px;
-  background: var(--card);
+  background: var(--panel);
   border-radius: 32px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
+  margin: 20px;
 }
 
 .profile-spinner-icon {
@@ -293,8 +262,9 @@
 .profile-error {
   text-align: center;
   padding: 48px;
-  background: var(--card);
+  background: var(--panel);
   border-radius: 32px;
+  margin: 20px;
 }
 
 .profile-error span {
@@ -325,18 +295,6 @@
   background: #1d4ed8;
 }
 
-/* Animations */
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -345,11 +303,8 @@
 
 /* Mobile */
 @media (max-width: 600px) {
-  .profile-container {
-    padding: 12px;
-  }
-
   .profile-card {
+    margin: 12px auto;
     border-radius: 24px;
   }
 
