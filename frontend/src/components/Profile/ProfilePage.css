@@ -1,6 +1,6 @@
 /* ProfilePage.css - Clean, matches system theme */
 
-.profile-container {
+.ug-root.profile-container {
   min-height: 100vh;
   /* Fix 1: Use --bg (true page background), not --panel (card surface).
      --panel behind a glass card creates the double-card visual. */
@@ -330,7 +330,7 @@
 
 /* Mobile */
 @media (max-width: 600px) {
-  .profile-container {
+  .ug-root.profile-container {
     padding: 12px;
   }
 
