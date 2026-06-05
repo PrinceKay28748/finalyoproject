@@ -851,24 +851,11 @@
 }
 
 
-/* Avatar button styles */
+/* Avatar button */
 .nav-avatar-btn {
-  background: transparent;
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  padding: 0;
+  flex-shrink: 0;
   margin: 0 8px 0 4px;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  flex-shrink: 0;
-  overflow: hidden;
-}
-
-.nav-avatar-btn img {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  object-fit: cover;
 }
 
 .nav-avatar-btn:hover {
@@ -878,6 +865,13 @@
 
 .nav-avatar-btn:active {
   transform: scale(0.98);
+}
+
+.nav-avatar-btn img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 @keyframes fadeIn {
