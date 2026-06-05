@@ -1,0 +1,123 @@
+/* LogoutConfirmationModal.css */
+
+.logout-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: fadeIn 0.2s ease;
+}
+
+.logout-modal-content {
+  background: var(--card);
+  border-radius: 28px;
+  width: 90%;
+  max-width: 320px;
+  padding: 24px;
+  text-align: center;
+  animation: slideUp 0.3s ease;
+  box-shadow: var(--shadow-card);
+  border: 0.5px solid var(--border);
+}
+
+.ug-root.dark .logout-modal-content {
+  background: var(--card);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.logout-modal-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 16px;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ef4444;
+}
+
+.logout-modal-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.logout-modal-content h3 {
+  font-size: 20px;
+  font-weight: 700;
+  font-family: 'Outfit', sans-serif;
+  color: var(--text);
+  margin: 0 0 8px 0;
+}
+
+.logout-modal-content p {
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  color: var(--sub);
+  margin: 0 0 24px 0;
+}
+
+.logout-modal-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.logout-modal-btn-cancel,
+.logout-modal-btn-confirm {
+  flex: 1;
+  padding: 12px;
+  border-radius: 40px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.logout-modal-btn-cancel {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.logout-modal-btn-cancel:hover {
+  background: var(--hover-row);
+}
+
+.logout-modal-btn-confirm {
+  background: #ef4444;
+  color: white;
+}
+
+.logout-modal-btn-confirm:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
+.logout-modal-btn-confirm:active {
+  transform: translateY(0);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
