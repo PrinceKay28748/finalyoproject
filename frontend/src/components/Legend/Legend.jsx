@@ -331,6 +331,13 @@ const Legend = forwardRef(function Legend(
   const { isVoiceEnabled, toggleVoice, speak } = useVoiceGuidance();
   const focus = useFocus();
 
+  // ── Helper to get safe area bottom inset ─────────────────────────────────
+  const getSafeAreaBottom = () => {
+    const style = getComputedStyle(document.documentElement);
+    const safeArea = style.getPropertyValue('padding-bottom');
+    return parseInt(safeArea) || 0;
+  };
+
   // ── Helpers ──────────────────────────────────────────────────────────────
 
   const setTranslate = (y) => {
@@ -349,10 +356,13 @@ const Legend = forwardRef(function Legend(
     if (!el) return;
     el.classList.add("legend-sheet--snapping");
     const isDesktop = window.innerWidth >= 1024;
+    const safeAreaBottom = getSafeAreaBottom();
+    // Adjust target if snapping to peek position
+    const adjustedTarget = targetY === peekTranslateY.current ? targetY + safeAreaBottom : targetY;
     if (isDesktop) {
-      el.style.transform = `translateX(-50%) translateY(${targetY}px)`;
+      el.style.transform = `translateX(-50%) translateY(${adjustedTarget}px)`;
     } else {
-      el.style.transform = `translateY(${targetY}px)`;
+      el.style.transform = `translateY(${adjustedTarget}px)`;
     }
     const onEnd = () => {
       el.classList.remove("legend-sheet--snapping");
@@ -364,12 +374,12 @@ const Legend = forwardRef(function Legend(
   const recalcPositions = () => {
     if (!sheetRef.current) return;
     const h = sheetRef.current.offsetHeight;
-    peekTranslateY.current = Math.max(0, h - peekHeight);
-    
+    const safeAreaBottom = getSafeAreaBottom();
+    peekTranslateY.current = Math.max(0, h - peekHeight + safeAreaBottom);
+    expandedTranslateY.current = 0;
   };
 
   // ── Mount: NO AUTO-SLIDE ANIMATION - Legend starts at peek position ──────
-  // FIXED: Removed the "shooting up" animation that ran on mount
   useEffect(() => {
     const el = sheetRef.current;
     if (!el) return;
@@ -416,16 +426,14 @@ const Legend = forwardRef(function Legend(
   // ── Auto-collapse when NavPanel opens ────────────────────────────────────
   useEffect(() => {
     if (autoCollapse && expanded) {
-      // NavPanel opened — save state and collapse Legend
       setWasExpandedBeforeCollapse(true);
       setExpanded(false);
     } else if (!autoCollapse && wasExpandedBeforeCollapse && !expanded) {
-      // NavPanel closed — only re-expand if user didn't manually peek
       if (!userManuallyPeeked.current) {
         setExpanded(true);
       }
       setWasExpandedBeforeCollapse(false);
-      userManuallyPeeked.current = false; // Reset for next cycle
+      userManuallyPeeked.current = false;
     }
   }, [autoCollapse]);
 
@@ -524,7 +532,6 @@ const Legend = forwardRef(function Legend(
       onDragProgress(0);
       return;
     }
-    // Progress: 0 = peek (bottom, no blur), 1 = expanded (top, full blur)
     const progress = 1 - Math.max(0, Math.min(1, (currentY - minY) / range));
     onDragProgress(progress);
   };
@@ -590,7 +597,6 @@ const Legend = forwardRef(function Legend(
 
     setTranslate(clampedY);
 
-    // Report drag progress for map blur
     const currentY = parseFloat(
       sheetRef.current?.style.transform?.match(/translateY\(([-\d.]+)px\)/)?.[1] ?? "0"
     );
@@ -623,13 +629,11 @@ const Legend = forwardRef(function Legend(
 
     snapTo(shouldExpand ? minY : maxY);
 
-    // Reset drag progress after snap
     if (onDragProgress) {
       onDragProgress(shouldExpand ? 1 : 0);
     }
 
     if (shouldExpand !== expanded) {
-      // Track if user manually dragged to peek (bottom)
       if (!shouldExpand) {
         userManuallyPeeked.current = true;
       }
