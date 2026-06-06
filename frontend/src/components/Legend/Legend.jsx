@@ -375,9 +375,9 @@ const Legend = forwardRef(function Legend(
   const recalcPositions = () => {
     if (!sheetRef.current) return;
     const h = sheetRef.current.offsetHeight;
-    // Add offset to push the collapsed position higher
-    const bottomOffset = -80; // Adjust this value (pixels from bottom)
-    peekTranslateY.current = Math.max(0, h - peekHeight + bottomOffset);
+    const bottomOffset = -80; // Negative moves it up
+    // Allow negative values by removing Math.max(0, ...)
+    peekTranslateY.current = h - peekHeight + bottomOffset;
     expandedTranslateY.current = 0;
   };
 
