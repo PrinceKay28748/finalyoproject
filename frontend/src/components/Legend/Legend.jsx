@@ -375,7 +375,7 @@ const Legend = forwardRef(function Legend(
   const recalcPositions = () => {
     if (!sheetRef.current) return;
     const h = sheetRef.current.offsetHeight;
-    const bottomOffset = -60; // Negative moves it up
+    const bottomOffset = -50; // Negative moves it up
     // Allow negative values by removing Math.max(0, ...)
     peekTranslateY.current = h - peekHeight + bottomOffset;
     expandedTranslateY.current = 0;
