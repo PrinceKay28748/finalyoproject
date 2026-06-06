@@ -334,7 +334,7 @@ const Legend = forwardRef(function Legend(
   // ── Helper to get safe area bottom inset ─────────────────────────────────
   const getSafeAreaBottom = () => {
     const style = getComputedStyle(document.documentElement);
-    const safeArea = style.getPropertyValue('padding-bottom');
+    const safeArea = style.getPropertyValue("padding-bottom");
     return parseInt(safeArea) || 0;
   };
 
@@ -358,7 +358,8 @@ const Legend = forwardRef(function Legend(
     const isDesktop = window.innerWidth >= 1024;
     const safeAreaBottom = getSafeAreaBottom();
     // Adjust target if snapping to peek position
-    const adjustedTarget = targetY === peekTranslateY.current ? targetY + safeAreaBottom : targetY;
+    const adjustedTarget =
+      targetY === peekTranslateY.current ? targetY + safeAreaBottom : targetY;
     if (isDesktop) {
       el.style.transform = `translateX(-50%) translateY(${adjustedTarget}px)`;
     } else {
@@ -374,8 +375,9 @@ const Legend = forwardRef(function Legend(
   const recalcPositions = () => {
     if (!sheetRef.current) return;
     const h = sheetRef.current.offsetHeight;
-    const safeAreaBottom = getSafeAreaBottom();
-    peekTranslateY.current = Math.max(0, h - peekHeight + safeAreaBottom);
+    // Add offset to push the collapsed position higher
+    const bottomOffset = 20; // Adjust this value (pixels from bottom)
+    peekTranslateY.current = Math.max(0, h - peekHeight + bottomOffset);
     expandedTranslateY.current = 0;
   };
 
@@ -383,7 +385,7 @@ const Legend = forwardRef(function Legend(
   useEffect(() => {
     const el = sheetRef.current;
     if (!el) return;
-    
+
     // Ensure legend starts at peek position (bottom) without animation
     requestAnimationFrame(() => {
       recalcPositions();
@@ -598,7 +600,9 @@ const Legend = forwardRef(function Legend(
     setTranslate(clampedY);
 
     const currentY = parseFloat(
-      sheetRef.current?.style.transform?.match(/translateY\(([-\d.]+)px\)/)?.[1] ?? "0"
+      sheetRef.current?.style.transform?.match(
+        /translateY\(([-\d.]+)px\)/,
+      )?.[1] ?? "0",
     );
     reportDragProgress(currentY);
   };
@@ -756,14 +760,17 @@ const Legend = forwardRef(function Legend(
             {PROFILES.map((p) => {
               const IconComponent = p.icon;
               const isActive = activeProfile === p.key;
-              const isFocused = focus.isFocused('legendItem', `profile-${p.key}`);
+              const isFocused = focus.isFocused(
+                "legendItem",
+                `profile-${p.key}`,
+              );
               return (
                 <button
                   key={p.key}
                   data-profile={p.key}
                   className={`legend-profile-btn ${isActive ? "legend-profile-btn--active" : ""} ${isFocused ? "item--focused" : ""}`}
                   onClick={() => {
-                    focus.setFocus('legendItem', `profile-${p.key}`, 'legend');
+                    focus.setFocus("legendItem", `profile-${p.key}`, "legend");
                     onProfileChange?.(p.key);
                   }}
                   title={p.label}
@@ -910,9 +917,9 @@ const Legend = forwardRef(function Legend(
               <p className="legend-alts-label">Alternative routes</p>
               <div className="legend-alts">
                 <div
-                  className={`legend-alt ${activeAlternativeIndex === 0 ? "legend-alt--active" : ""} ${focus.isFocused('legendItem', 'alt-0') ? 'item--focused' : ''}`}
+                  className={`legend-alt ${activeAlternativeIndex === 0 ? "legend-alt--active" : ""} ${focus.isFocused("legendItem", "alt-0") ? "item--focused" : ""}`}
                   onClick={() => {
-                    focus.setFocus('legendItem', 'alt-0', 'legend');
+                    focus.setFocus("legendItem", "alt-0", "legend");
                     onSelectAlternative?.(0);
                   }}
                 >
@@ -926,9 +933,9 @@ const Legend = forwardRef(function Legend(
                 {alternatives.map((alt, i) => (
                   <div
                     key={i}
-                    className={`legend-alt ${activeAlternativeIndex === i + 1 ? "legend-alt--active" : ""} ${focus.isFocused('legendItem', `alt-${i + 1}`) ? 'item--focused' : ''}`}
+                    className={`legend-alt ${activeAlternativeIndex === i + 1 ? "legend-alt--active" : ""} ${focus.isFocused("legendItem", `alt-${i + 1}`) ? "item--focused" : ""}`}
                     onClick={() => {
-                      focus.setFocus('legendItem', `alt-${i + 1}`, 'legend');
+                      focus.setFocus("legendItem", `alt-${i + 1}`, "legend");
                       onSelectAlternative?.(i + 1);
                     }}
                   >
