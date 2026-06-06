@@ -376,7 +376,7 @@ const Legend = forwardRef(function Legend(
     if (!sheetRef.current) return;
     const h = sheetRef.current.offsetHeight;
     // Add offset to push the collapsed position higher
-    const bottomOffset = 20; // Adjust this value (pixels from bottom)
+    const bottomOffset = 30; // Adjust this value (pixels from bottom)
     peekTranslateY.current = Math.max(0, h - peekHeight + bottomOffset);
     expandedTranslateY.current = 0;
   };
