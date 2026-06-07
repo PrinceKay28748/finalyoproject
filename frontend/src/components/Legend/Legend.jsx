@@ -323,7 +323,9 @@ const Legend = forwardRef(function Legend(
   const sheetRef = useRef(null);
   const headerRef = useRef(null);
   const directionsRef = useRef(null);
-  const peekHeight = 70;
+
+  const peekHeight = 90; // existing fix from before
+  const peekBottomGap = 24; // NEW — how many px above the bottom anchor the collapsed sheet floats
 
   const lastAnnouncedRouteIdRef = useRef(null);
   const pendingRouteSummaryRef = useRef(null);
@@ -371,9 +373,6 @@ const Legend = forwardRef(function Legend(
   const recalcPositions = () => {
     if (!sheetRef.current) return;
 
-    // offsetHeight includes any padding-bottom on the sheet itself.
-    // We want the "visual" height — the part that actually appears above
-    // the CSS bottom anchor — so subtract any padding-bottom the sheet carries.
     const computedStyle = getComputedStyle(sheetRef.current);
     const sheetPaddingBottom = parseFloat(computedStyle.paddingBottom) || 0;
     const h = sheetRef.current.offsetHeight - sheetPaddingBottom;
@@ -388,19 +387,15 @@ const Legend = forwardRef(function Legend(
     let extraOffset = 0;
 
     if (isStandalone && isIOS) {
-      // CSS handles the anchor via bottom: env(safe-area-inset-bottom).
-      // JS only needs to show peekHeight above that anchor — no extra offset.
       extraOffset = 0;
     } else if (isIOS) {
-      // Browser on iOS: the safe-area inset is consumed by the browser toolbar,
-      // not by CSS bottom. The -41 compensates for the toolbar sitting above
-      // the safe-area zone (34px inset + ~7px visual rounding = 41).
       extraOffset = -41;
     } else {
       extraOffset = 0;
     }
 
-    peekTranslateY.current = h - peekHeight + extraOffset;
+    // Subtract peekBottomGap so the collapsed sheet floats above the bottom edge
+    peekTranslateY.current = h - peekHeight - peekBottomGap + extraOffset;
     expandedTranslateY.current = 0;
   };
 
