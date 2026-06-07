@@ -369,37 +369,12 @@ const Legend = forwardRef(function Legend(
     el.addEventListener("transitionend", onEnd);
   };
 
- const recalcPositions = () => {
-  if (!sheetRef.current) return;
+  const recalcPositions = () => {
+    if (!sheetRef.current) return;
 
-  const computedStyle = getComputedStyle(sheetRef.current);
-  const sheetPaddingBottom = parseFloat(computedStyle.paddingBottom) || 0;
-  const h = sheetRef.current.offsetHeight - sheetPaddingBottom;
-
-  const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
-  const isIOS =
-    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-
-  let extraOffset = 0;
-
-  if (isStandalone && isIOS) {
-    extraOffset = 0;
-  } else if (isIOS) {
-    extraOffset = -83;  // full Safari toolbar height, was -41
-  } else {
-    extraOffset = 0;
-  }
-
-  peekTranslateY.current = h - peekHeight + extraOffset;
-  expandedTranslateY.current = 0;
-};
-
-  // ── Mount: NO AUTO-SLIDE ANIMATION - Legend starts at peek position ──────
-  // Inside the mount useEffect
-  useEffect(() => {
-    const el = sheetRef.current;
-    if (!el) return;
+    const computedStyle = getComputedStyle(sheetRef.current);
+    const sheetPaddingBottom = parseFloat(computedStyle.paddingBottom) || 0;
+    const h = sheetRef.current.offsetHeight - sheetPaddingBottom;
 
     const isStandalone = window.matchMedia(
       "(display-mode: standalone)",
@@ -408,15 +383,40 @@ const Legend = forwardRef(function Legend(
       /iPad|iPhone|iPod/.test(navigator.userAgent) ||
       (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
-    if (isIOS && !isStandalone) {
-      el.classList.add("legend-sheet--browser-ios");
+    let extraOffset = 0;
+
+    if (isStandalone && isIOS) {
+      extraOffset = 0;
+    } else if (isIOS) {
+      extraOffset = -41;
+    } else {
+      extraOffset = 0;
     }
 
-    requestAnimationFrame(() => {
-      recalcPositions();
-      snapTo(peekTranslateY.current);
-    });
-  }, []);
+    peekTranslateY.current = h - peekHeight + extraOffset;
+    expandedTranslateY.current = 0;
+  };
+
+  // ── Mount: NO AUTO-SLIDE ANIMATION - Legend starts at peek position ──────
+  // Inside the mount useEffect
+useEffect(() => {
+  const el = sheetRef.current;
+  if (!el) return;
+
+  const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
+  const isIOS =
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+  if (isIOS && !isStandalone) {
+    el.classList.add("legend-sheet--browser-ios");
+  }
+
+  requestAnimationFrame(() => {
+    recalcPositions();
+    snapTo(peekTranslateY.current);
+  });
+}, []);
 
   // ── Recalc peek position whenever expanded changes ───────────────────────
   useEffect(() => {
