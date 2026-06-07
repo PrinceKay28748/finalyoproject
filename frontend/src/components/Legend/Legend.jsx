@@ -324,7 +324,7 @@ const Legend = forwardRef(function Legend(
   const headerRef = useRef(null);
   const directionsRef = useRef(null);
 
-  const peekHeight = 90;
+  const peekHeight = 100;
 
   const lastAnnouncedRouteIdRef = useRef(null);
   const pendingRouteSummaryRef = useRef(null);
