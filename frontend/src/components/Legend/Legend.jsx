@@ -375,9 +375,24 @@ const Legend = forwardRef(function Legend(
   const recalcPositions = () => {
     if (!sheetRef.current) return;
     const h = sheetRef.current.offsetHeight;
-    const bottomOffset = -41; // Negative moves it up
-    // Allow negative values by removing Math.max(0, ...)
-    peekTranslateY.current = h - peekHeight + bottomOffset;
+
+    // Check if in standalone mode (PWA)
+    const isStandalone = window.matchMedia(
+      "(display-mode: standalone)",
+    ).matches;
+
+    // Get safe area bottom
+    const safeAreaBottom =
+      parseInt(
+        getComputedStyle(document.documentElement).getPropertyValue(
+          "padding-bottom",
+        ),
+      ) || 0;
+
+    // Different behavior for PWA vs browser
+    const extraOffset = isStandalone ? safeAreaBottom : -41;
+
+    peekTranslateY.current = h - peekHeight + extraOffset;
     expandedTranslateY.current = 0;
   };
 
