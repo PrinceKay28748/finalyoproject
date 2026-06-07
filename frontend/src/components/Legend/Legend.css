@@ -1238,7 +1238,6 @@ body.dragging-legend .leaflet-container {
  */
 @media (display-mode: standalone) {
   .legend-body {
-    /* Prevent the last scroll item from disappearing under the home bar */
-    padding-bottom: max(24px, env(safe-area-inset-bottom, 24px));
+    padding-bottom: max(48px, env(safe-area-inset-bottom, 48px));
   }
 }
