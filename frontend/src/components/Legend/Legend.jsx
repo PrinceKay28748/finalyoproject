@@ -369,53 +369,56 @@ const Legend = forwardRef(function Legend(
     el.addEventListener("transitionend", onEnd);
   };
 
-
   const recalcPositions = () => {
-  if (!sheetRef.current) return;
+    if (!sheetRef.current) return;
 
-  const computedStyle = getComputedStyle(sheetRef.current);
-  const sheetPaddingBottom = parseFloat(computedStyle.paddingBottom) || 0;
-  const h = sheetRef.current.offsetHeight - sheetPaddingBottom;
+    const computedStyle = getComputedStyle(sheetRef.current);
+    const sheetPaddingBottom = parseFloat(computedStyle.paddingBottom) || 0;
+    const h = sheetRef.current.offsetHeight - sheetPaddingBottom;
 
-  const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
-  const isIOS =
-    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const isStandalone = window.matchMedia(
+      "(display-mode: standalone)",
+    ).matches;
+    const isIOS =
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
-  let extraOffset = 0;
+    let extraOffset = 0;
 
-  if (isStandalone && isIOS) {
-    extraOffset = 0;
-  } else if (isIOS) {
-    extraOffset = -41;
-  } else {
-    extraOffset = 0;
-  }
+    if (isStandalone && isIOS) {
+      extraOffset = -34; // matches the bottom: -34px bleed in CSS
+    } else if (isIOS) {
+      extraOffset = -41; // browser mode — unchanged
+    } else {
+      extraOffset = 0;
+    }
 
-  peekTranslateY.current = h - peekHeight + extraOffset;
-  expandedTranslateY.current = 0;
-};
+    peekTranslateY.current = h - peekHeight + extraOffset;
+    expandedTranslateY.current = 0;
+  };
 
   // ── Mount: NO AUTO-SLIDE ANIMATION - Legend starts at peek position ──────
   // Inside the mount useEffect
-useEffect(() => {
-  const el = sheetRef.current;
-  if (!el) return;
+  useEffect(() => {
+    const el = sheetRef.current;
+    if (!el) return;
 
-  const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
-  const isIOS =
-    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const isStandalone = window.matchMedia(
+      "(display-mode: standalone)",
+    ).matches;
+    const isIOS =
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
-  if (isIOS && !isStandalone) {
-    el.classList.add("legend-sheet--browser-ios");
-  }
+    if (isIOS && !isStandalone) {
+      el.classList.add("legend-sheet--browser-ios");
+    }
 
-  requestAnimationFrame(() => {
-    recalcPositions();
-    snapTo(peekTranslateY.current);
-  });
-}, []);
+    requestAnimationFrame(() => {
+      recalcPositions();
+      snapTo(peekTranslateY.current);
+    });
+  }, []);
 
   // ── Recalc peek position whenever expanded changes ───────────────────────
   useEffect(() => {

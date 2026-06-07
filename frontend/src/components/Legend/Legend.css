@@ -1237,6 +1237,11 @@ body.dragging-legend .leaflet-container {
  * Content clipping is handled by legend-body's padding below instead.
  */
 @media (display-mode: standalone) {
+  .legend-sheet {
+    bottom: max(-34px, calc(-1 * env(safe-area-inset-bottom, 34px)));
+    padding-bottom: max(58px, calc(env(safe-area-inset-bottom, 34px) + env(safe-area-inset-bottom, 34px) + 24px));
+  }
+
   .legend-body {
     padding-bottom: max(48px, env(safe-area-inset-bottom, 48px));
   }
