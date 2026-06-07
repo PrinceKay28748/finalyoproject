@@ -1,9 +1,10 @@
 /* components/Legend/Legend.css */
 /* Apple-style glassmorphism — enhanced to match NavPanel */
 
+/* ── Sheet container ─────────────────────────────────────────────────────── */
 .legend-sheet {
   position: fixed;
-  bottom: -34px;  /* bleed past the home indicator zone */
+  bottom: env(safe-area-inset-bottom, 0px);
   left: 0;
   right: 0;
   background: rgba(255, 255, 255, 0.48);
@@ -17,12 +18,15 @@
     0 -24px 40px rgba(0, 0, 0, 0.03);
   z-index: 999;
   pointer-events: auto;
+  /* No transition or animation here — the JSX manages transform directly.
+     Snapping uses will-change so the GPU layer is already composited. */
   will-change: transform;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  padding-bottom: max(58px, calc(env(safe-area-inset-bottom, 0px) + 24px));
-  /* padding-bottom compensates for the -34px bleed + safe area + content lift */
+  /* NO padding-bottom here — adding it inflates offsetHeight which breaks
+     the JS peekTranslateY calculation. Content clipping is handled by
+     legend-body's padding instead. */
 }
 
 /* Initial mount slide-up — applied only via .legend-sheet--entering class
@@ -326,6 +330,15 @@
 .ug-root.dark .legend-badge--warn {
   background: rgba(245, 158, 11, 0.15);
   color: #fbbf24;
+}
+
+/* ── Collapsed peek profile row ──────────────────────────────────────────── */
+.legend-peek-profiles {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  padding: 4px 16px 16px;
+  flex-shrink: 0;
 }
 
 /* ── Profile buttons ─────────────────────────────────────────────────────── */
@@ -1237,12 +1250,8 @@ body.dragging-legend .leaflet-container {
  * Content clipping is handled by legend-body's padding below instead.
  */
 @media (display-mode: standalone) {
-  .legend-sheet {
-    bottom: max(-34px, calc(-1 * env(safe-area-inset-bottom, 34px)));
-    padding-bottom: max(58px, calc(env(safe-area-inset-bottom, 34px) + env(safe-area-inset-bottom, 34px) + 24px));
-  }
-
   .legend-body {
-    padding-bottom: max(48px, env(safe-area-inset-bottom, 48px));
+    /* Prevent the last scroll item from disappearing under the home bar */
+    padding-bottom: max(24px, env(safe-area-inset-bottom, 24px));
   }
 }
