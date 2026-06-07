@@ -376,12 +376,15 @@ const Legend = forwardRef(function Legend(
     if (!sheetRef.current) return;
     const h = sheetRef.current.offsetHeight;
 
-    // Check if in standalone mode (PWA)
+    // Check display mode
     const isStandalone = window.matchMedia(
       "(display-mode: standalone)",
     ).matches;
+    const isIOS =
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
-    // Get safe area bottom
+    // Get safe area
     const safeAreaBottom =
       parseInt(
         getComputedStyle(document.documentElement).getPropertyValue(
@@ -389,8 +392,18 @@ const Legend = forwardRef(function Legend(
         ),
       ) || 0;
 
-    // Different behavior for PWA vs browser
-    const extraOffset = isStandalone ? safeAreaBottom : -41;
+    let extraOffset = 0;
+
+    if (isStandalone && isIOS) {
+      // PWA on iOS - use safe area (no offset, let CSS handle it)
+      extraOffset = 0;
+    } else if (isIOS) {
+      // Browser on iOS - your manual adjustment
+      extraOffset = -41;
+    } else {
+      // Android or desktop
+      extraOffset = 0;
+    }
 
     peekTranslateY.current = h - peekHeight + extraOffset;
     expandedTranslateY.current = 0;
