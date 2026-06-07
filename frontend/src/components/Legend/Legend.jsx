@@ -370,9 +370,14 @@ const Legend = forwardRef(function Legend(
 
   const recalcPositions = () => {
     if (!sheetRef.current) return;
-    const h = sheetRef.current.offsetHeight;
 
-    // Check display mode
+    // offsetHeight includes any padding-bottom on the sheet itself.
+    // We want the "visual" height — the part that actually appears above
+    // the CSS bottom anchor — so subtract any padding-bottom the sheet carries.
+    const computedStyle = getComputedStyle(sheetRef.current);
+    const sheetPaddingBottom = parseFloat(computedStyle.paddingBottom) || 0;
+    const h = sheetRef.current.offsetHeight - sheetPaddingBottom;
+
     const isStandalone = window.matchMedia(
       "(display-mode: standalone)",
     ).matches;
@@ -380,24 +385,18 @@ const Legend = forwardRef(function Legend(
       /iPad|iPhone|iPod/.test(navigator.userAgent) ||
       (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
-    // Get safe area
-    const safeAreaBottom =
-      parseInt(
-        getComputedStyle(document.documentElement).getPropertyValue(
-          "padding-bottom",
-        ),
-      ) || 0;
-
     let extraOffset = 0;
 
     if (isStandalone && isIOS) {
-      // PWA on iOS - use safe area (no offset, let CSS handle it)
+      // CSS handles the anchor via bottom: env(safe-area-inset-bottom).
+      // JS only needs to show peekHeight above that anchor — no extra offset.
       extraOffset = 0;
     } else if (isIOS) {
-      // Browser on iOS - your manual adjustment
+      // Browser on iOS: the safe-area inset is consumed by the browser toolbar,
+      // not by CSS bottom. The -41 compensates for the toolbar sitting above
+      // the safe-area zone (34px inset + ~7px visual rounding = 41).
       extraOffset = -41;
     } else {
-      // Android or desktop
       extraOffset = 0;
     }
 
