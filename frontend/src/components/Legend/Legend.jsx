@@ -324,20 +324,14 @@ const Legend = forwardRef(function Legend(
   const headerRef = useRef(null);
   const directionsRef = useRef(null);
 
-  const peekHeight = 90; // existing fix from before
+  // peekHeight accounts for handle + from→to row + profiles row
+  const peekHeight = 140;
 
   const lastAnnouncedRouteIdRef = useRef(null);
   const pendingRouteSummaryRef = useRef(null);
 
   const { isVoiceEnabled, toggleVoice, speak } = useVoiceGuidance();
   const focus = useFocus();
-
-  // ── Helper to get safe area bottom inset ─────────────────────────────────
-  const getSafeAreaBottom = () => {
-    const style = getComputedStyle(document.documentElement);
-    const safeArea = style.getPropertyValue("padding-bottom");
-    return parseInt(safeArea) || 0;
-  };
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -371,7 +365,6 @@ const Legend = forwardRef(function Legend(
 
   const recalcPositions = () => {
     if (!sheetRef.current) return;
-
     const computedStyle = getComputedStyle(sheetRef.current);
     const sheetPaddingBottom = parseFloat(computedStyle.paddingBottom) || 0;
     const h = sheetRef.current.offsetHeight - sheetPaddingBottom;
@@ -386,9 +379,9 @@ const Legend = forwardRef(function Legend(
     let extraOffset = 0;
 
     if (isStandalone && isIOS) {
-      extraOffset = -34; // matches the bottom: -34px bleed in CSS
+      extraOffset = -34;
     } else if (isIOS) {
-      extraOffset = -41; // browser mode — unchanged
+      extraOffset = -41;
     } else {
       extraOffset = 0;
     }
@@ -397,15 +390,12 @@ const Legend = forwardRef(function Legend(
     expandedTranslateY.current = 0;
   };
 
-  // ── Mount: NO AUTO-SLIDE ANIMATION - Legend starts at peek position ──────
-  // Inside the mount useEffect
+  // ── Mount ────────────────────────────────────────────────────────────────
   useEffect(() => {
     const el = sheetRef.current;
     if (!el) return;
 
-    const isStandalone = window.matchMedia(
-      "(display-mode: standalone)",
-    ).matches;
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
     const isIOS =
       /iPad|iPhone|iPod/.test(navigator.userAgent) ||
       (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -734,7 +724,7 @@ const Legend = forwardRef(function Legend(
       ref={sheetRef}
       className={`legend-sheet ${expanded ? "legend-sheet--expanded" : "legend-sheet--peek"}`}
     >
-      {/* ── Drag zone (handle + peek row) ──────────────────────────────── */}
+      {/* ── Drag zone (handle + peek row + collapsed profiles) ───────────── */}
       <div
         ref={headerRef}
         className="legend-drag-header"
@@ -746,6 +736,7 @@ const Legend = forwardRef(function Legend(
           <div className="legend-handle" />
         </div>
 
+        {/* ── From → To row with ETA ──────────────────────────────────── */}
         <div className="legend-peek">
           <div className="legend-peek-dots">
             <span className="peek-dot peek-dot--start" />
@@ -764,6 +755,36 @@ const Legend = forwardRef(function Legend(
             </div>
           )}
         </div>
+
+        {/* ── Collapsed profile switcher — always visible without expanding ── */}
+        {hasRoute && (
+          <div className="legend-peek-profiles">
+            {PROFILES.map((p) => {
+              const IconComponent = p.icon;
+              const isActive = activeProfile === p.key;
+              return (
+                <button
+                  key={p.key}
+                  data-profile={p.key}
+                  className={`legend-profile-btn ${isActive ? "legend-profile-btn--active" : ""}`}
+                  onClick={(e) => {
+                    e.stopPropagation(); // prevent drag from firing on button tap
+                    onProfileChange?.(p.key);
+                  }}
+                  title={p.label}
+                >
+                  <span className="legend-profile-icon">
+                    <IconComponent
+                      className="w-4 h-4"
+                      color={isActive ? p.color : "currentColor"}
+                    />
+                  </span>
+                  <span>{p.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── Expanded body ───────────────────────────────────────────────── */}
@@ -781,37 +802,6 @@ const Legend = forwardRef(function Legend(
                 Direct path
               </span>
             )}
-          </div>
-
-          <div className="legend-profiles">
-            {PROFILES.map((p) => {
-              const IconComponent = p.icon;
-              const isActive = activeProfile === p.key;
-              const isFocused = focus.isFocused(
-                "legendItem",
-                `profile-${p.key}`,
-              );
-              return (
-                <button
-                  key={p.key}
-                  data-profile={p.key}
-                  className={`legend-profile-btn ${isActive ? "legend-profile-btn--active" : ""} ${isFocused ? "item--focused" : ""}`}
-                  onClick={() => {
-                    focus.setFocus("legendItem", `profile-${p.key}`, "legend");
-                    onProfileChange?.(p.key);
-                  }}
-                  title={p.label}
-                >
-                  <span className="legend-profile-icon">
-                    <IconComponent
-                      className="w-4 h-4"
-                      color={isActive ? p.color : "currentColor"}
-                    />
-                  </span>
-                  <span>{p.label}</span>
-                </button>
-              );
-            })}
           </div>
 
           <button
