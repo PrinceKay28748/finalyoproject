@@ -3,7 +3,7 @@
 
 .legend-sheet {
   position: fixed;
-  bottom: -34px;  /* bleed past the home indicator zone */
+ 
   left: 0;
   right: 0;
   background: rgba(255, 255, 255, 0.48);
@@ -21,7 +21,8 @@
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  padding-bottom: max(58px, calc(env(safe-area-inset-bottom, 0px) + 24px));
+  bottom: max(-34px, calc(-1 * env(safe-area-inset-bottom, 34px)));
+  padding-bottom: max(58px, calc(env(safe-area-inset-bottom, 34px) * 2 + 24px));
   /* padding-bottom compensates for the -34px bleed + safe area + content lift */
 }
 
