@@ -356,14 +356,10 @@ const Legend = forwardRef(function Legend(
     if (!el) return;
     el.classList.add("legend-sheet--snapping");
     const isDesktop = window.innerWidth >= 1024;
-    const safeAreaBottom = getSafeAreaBottom();
-    // Adjust target if snapping to peek position
-    const adjustedTarget =
-      targetY === peekTranslateY.current ? targetY + safeAreaBottom : targetY;
     if (isDesktop) {
-      el.style.transform = `translateX(-50%) translateY(${adjustedTarget}px)`;
+      el.style.transform = `translateX(-50%) translateY(${targetY}px)`;
     } else {
-      el.style.transform = `translateY(${adjustedTarget}px)`;
+      el.style.transform = `translateY(${targetY}px)`;
     }
     const onEnd = () => {
       el.classList.remove("legend-sheet--snapping");
