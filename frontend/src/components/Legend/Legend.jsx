@@ -380,7 +380,7 @@ const Legend = forwardRef(function Legend(
     if (isStandalone && isIOS) {
       extraOffset = -34;
     } else if (isIOS) {
-      extraOffset = -41;
+      extraOffset = -64;
     } else {
       extraOffset = 0;
     }
