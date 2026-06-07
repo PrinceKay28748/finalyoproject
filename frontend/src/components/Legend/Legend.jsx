@@ -324,8 +324,7 @@ const Legend = forwardRef(function Legend(
   const headerRef = useRef(null);
   const directionsRef = useRef(null);
 
-  // peekHeight accounts for handle + from→to row + profiles row
-  const peekHeight = 140;
+  const peekHeight = 90;
 
   const lastAnnouncedRouteIdRef = useRef(null);
   const pendingRouteSummaryRef = useRef(null);
@@ -758,7 +757,11 @@ const Legend = forwardRef(function Legend(
 
         {/* ── Collapsed profile switcher — always visible without expanding ── */}
         {hasRoute && (
-          <div className="legend-peek-profiles">
+          <div
+            className="legend-peek-profiles"
+            onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+          >
             {PROFILES.map((p) => {
               const IconComponent = p.icon;
               const isActive = activeProfile === p.key;
@@ -767,10 +770,7 @@ const Legend = forwardRef(function Legend(
                   key={p.key}
                   data-profile={p.key}
                   className={`legend-profile-btn ${isActive ? "legend-profile-btn--active" : ""}`}
-                  onClick={(e) => {
-                    e.stopPropagation(); // prevent drag from firing on button tap
-                    onProfileChange?.(p.key);
-                  }}
+                  onClick={() => onProfileChange?.(p.key)}
                   title={p.label}
                 >
                   <span className="legend-profile-icon">
