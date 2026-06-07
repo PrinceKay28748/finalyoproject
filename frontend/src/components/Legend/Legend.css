@@ -3,7 +3,7 @@
 
 .legend-sheet {
   position: fixed;
-  bottom: 0;  /* was env(safe-area-inset-bottom, 0px) — anchor flush to screen edge */
+  bottom: -34px;  /* bleed past the home indicator zone */
   left: 0;
   right: 0;
   background: rgba(255, 255, 255, 0.48);
@@ -21,8 +21,8 @@
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  padding-bottom: max(44px, calc(env(safe-area-inset-bottom, 0px) + 24px));
-  /* safe area + 24px content lift — sheet fills to screen edge, handle floats up */
+  padding-bottom: max(58px, calc(env(safe-area-inset-bottom, 0px) + 24px));
+  /* padding-bottom compensates for the -34px bleed + safe area + content lift */
 }
 
 /* Initial mount slide-up — applied only via .legend-sheet--entering class
