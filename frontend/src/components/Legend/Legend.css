@@ -18,15 +18,11 @@
     0 -24px 40px rgba(0, 0, 0, 0.03);
   z-index: 999;
   pointer-events: auto;
-  /* No transition or animation here — the JSX manages transform directly.
-     Snapping uses will-change so the GPU layer is already composited. */
   will-change: transform;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  /* NO padding-bottom here — adding it inflates offsetHeight which breaks
-     the JS peekTranslateY calculation. Content clipping is handled by
-     legend-body's padding instead. */
+  padding-bottom: 24px;  /* lifts content up, sheet background fills beneath */
 }
 
 /* Initial mount slide-up — applied only via .legend-sheet--entering class

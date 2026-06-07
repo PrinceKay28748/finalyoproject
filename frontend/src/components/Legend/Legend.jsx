@@ -325,7 +325,6 @@ const Legend = forwardRef(function Legend(
   const directionsRef = useRef(null);
 
   const peekHeight = 90; // existing fix from before
-  const peekBottomGap = 24; // NEW — how many px above the bottom anchor the collapsed sheet floats
 
   const lastAnnouncedRouteIdRef = useRef(null);
   const pendingRouteSummaryRef = useRef(null);
@@ -394,8 +393,7 @@ const Legend = forwardRef(function Legend(
       extraOffset = 0;
     }
 
-    // Subtract peekBottomGap so the collapsed sheet floats above the bottom edge
-    peekTranslateY.current = h - peekHeight - peekBottomGap + extraOffset;
+    peekTranslateY.current = h - peekHeight + extraOffset;
     expandedTranslateY.current = 0;
   };
 
