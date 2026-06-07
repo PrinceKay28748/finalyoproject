@@ -1,10 +1,9 @@
 /* components/Legend/Legend.css */
 /* Apple-style glassmorphism — enhanced to match NavPanel */
 
-/* ── Sheet container ─────────────────────────────────────────────────────── */
 .legend-sheet {
   position: fixed;
-  bottom: env(safe-area-inset-bottom, 0px);
+  bottom: 0;  /* was env(safe-area-inset-bottom, 0px) — anchor flush to screen edge */
   left: 0;
   right: 0;
   background: rgba(255, 255, 255, 0.48);
@@ -22,7 +21,8 @@
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  padding-bottom: 24px;  /* lifts content up, sheet background fills beneath */
+  padding-bottom: max(44px, calc(env(safe-area-inset-bottom, 0px) + 24px));
+  /* safe area + 24px content lift — sheet fills to screen edge, handle floats up */
 }
 
 /* Initial mount slide-up — applied only via .legend-sheet--entering class
