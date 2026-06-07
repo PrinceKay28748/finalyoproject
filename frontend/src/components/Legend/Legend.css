@@ -1146,6 +1146,8 @@ body.dragging-legend .leaflet-container {
 .ug-root.dark .direction-distance,
 .ug-root.dark .legend-traffic-label { color: #9ca3af; }
 
+
+
 /* ── Mobile ──────────────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
   .legend-sheet {
@@ -1223,4 +1225,24 @@ body.dragging-legend .leaflet-container {
     from { transform: translateX(-50%) translateY(110%); opacity: 0; }
     to   { transform: translateX(-50%) translateY(0);    opacity: 1; }
   }
+}
+
+
+
+/* PWA standalone mode adjustments */
+@media (display-mode: standalone) {
+  .legend-sheet {
+    bottom: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  
+  /* Ensure content doesn't get cut off */
+  .legend-body {
+    padding-bottom: max(24px, env(safe-area-inset-bottom, 24px));
+  }
+}
+
+/* Safe area support for all modes */
+.legend-sheet {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
