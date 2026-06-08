@@ -226,12 +226,14 @@ function getTrafficInfo() {
   if (day === 0)
     return {
       level: "Very Low",
+      icon: "⚪",
       multiplier: 1.0,
       message: "Sunday — very light activity",
     };
   if (day === 6)
     return {
       level: "Low",
+      icon: "🟢",
       multiplier: 1.1,
       message: "Saturday — light traffic",
     };
@@ -240,16 +242,18 @@ function getTrafficInfo() {
   if (peakHours.includes(hour))
     return {
       level: "Heavy",
+      icon: "🔴",
       multiplier: 1.5,
       message: "Peak hours — busy paths",
     };
   if (hour >= 6 && hour < 18)
     return {
       level: "Moderate",
+      icon: "🟡",
       multiplier: 1.3,
       message: "Moderate traffic",
     };
-  return { level: "Low", multiplier: 1.0, message: "Low traffic" };
+  return { level: "Low", icon: "⚫", multiplier: 1.0, message: "Low traffic" };
 }
 
 const PROFILE_CONFIG = {
@@ -303,7 +307,6 @@ const Legend = forwardRef(function Legend(
   const [currentStepIndex, setCurrentStepIndex] = useState(-1);
   const [wasExpandedBeforeCollapse, setWasExpandedBeforeCollapse] =
     useState(true);
-  const [toast, setToast] = useState(null);
 
   // ── Drag state refs (never cause re-renders) ─────────────────────────────
   const dragStartY = useRef(0);
@@ -316,7 +319,6 @@ const Legend = forwardRef(function Legend(
   const expandedTranslateY = useRef(0);
   const peekTranslateY = useRef(0);
   const userManuallyPeeked = useRef(false);
-  const toastTimerRef = useRef(null);
 
   const sheetRef = useRef(null);
   const headerRef = useRef(null);
@@ -329,19 +331,6 @@ const Legend = forwardRef(function Legend(
 
   const { isVoiceEnabled, toggleVoice, speak } = useVoiceGuidance();
   const focus = useFocus();
-
-  // ── Toast helper ─────────────────────────────────────────────────────────
-  const showToast = (msg) => {
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    setToast(msg);
-    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    };
-  }, []);
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -784,9 +773,6 @@ const Legend = forwardRef(function Legend(
       ref={sheetRef}
       className={`legend-sheet ${expanded ? "legend-sheet--expanded" : "legend-sheet--peek"}`}
     >
-      {/* ── Toast notification ───────────────────────────────────────────── */}
-      {toast && <div className="legend-toast">{toast}</div>}
-
       {/* ── Drag zone (handle + peek row + collapsed profiles) ───────────── */}
       <div
         ref={headerRef}
@@ -819,7 +805,7 @@ const Legend = forwardRef(function Legend(
           )}
         </div>
 
-        {/* ── Collapsed profile switcher — icon-only pills ─────────────── */}
+        {/* ── Collapsed profile switcher — always visible without expanding ── */}
         {hasRoute && (
           <div
             className="legend-peek-profiles"
@@ -837,10 +823,13 @@ const Legend = forwardRef(function Legend(
                   onClick={() => onProfileChange?.(p.key)}
                   title={p.label}
                 >
-                  <IconComponent
-                    className="w-4 h-4"
-                    color={isActive ? p.color : "currentColor"}
-                  />
+                  <span className="legend-profile-icon">
+                    <IconComponent
+                      className="w-4 h-4"
+                      color={isActive ? p.color : "currentColor"}
+                    />
+                  </span>
+                  <span>{p.label}</span>
                 </button>
               );
             })}
@@ -923,9 +912,7 @@ const Legend = forwardRef(function Legend(
 
               <div className="legend-traffic">
                 <div className="legend-traffic-icon">
-                  <div
-                    className={`legend-traffic-dot legend-traffic-dot--${traffic.level.toLowerCase().replace(" ", "-")}`}
-                  />
+                  <span>{traffic.icon}</span>
                 </div>
                 <div className="legend-traffic-info">
                   <span className="legend-traffic-label">Traffic</span>
@@ -1072,7 +1059,7 @@ const Legend = forwardRef(function Legend(
 
   function handleShareLocation() {
     if (!currentLocation) {
-      showToast("Location not available yet. Waiting for GPS fix.");
+      alert("Location not available yet. Please wait for GPS fix.");
       return;
     }
     const baseUrl = import.meta.env.PROD
@@ -1080,7 +1067,7 @@ const Legend = forwardRef(function Legend(
       : window.location.origin;
     const link = `${baseUrl}?lat=${currentLocation.lat}&lng=${currentLocation.lng}&name=Shared%20Location`;
     navigator.clipboard.writeText(link);
-    showToast("Location link copied!");
+    alert("Location link copied! Share it with your friends.");
   }
 });
 
