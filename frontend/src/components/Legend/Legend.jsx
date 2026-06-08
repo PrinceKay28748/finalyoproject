@@ -390,11 +390,14 @@ const Legend = forwardRef(function Legend(
   };
 
   // ── Mount ────────────────────────────────────────────────────────────────
+  
   useEffect(() => {
     const el = sheetRef.current;
     if (!el) return;
 
-    const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
+    const isStandalone = window.matchMedia(
+      "(display-mode: standalone)",
+    ).matches;
     const isIOS =
       /iPad|iPhone|iPod/.test(navigator.userAgent) ||
       (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -403,19 +406,38 @@ const Legend = forwardRef(function Legend(
       el.classList.add("legend-sheet--browser-ios");
     }
 
-    requestAnimationFrame(() => {
+    // Use ResizeObserver so the initial snap fires after the sheet has its
+    // real painted height, not before. This fixes the "first search sits too
+    // low" bug where a bare rAF would read offsetHeight before content paint.
+    let initialSnapped = false;
+    const ro = new ResizeObserver(() => {
       recalcPositions();
-      snapTo(peekTranslateY.current);
+      if (!initialSnapped) {
+        initialSnapped = true;
+        snapTo(peekTranslateY.current);
+      }
     });
+    ro.observe(el);
+
+    return () => ro.disconnect();
   }, []);
 
-  // ── Recalc peek position whenever expanded changes ───────────────────────
-  useEffect(() => {
-    requestAnimationFrame(() => {
-      recalcPositions();
-      snapTo(expanded ? expandedTranslateY.current : peekTranslateY.current);
-    });
-  }, [expanded]);
+ // ── Recalc peek position whenever expanded changes ───────────────────────
+useEffect(() => {
+  const el = sheetRef.current;
+  if (!el) return;
+
+  // The body mounts/unmounts when expanded toggles, changing offsetHeight.
+  // Observe one frame after the DOM settles, then disconnect.
+  const ro = new ResizeObserver(() => {
+    recalcPositions();
+    snapTo(expanded ? expandedTranslateY.current : peekTranslateY.current);
+    ro.disconnect();
+  });
+  ro.observe(el);
+
+  return () => ro.disconnect();
+}, [expanded]);
 
   // ── Voice ────────────────────────────────────────────────────────────────
   useEffect(() => {
