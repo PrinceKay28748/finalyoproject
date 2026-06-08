@@ -418,6 +418,22 @@ const Legend = forwardRef(function Legend(
     return () => ro.disconnect();
   }, []);
 
+  // ── Recalc when sheet becomes visible ────────────────────────────────────
+  useEffect(() => {
+    if (!visible) return;
+    const el = sheetRef.current;
+    if (!el) return;
+
+    const ro = new ResizeObserver(() => {
+      recalcPositions();
+      snapTo(peekTranslateY.current);
+      ro.disconnect();
+    });
+    ro.observe(el);
+
+    return () => ro.disconnect();
+  }, [visible]);
+
   // ── Recalc peek position whenever expanded changes ───────────────────────
   useEffect(() => {
     const el = sheetRef.current;
@@ -488,6 +504,8 @@ const Legend = forwardRef(function Legend(
     if (!route) return;
     const el = sheetRef.current;
     if (!el) return;
+
+    setExpanded(false);
 
     const ro = new ResizeObserver(() => {
       recalcPositions();
