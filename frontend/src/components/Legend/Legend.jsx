@@ -390,7 +390,8 @@ const Legend = forwardRef(function Legend(
   };
 
   // ── Mount ────────────────────────────────────────────────────────────────
-  
+
+  // ── Mount ────────────────────────────────────────────────────────────────
   useEffect(() => {
     const el = sheetRef.current;
     if (!el) return;
@@ -406,9 +407,6 @@ const Legend = forwardRef(function Legend(
       el.classList.add("legend-sheet--browser-ios");
     }
 
-    // Use ResizeObserver so the initial snap fires after the sheet has its
-    // real painted height, not before. This fixes the "first search sits too
-    // low" bug where a bare rAF would read offsetHeight before content paint.
     let initialSnapped = false;
     const ro = new ResizeObserver(() => {
       recalcPositions();
@@ -422,22 +420,20 @@ const Legend = forwardRef(function Legend(
     return () => ro.disconnect();
   }, []);
 
- // ── Recalc peek position whenever expanded changes ───────────────────────
-useEffect(() => {
-  const el = sheetRef.current;
-  if (!el) return;
+  // ── Recalc peek position whenever expanded changes ───────────────────────
+  useEffect(() => {
+    const el = sheetRef.current;
+    if (!el) return;
 
-  // The body mounts/unmounts when expanded toggles, changing offsetHeight.
-  // Observe one frame after the DOM settles, then disconnect.
-  const ro = new ResizeObserver(() => {
-    recalcPositions();
-    snapTo(expanded ? expandedTranslateY.current : peekTranslateY.current);
-    ro.disconnect();
-  });
-  ro.observe(el);
+    const ro = new ResizeObserver(() => {
+      recalcPositions();
+      snapTo(expanded ? expandedTranslateY.current : peekTranslateY.current);
+      ro.disconnect();
+    });
+    ro.observe(el);
 
-  return () => ro.disconnect();
-}, [expanded]);
+    return () => ro.disconnect();
+  }, [expanded]);
 
   // ── Voice ────────────────────────────────────────────────────────────────
   useEffect(() => {
