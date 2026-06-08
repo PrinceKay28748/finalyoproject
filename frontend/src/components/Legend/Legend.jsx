@@ -390,8 +390,6 @@ const Legend = forwardRef(function Legend(
   };
 
   // ── Mount ────────────────────────────────────────────────────────────────
-
-  // ── Mount ────────────────────────────────────────────────────────────────
   useEffect(() => {
     const el = sheetRef.current;
     if (!el) return;
@@ -483,6 +481,22 @@ const Legend = forwardRef(function Legend(
       setDirections([]);
       setCurrentStepIndex(-1);
     }
+  }, [route]);
+
+  // ── Recalc when route changes (new search result) ────────────────────────
+  useEffect(() => {
+    if (!route) return;
+    const el = sheetRef.current;
+    if (!el) return;
+
+    const ro = new ResizeObserver(() => {
+      recalcPositions();
+      snapTo(peekTranslateY.current);
+      ro.disconnect();
+    });
+    ro.observe(el);
+
+    return () => ro.disconnect();
   }, [route]);
 
   useEffect(() => {
