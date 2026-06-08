@@ -18,20 +18,12 @@
     0 -24px 40px rgba(0, 0, 0, 0.03);
   z-index: 999;
   pointer-events: auto;
-  /* No transition or animation here — the JSX manages transform directly.
-     Snapping uses will-change so the GPU layer is already composited. */
   will-change: transform;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  /* NO padding-bottom here — adding it inflates offsetHeight which breaks
-     the JS peekTranslateY calculation. Content clipping is handled by
-     legend-body's padding instead. */
 }
 
-/* Initial mount slide-up — applied only via .legend-sheet--entering class
-   that the JSX can add for one frame then remove, so it never re-fires
-   during expand/collapse state changes driven by drag. */
 .legend-sheet--entering {
   animation: sheet-rise 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -41,14 +33,10 @@
   to   { transform: translateY(0);    opacity: 1; }
 }
 
-/* Snap animation — applied after drag release so the sheet springs to its
-   final position smoothly. The JSX adds this class then removes it once
-   the transition ends. */
 .legend-sheet--snapping {
   transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Dark mode sheet */
 .ug-root.dark .legend-sheet {
   background: rgba(28, 28, 30, 0.72);
   border-top: 0.5px solid rgba(255, 255, 255, 0.1);
@@ -57,7 +45,6 @@
     0 -1px 0 rgba(255, 255, 255, 0.06) inset;
 }
 
-/* Dragging state — zero transition so transform follows finger instantly */
 .legend-sheet.dragging {
   transition: none !important;
   animation: none !important;
@@ -68,6 +55,31 @@
 .legend-sheet.dragging * {
   user-select: none;
   -webkit-user-select: none;
+}
+
+/* ── Toast notification ──────────────────────────────────────────────────── */
+.legend-toast {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(28, 28, 30, 0.82);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 10px 18px;
+  border-radius: 22px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+  animation: toast-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
 /* ── Drag handle ─────────────────────────────────────────────────────────── */
@@ -332,7 +344,7 @@
   color: #fbbf24;
 }
 
-/* ── Collapsed peek profile row ──────────────────────────────────────────── */
+/* ── Collapsed peek profile row — icon-only pills ────────────────────────── */
 .legend-peek-profiles {
   display: flex;
   flex-direction: row;
@@ -348,6 +360,16 @@
   gap: 8px;
   margin: 12px 0;
   animation: item-in 0.32s 0.05s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* In the peek strip, buttons are icon-only circles */
+.legend-peek-profiles .legend-profile-btn {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  gap: 0;
 }
 
 .legend-profile-btn {
@@ -602,9 +624,38 @@
 }
 
 .legend-traffic-icon {
-  font-size: 20px;
   width: 32px;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Traffic dot — replaces emoji icons */
+.legend-traffic-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.legend-traffic-dot--heavy {
+  background: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
+}
+
+.legend-traffic-dot--moderate {
+  background: #f59e0b;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
+}
+
+.legend-traffic-dot--low {
+  background: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+}
+
+.legend-traffic-dot--very-low {
+  background: #6b7280;
 }
 
 .legend-traffic-info {
@@ -642,9 +693,10 @@
   transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.legend-traffic-bar-fill.heavy   { background: #ef4444; }
+.legend-traffic-bar-fill.heavy    { background: #ef4444; }
 .legend-traffic-bar-fill.moderate { background: #f59e0b; }
 .legend-traffic-bar-fill.low      { background: #22c55e; }
+.legend-traffic-bar-fill.very-low { background: #6b7280; }
 
 /* ── Directions panel ────────────────────────────────────────────────────── */
 .legend-directions-section {
@@ -696,9 +748,9 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+/* Directions list — no inner scroll, flows into sheet body scroll */
 .legend-directions-list {
-  max-height: 280px;
-  overflow-y: auto;
+  overflow-y: visible;
   padding: 4px 0;
 }
 
@@ -728,7 +780,6 @@
   animation: step-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* Each step arrives 30ms after the previous */
 .legend-direction-step:nth-child(1)  { animation-delay: 0.00s; }
 .legend-direction-step:nth-child(2)  { animation-delay: 0.03s; }
 .legend-direction-step:nth-child(3)  { animation-delay: 0.06s; }
@@ -927,7 +978,6 @@
   gap: 8px;
 }
 
-/* Staggered alt card entrance */
 .legend-alt {
   display: flex;
   align-items: center;
@@ -1185,7 +1235,11 @@ body.dragging-legend .leaflet-container {
   .legend-profiles { gap: 6px; }
   .legend-profile-btn { padding: 8px 8px; font-size: 11px; }
 
-  .legend-directions-list { max-height: 200px; }
+  /* Peek strip icon pills — slightly smaller on mobile */
+  .legend-peek-profiles .legend-profile-btn {
+    width: 32px;
+    height: 32px;
+  }
 
   .legend-direction-step { padding: 10px 12px; gap: 8px; }
   .direction-icon { width: 24px; height: 24px; }
@@ -1193,7 +1247,7 @@ body.dragging-legend .leaflet-container {
   .direction-instruction { font-size: 12px; }
 
   .legend-traffic { padding: 8px 10px; }
-  .legend-traffic-icon { font-size: 16px; width: 28px; }
+  .legend-traffic-icon { width: 28px; }
   .legend-traffic-value { font-size: 12px; }
 
   .legend-share-btn { padding: 8px 12px; font-size: 12px; }
@@ -1221,7 +1275,6 @@ body.dragging-legend .leaflet-container {
     border-radius: 28px 28px 0 0;
   }
 
-  /* Keep the X centering during all states */
   .legend-sheet.dragging {
     transform: translateX(-50%) !important;
   }
@@ -1237,21 +1290,8 @@ body.dragging-legend .leaflet-container {
 }
 
 /* ── PWA standalone mode ─────────────────────────────────────────────────── */
-/*
- * DO NOT override `bottom` here. The base rule
- *   bottom: env(safe-area-inset-bottom, 0px)
- * on .legend-sheet already anchors the sheet above the home indicator
- * in all modes including standalone. Overriding it with `bottom: 0`
- * would drop the anchor to the raw screen edge and cause the sheet to
- * sink behind the home bar.
- *
- * padding-bottom on .legend-sheet is also intentionally absent — it
- * inflates offsetHeight which breaks the JS peekTranslateY calculation.
- * Content clipping is handled by legend-body's padding below instead.
- */
 @media (display-mode: standalone) {
   .legend-body {
-    /* Prevent the last scroll item from disappearing under the home bar */
     padding-bottom: max(24px, env(safe-area-inset-bottom, 24px));
   }
 }
