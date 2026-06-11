@@ -1255,3 +1255,96 @@ body.dragging-legend .leaflet-container {
     padding-bottom: max(24px, env(safe-area-inset-bottom, 24px));
   }
 }
+
+/* ─── Desktop: Solid panels for readability ─────────────────────────────── */
+@media (min-width: 1024px) {
+  .legend-sheet {
+    background: rgba(255, 255, 255, 0.98) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 -6px 28px rgba(0, 0, 0, 0.12);
+  }
+
+  /* Dark mode desktop solid */
+  .ug-root.dark .legend-sheet {
+    background: rgba(28, 28, 30, 0.98) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 -6px 28px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Keep drag handle visible */
+  .legend-handle {
+    background: rgba(0, 0, 0, 0.2);
+  }
+
+  .ug-root.dark .legend-handle {
+    background: rgba(255, 255, 255, 0.25);
+  }
+
+  /* Profile buttons solid */
+  .legend-profile-btn {
+    backdrop-filter: none !important;
+    background: rgba(0, 0, 0, 0.04);
+  }
+
+  .ug-root.dark .legend-profile-btn {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .legend-profile-btn--active {
+    background: rgba(37, 99, 235, 0.12) !important;
+  }
+
+  /* Voice button solid */
+  .legend-voice-btn {
+    backdrop-filter: none !important;
+    background: rgba(0, 0, 0, 0.04);
+  }
+
+  .ug-root.dark .legend-voice-btn {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  /* Stats grid solid */
+  .legend-stats-grid {
+    backdrop-filter: none !important;
+    background: rgba(0, 0, 0, 0.03);
+  }
+
+  .ug-root.dark .legend-stats-grid {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  /* Directions section solid */
+  .legend-directions-section {
+    backdrop-filter: none !important;
+    background: rgba(0, 0, 0, 0.03);
+  }
+
+  .ug-root.dark .legend-directions-section {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  /* Alternative routes solid */
+  .legend-alt {
+    backdrop-filter: none !important;
+    background: rgba(0, 0, 0, 0.03);
+  }
+
+  .ug-root.dark .legend-alt {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  /* Share button solid */
+  .legend-share-btn {
+    backdrop-filter: none !important;
+    background: rgba(0, 0, 0, 0.04);
+  }
+
+  .ug-root.dark .legend-share-btn {
+    background: rgba(255, 255, 255, 0.08);
+  }
+}
