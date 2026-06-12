@@ -1,5 +1,5 @@
 // components/Panel/NavPanel.jsx
-import { useState, useEffect, useRef } from "react";  // ← ADDED useRef
+import { useState, useEffect } from "react";
 import { useAuthContext } from "../../context/AuthContext";
 import { useFocus } from "../../context/FocusContext";
 import SearchBox from "../Search/SearchBox";
@@ -16,7 +16,168 @@ import {
 } from "../ui/icon";
 import "./NavPanel.css";
 
-// ... (all icon components unchanged) ...
+// Avatar component using Navii (styled like glass buttons)
+function Avatar({ username, size = 44, onClick }) {
+  const seed = username || "guest";
+  const avatarUrl = `https://api.navii.dev/avatar/${encodeURIComponent(seed)}?size=${size}&motion=true`;
+
+  return (
+    <button
+      className="nav-glass-btn nav-avatar-btn"
+      onClick={onClick}
+      aria-label="Profile settings"
+      title={`${username || "User"} · Click to edit profile`}
+      style={{ width: size, height: size, padding: 0, overflow: "hidden" }}
+    >
+      <img
+        src={avatarUrl}
+        alt={username || "Avatar"}
+        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+      />
+    </button>
+  );
+}
+
+// ─── Inline SVG icons ──────────────────────────────────────────────────────
+
+function IconFrom() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="4" fill="currentColor" />
+      <circle
+        cx="12"
+        cy="12"
+        r="7.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        fill="none"
+        opacity="0.35"
+      />
+    </svg>
+  );
+}
+
+function IconTo() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function IconArrowRight() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M5 12h14M13 6l6 6-6 6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconSunInline() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="4.5" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function IconMoonInline() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconLogoutInline() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <polyline
+        points="16 17 21 12 16 7"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <line
+        x1="21"
+        y1="12"
+        x2="9"
+        y2="12"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
 
 export default function NavPanel({
   startText,
@@ -44,23 +205,9 @@ export default function NavPanel({
   const [internalIsExpanded, setInternalIsExpanded] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [hasRoute, setHasRoute] = useState(false);
-  
-  // ─── FIX: Track whether route was explicitly set by user action ─────────
-  const userExplicitlySetRoute = useRef(false);
-  const isInitialMount = useRef(true);
-  
   const { logout, user } = useAuthContext();
   const focus = useFocus();
   const navigate = useNavigate();
-
-  // ─── FIX: On initial mount, if both startText and destText exist,
-  // assume page was refreshed with a saved route and show compact view ───────
-  useEffect(() => {
-    if (isInitialMount.current && startText && destText && !userExplicitlySetRoute.current) {
-      setHasRoute(true);
-      isInitialMount.current = false;
-    }
-  }, [startText, destText]);
 
   const isExpanded =
     externalIsExpanded !== undefined ? externalIsExpanded : internalIsExpanded;
@@ -84,7 +231,6 @@ export default function NavPanel({
   const handleDirectionsClick = () => {
     if (canShow && !isResolving) {
       onShowOnMap();
-      userExplicitlySetRoute.current = true;  // ← FIX: Mark as user-initiated
       setHasRoute(true);
       setIsExpanded(false);
     }
@@ -97,7 +243,6 @@ export default function NavPanel({
 
   const handleResetClick = () => {
     onReset();
-    userExplicitlySetRoute.current = false;  // ← FIX: Clear user-initiated flag
     setHasRoute(false);
     setIsExpanded(false);
   };
@@ -105,37 +250,6 @@ export default function NavPanel({
   const handleClose = () => {
     setIsExpanded(false);
     if (onClose) onClose();
-  };
-
-  // ─── FIX: When user selects from dropdown, mark route as set ─────────────
-  const handleStartSelect = (location) => {
-    focus.setFocus(
-      "location",
-      location.name || location.lat.toFixed(4),
-      "search",
-    );
-    onStartSelect(location);
-    // If destText already exists, this completes the route
-    if (destText) {
-      userExplicitlySetRoute.current = true;
-      setHasRoute(true);
-      setIsExpanded(false);
-    }
-  };
-
-  const handleDestSelect = (location) => {
-    focus.setFocus(
-      "location",
-      location.name || location.lat.toFixed(4),
-      "search",
-    );
-    onDestSelect(location);
-    // If startText already exists, this completes the route
-    if (startText) {
-      userExplicitlySetRoute.current = true;
-      setHasRoute(true);
-      setIsExpanded(false);
-    }
   };
 
   const statusClass = locationError
@@ -162,11 +276,13 @@ export default function NavPanel({
       <div className="nav-panel nav-panel--compact">
         <div className="nav-header">
           <div className="nav-header-left">
+            {/* Avatar ONLY - no logo */}
             <Avatar
               username={user?.username}
               size={44}
               onClick={() => navigate("/profile")}
             />
+
             <div>
               <p className="nav-title">UG Navigator</p>
               <p className="nav-subtitle">
@@ -266,11 +382,13 @@ export default function NavPanel({
       >
         <div className="nav-header">
           <div className="nav-header-left">
+            {/* Avatar ONLY - no logo */}
             <Avatar
               username={user?.username}
               size={44}
               onClick={() => navigate("/profile")}
             />
+
             <div>
               <p className="nav-title">UG Navigator</p>
               <p className="nav-subtitle">
@@ -344,7 +462,14 @@ export default function NavPanel({
                 placeholder="Your location"
                 value={startText}
                 onChange={onStartTextChange}
-                onSelect={handleStartSelect}  // ← FIX: Use wrapped handler
+                onSelect={(location) => {
+                  focus.setFocus(
+                    "location",
+                    location.name || location.lat.toFixed(4),
+                    "search",
+                  );
+                  onStartSelect(location);
+                }}
                 onUseCurrentLocation={onUseCurrentLocation}
                 showCurrentLocationOption={hasCurrentLocation}
                 accentColor="#2563eb"
@@ -363,7 +488,14 @@ export default function NavPanel({
                 placeholder="Where to?"
                 value={destText}
                 onChange={onDestTextChange}
-                onSelect={handleDestSelect}  // ← FIX: Use wrapped handler
+                onSelect={(location) => {
+                  focus.setFocus(
+                    "location",
+                    location.name || location.lat.toFixed(4),
+                    "search",
+                  );
+                  onDestSelect(location);
+                }}
                 onUseCurrentLocation={() => {}}
                 showCurrentLocationOption={false}
                 accentColor="#22c55e"
@@ -473,6 +605,7 @@ export default function NavPanel({
         )}
       </div>
 
+      {/* Logout Confirmation Modal */}
       <LogoutConfirmationModal
         isOpen={showLogoutModal}
         onClose={() => setShowLogoutModal(false)}
