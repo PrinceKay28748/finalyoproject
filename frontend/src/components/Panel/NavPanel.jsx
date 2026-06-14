@@ -5,7 +5,7 @@ import { useFocus } from "../../context/FocusContext";
 import SearchBox from "../Search/SearchBox";
 import PortalSearchBox from "../Search/PortalSearchBox";
 import { useNavigate } from "react-router-dom";
-import logo from "./icon-192.svg";
+import logo from "./icon-192.png";
 import {
   IconSwap,
   IconSearch,
