@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthContext } from '../../context/AuthContext';
 import { API_URL } from '../../config';
 import { getReports, updateReportStatus } from '../../services/reportService';
+import { isTokenValid } from '../Profile/auth';
 import './AdminDashboard.css';
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -11,6 +12,11 @@ const Icons = {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
       <polyline points="9 22 9 12 15 12 15 22" />
+    </svg>
+  ),
+  Star: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
     </svg>
   ),
   Users: () => (
@@ -115,8 +121,8 @@ const ISSUE_TYPE_LABELS = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function getToken() {
-  // Always read fresh so a mid-session refresh is picked up automatically
-  return sessionStorage.getItem('accessToken');
+  const token = sessionStorage.getItem('accessToken');
+  return isTokenValid(token) ? token : null;
 }
 
 function formatNumber(num) {
@@ -158,6 +164,7 @@ export default function AdminDashboard() {
   const [users,            setUsers]            = useState([]);
   const [activity,         setActivity]         = useState([]);
   const [reports,          setReports]          = useState([]);
+  const [feedback,         setFeedback]         = useState([]);
   const [pendingCount,     setPendingCount]      = useState(0); // sidebar badge — always fresh
   const [isLoading,        setIsLoading]        = useState(true);
   const [error,            setError]            = useState('');
@@ -205,20 +212,22 @@ export default function AdminDashboard() {
         window.location.href = '/';
         return;
       }
-
       const headers = {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       };
 
-      const [statsRes, usersRes, activityRes] = await Promise.all([
+      // Added feedbackRes to the parallel fetch
+      const [statsRes, usersRes, activityRes, feedbackRes] = await Promise.all([
         fetch(`${API_URL}/admin/stats`,    { headers }),
         fetch(`${API_URL}/admin/users`,    { headers }),
         fetch(`${API_URL}/admin/activity`, { headers }),
+        fetch(`${API_URL}/api/reports/feedback`, { headers }), // Assume backend exposes this
       ]);
 
-      // Any 401 means token expired — redirect to login
-      if ([statsRes, usersRes, activityRes].some(r => r.status === 401)) {
+      // Any 401/403 means token expired or invalid — redirect to login
+      if ([statsRes, usersRes, activityRes, feedbackRes].some(r => r.status === 401 || r.status === 403)) {
+        console.warn('[Admin] Auth session invalid, redirecting to login');
         sessionStorage.removeItem('accessToken');
         sessionStorage.removeItem('refreshToken');
         sessionStorage.removeItem('user');
@@ -226,10 +235,11 @@ export default function AdminDashboard() {
         return;
       }
 
-      const [statsData, usersData, activityData] = await Promise.all([
+      const [statsData, usersData, activityData, feedbackData] = await Promise.all([
         statsRes.json(),
         usersRes.json(),
         activityRes.json(),
+        feedbackRes.json().catch(() => ({ feedback: [] })),
       ]);
 
       const parsedActivity = (activityData.activity || []).map(item => {
@@ -247,6 +257,7 @@ export default function AdminDashboard() {
       setStats(statsData);
       setUsers(usersData.users || []);
       setActivity(parsedActivity);
+      setFeedback(feedbackData.feedback || []);
       setLastUpdated(new Date());
       setError('');
 
@@ -313,6 +324,7 @@ export default function AdminDashboard() {
   const tabTitle = {
     overview: 'Dashboard',
     reports:  'Accessibility Reports',
+    feedback: 'Path Ratings',
     users:    'User Management',
     activity: 'Activity Log',
   }[activeTab] ?? 'Dashboard';
@@ -344,6 +356,7 @@ export default function AdminDashboard() {
           {[
             { key: 'overview',  label: 'Overview', Icon: Icons.Dashboard },
             { key: 'reports',   label: 'Reports',  Icon: Icons.Flag,     badge: pendingCount },
+            { key: 'feedback',  label: 'Ratings',  Icon: Icons.Star },
             { key: 'users',     label: 'Users',    Icon: Icons.Users },
             { key: 'activity',  label: 'Activity', Icon: Icons.Activity },
           ].map(({ key, label, Icon, badge }) => (
@@ -547,6 +560,37 @@ export default function AdminDashboard() {
               </div>
             </div>
           </>
+        )}
+
+        {/* ── Feedback / Ratings Tab ────────────────────────────────────────── */}
+        {activeTab === 'feedback' && (
+          <div className="admin-card full-width">
+            <div className="admin-table-header">
+              <h3>Path Feedback & Ratings</h3>
+              <p>User feedback on specific route profiles</p>
+            </div>
+            <div className="feedback-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px', padding: '20px 0' }}>
+              {feedback.length > 0 ? feedback.map((item) => (
+                <div key={item.id} className="feedback-card" style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: '16px', padding: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                    <span style={{ fontWeight: '700', textTransform: 'capitalize', color: 'var(--profile-color)' }}>{item.profile_key}</span>
+                    <div style={{ color: '#f59e0b' }}>
+                      {'★'.repeat(item.rating)}{'☆'.repeat(5 - item.rating)}
+                    </div>
+                  </div>
+                  <p style={{ fontSize: '14px', color: 'var(--text)', marginBottom: '12px' }}>
+                    {item.comment || "No comment provided."}
+                  </p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--sub)' }}>
+                    <span>User ID: {item.user_id?.substring(0, 8) || 'Guest'}</span>
+                    <span>{new Date(item.created_at).toLocaleDateString()}</span>
+                  </div>
+                </div>
+              )) : (
+                <div className="no-data">No feedback yet.</div>
+              )}
+            </div>
+          </div>
         )}
 
         {/* ── Reports ────────────────────────────────────────────────────────── */}

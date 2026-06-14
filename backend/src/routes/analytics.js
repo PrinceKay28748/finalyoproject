@@ -35,6 +35,30 @@ router.post('/log', async (req, res) => {
 });
 
 /**
+ * POST /analytics/feedback
+ * Log user feedback for a specific route profile
+ */
+router.post('/feedback', async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+    const { profile, rating, comment } = req.body;
+
+    if (!rating || rating < 1 || rating > 5) return res.status(400).json({ error: 'Valid rating required' });
+
+    await query(
+      `INSERT INTO route_feedback (user_id, profile_key, rating, comment, created_at)
+       VALUES (?, ?, ?, ?, NOW())`,
+      [userId || null, profile || 'standard', rating, comment || null]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[Analytics Feedback] Error:', error.message);
+    res.status(500).json({ error: 'Failed to save feedback' });
+  }
+});
+
+/**
  * POST /analytics/route
  * Log route calculation
  */

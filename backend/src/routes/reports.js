@@ -36,7 +36,7 @@ router.post('/', verifyToken, async (req, res) => {
       `INSERT INTO accessibility_reports
          (submitted_by, lat, lng, location_name, issue_type, custom_description, severity, status, created_at)
        VALUES
-         ($1, $2, $3, $4, $5, $6, $7, 'pending', CURRENT_TIMESTAMP)
+         (?, ?, ?, ?, ?, ?, ?, 'pending', CURRENT_TIMESTAMP)
        RETURNING id, submitted_by, lat, lng, location_name, issue_type,
                  custom_description, severity, status, created_at`,
       [userId, parsedLat, parsedLng, location_name || null, issue_type, custom_description || null, parsedSeverity]
@@ -74,7 +74,7 @@ router.get('/', verifyToken, async (req, res) => {
     }
 
     const userCheck = await query(
-      'SELECT is_admin FROM users WHERE id = $1 AND deleted_at IS NULL',
+      'SELECT is_admin FROM users WHERE id = ? AND deleted_at IS NULL',
       [userId]
     );
     if (!userCheck.rows[0]?.is_admin) {
@@ -93,11 +93,11 @@ router.get('/', verifyToken, async (req, res) => {
 
     if (status !== 'all') {
       params.push(status);
-      sql += ` AND status = $${params.length}`;
+      sql += ` AND status = ?`;
     }
 
     params.push(parsedLimit, parsedOffset);
-    sql += ` ORDER BY created_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`;
+    sql += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
 
     const result = await query(sql, params);
 
@@ -124,7 +124,7 @@ router.get('/stats/summary', verifyToken, async (req, res) => {
     }
 
     const userCheck = await query(
-      'SELECT is_admin FROM users WHERE id = $1 AND deleted_at IS NULL',
+      'SELECT is_admin FROM users WHERE id = ? AND deleted_at IS NULL',
       [userId]
     );
     if (!userCheck.rows[0]?.is_admin) {
@@ -152,6 +152,36 @@ router.get('/stats/summary', verifyToken, async (req, res) => {
 });
 
 // =============================================
+// GET /api/reports/feedback - Get path ratings (admin only)
+// =============================================
+router.get('/feedback', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    
+    // Admin check
+    const userCheck = await query(
+      'SELECT is_admin FROM users WHERE id = ? AND deleted_at IS NULL',
+      [userId]
+    );
+    if (!userCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const result = await query(
+      `SELECT id, user_id, profile_key, rating, comment, created_at 
+       FROM route_feedback 
+       ORDER BY created_at DESC 
+       LIMIT 100`
+    );
+
+    res.json({ success: true, feedback: result.rows });
+  } catch (error) {
+    console.error('[Reports Feedback] Fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch feedback' });
+  }
+});
+
+// =============================================
 // GET /api/reports/:id - Get single report
 // =============================================
 router.get('/:id', verifyToken, async (req, res) => {
@@ -168,7 +198,7 @@ router.get('/:id', verifyToken, async (req, res) => {
               custom_description, severity, status, admin_notes,
               reviewed_by, reviewed_at, created_at, updated_at
        FROM accessibility_reports
-       WHERE id = $1 AND deleted_at IS NULL`,
+       WHERE id = ? AND deleted_at IS NULL`,
       [reportId]
     );
 
@@ -177,7 +207,7 @@ router.get('/:id', verifyToken, async (req, res) => {
     }
 
     const isAdminCheck = await query(
-      'SELECT is_admin FROM users WHERE id = $1',
+      'SELECT is_admin FROM users WHERE id = ?',
       [userId]
     );
 
@@ -211,7 +241,7 @@ router.patch('/:id', verifyToken, async (req, res) => {
     }
 
     const userCheck = await query(
-      'SELECT is_admin FROM users WHERE id = $1 AND deleted_at IS NULL',
+      'SELECT is_admin FROM users WHERE id = ? AND deleted_at IS NULL',
       [userId]
     );
     if (!userCheck.rows[0]?.is_admin) {
@@ -222,7 +252,7 @@ router.patch('/:id', verifyToken, async (req, res) => {
     const reportResult = await query(
       `SELECT id, submitted_by, status, location_name, issue_type, custom_description, severity
        FROM accessibility_reports
-       WHERE id = $1 AND deleted_at IS NULL`,
+       WHERE id = ? AND deleted_at IS NULL`,
       [reportId]
     );
 
@@ -236,12 +266,12 @@ router.patch('/:id', verifyToken, async (req, res) => {
     // Update the report
     const updateResult = await query(
       `UPDATE accessibility_reports
-       SET status      = $1,
-           admin_notes = COALESCE($2, admin_notes),
-           reviewed_by = $3,
+       SET status      = ?,
+           admin_notes = COALESCE(?, admin_notes),
+           reviewed_by = ?,
            reviewed_at = CURRENT_TIMESTAMP,
            updated_at  = CURRENT_TIMESTAMP
-       WHERE id = $4 AND deleted_at IS NULL
+       WHERE id = ? AND deleted_at IS NULL
        RETURNING id, status, admin_notes, reviewed_at`,
       [status, admin_notes || null, userId, reportId]
     );
@@ -281,7 +311,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
     }
 
     const userCheck = await query(
-      'SELECT is_admin FROM users WHERE id = $1 AND deleted_at IS NULL',
+      'SELECT is_admin FROM users WHERE id = ? AND deleted_at IS NULL',
       [userId]
     );
     if (!userCheck.rows[0]?.is_admin) {
@@ -291,7 +321,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
     const result = await query(
       `UPDATE accessibility_reports
        SET deleted_at = CURRENT_TIMESTAMP
-       WHERE id = $1 AND deleted_at IS NULL
+       WHERE id = ? AND deleted_at IS NULL
        RETURNING id`,
       [reportId]
     );

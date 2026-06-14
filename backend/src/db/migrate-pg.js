@@ -1,5 +1,6 @@
 // backend/src/db/migrate-pg.js
-// PostgreSQL migration script for Supabase
+// PostgreSQL migration script for Supabase (production only).
+// Requires DATABASE_URL. Do NOT use for local SQLite — use migrate.js instead.
 
 import pkg from 'pg';
 const { Pool } = pkg;

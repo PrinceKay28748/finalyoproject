@@ -1,37 +1,67 @@
 /* components/Legend/Legend.css */
-/* Apple-style glassmorphism — enhanced to match NavPanel */
+/* Modern Map Sheet Design — Inspired by Apple/Google Maps */
+
+/* Register properties for smooth interpolation of dynamic values during snaps */
+@property --sheet-blur {
+  syntax: '<length>';
+  initial-value: 25px;
+  inherits: false;
+}
+
+@property --sheet-opacity {
+  syntax: '<number>';
+  initial-value: 0.82;
+  inherits: false;
+}
 
 /* ── Sheet container ─────────────────────────────────────────────────────── */
 .legend-sheet {
   position: fixed;
-  bottom: env(safe-area-inset-bottom, 0px);
+  bottom: 0;
   left: 0;
   right: 0;
-  background: rgba(255, 255, 255, 0.48);
-  backdrop-filter: blur(32px) saturate(180%);
-  -webkit-backdrop-filter: blur(32px) saturate(180%);
-  border-radius: 24px 24px 0 0;
-  border-top: 0.5px solid rgba(255, 255, 255, 0.55);
-  box-shadow:
-    0 -6px 32px rgba(0, 0, 0, 0.07),
-    0 -1px 0 rgba(255, 255, 255, 0.35) inset,
-    0 -24px 40px rgba(0, 0, 0, 0.03);
+  
+  /* Industry standard: Layered glass with high saturation */
+  background: rgba(255, 255, 255, var(--sheet-opacity, 0.82));
+  backdrop-filter: blur(var(--sheet-blur, 25px)) saturate(210%);
+  -webkit-backdrop-filter: blur(var(--sheet-blur, 25px)) saturate(210%);
+  
+  border-radius: 32px 32px 0 0;
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  border-bottom: none;
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.12);
   z-index: 999;
   pointer-events: auto;
-  /* No transition or animation here — the JSX manages transform directly.
-     Snapping uses will-change so the GPU layer is already composited. */
   will-change: transform;
-  max-height: 80vh;
+  max-height: 85vh;
   display: flex;
   flex-direction: column;
-  /* NO padding-bottom here — adding it inflates offsetHeight which breaks
-     the JS peekTranslateY calculation. Content clipping is handled by
-     legend-body's padding instead. */
+  overflow: visible !important; 
+
+  /* Standard safe-area padding ensures content sits above the home bar */
+  padding-bottom: env(safe-area-inset-bottom, 14px);
+
+  transition: background 0.3s ease;
 }
 
-/* Initial mount slide-up — applied only via .legend-sheet--entering class
-   that the JSX can add for one frame then remove, so it never re-fires
-   during expand/collapse state changes driven by drag. */
+/* ── Infinite Bottom Fill (The Senior SWE Way) ──────────────────────────── */
+/* This creates a visual "tail" that follows the sheet during drag.
+   Because it's a pseudo-element, it doesn't affect offsetHeight calculations. */
+.legend-sheet::after {
+  content: "";
+  position: absolute;
+  /* Overlap by 1px to prevent sub-pixel light leaks during high-speed drag */
+  top: calc(100% - 1px); 
+  left: 0;
+  right: 0;
+  height: 100vh;
+  /* Use a solid version of the background to ensure map is 100% blocked */
+  background: #ffffff; 
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Initial mount slide-up */
 .legend-sheet--entering {
   animation: sheet-rise 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -41,20 +71,24 @@
   to   { transform: translateY(0);    opacity: 1; }
 }
 
-/* Snap animation — applied after drag release so the sheet springs to its
-   final position smoothly. The JSX adds this class then removes it once
-   the transition ends. */
+/* Snap animation */
 .legend-sheet--snapping {
-  transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+  /* Transition transform and the custom properties for a fluid finish */
+  transition: transform 0.44s cubic-bezier(0.2, 0.9, 0.4, 1.1),
+              --sheet-blur 0.44s cubic-bezier(0.2, 0.9, 0.4, 1.1),
+              --sheet-opacity 0.44s cubic-bezier(0.2, 0.9, 0.4, 1.1);
 }
 
 /* Dark mode sheet */
 .ug-root.dark .legend-sheet {
-  background: rgba(28, 28, 30, 0.72);
-  border-top: 0.5px solid rgba(255, 255, 255, 0.1);
-  box-shadow:
-    0 -6px 32px rgba(0, 0, 0, 0.4),
-    0 -1px 0 rgba(255, 255, 255, 0.06) inset;
+  background: rgba(15, 23, 42, var(--sheet-opacity, 0.88));
+  border: 1.5px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* Ensure dark mode tail matches */
+.ug-root.dark .legend-sheet::after {
+  background: #18181a;
 }
 
 /* Dragging state — zero transition so transform follows finger instantly */
@@ -87,22 +121,22 @@
 }
 
 .legend-handle {
-  width: 36px;
-  height: 4px;
-  background: rgba(0, 0, 0, 0.12);
-  border-radius: 4px;
-  transition: width 0.22s cubic-bezier(0.34, 1.56, 0.64, 1),
+  width: 38px;
+  height: 5px;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 10px;
+  transition: width 0.25s cubic-bezier(0.2, 0.9, 0.4, 1),
               background 0.2s ease,
               transform 0.2s ease;
 }
 
 .legend-handle-wrap:hover .legend-handle {
-  width: 48px;
-  background: rgba(0, 0, 0, 0.22);
+  width: 44px;
+  background: rgba(0, 0, 0, 0.25);
 }
 
 .legend-handle-wrap:active .legend-handle {
-  width: 52px;
+  width: 48px;
   background: rgba(37, 99, 235, 0.4);
   transform: scaleY(1.2);
 }
@@ -124,12 +158,12 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 20px 12px;
+  padding: 6px 20px 8px; 
   cursor: pointer;
   flex-shrink: 0;
   border-radius: 20px;
   margin: 0 4px;
-  transition: background 0.18s ease, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: background 0.18s ease, transform 0.2s cubic-bezier(0.2, 0.9, 0.4, 1.1);
 }
 
 .legend-peek:hover {
@@ -175,22 +209,22 @@
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  flex-shrink: 0;
+  width: 12px;
 }
 
 .peek-dot {
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  flex-shrink: 0;
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border: 2px solid #fff;
+  transition: transform 0.2s cubic-bezier(0.2, 0.9, 0.4, 1.1);
 }
 
 .legend-peek:hover .peek-dot {
   transform: scale(1.2);
 }
 
-.peek-dot--start {
+.peek-dot--start { 
   background: #2563eb;
   box-shadow: 0 0 0 2.5px rgba(37, 99, 235, 0.18);
 }
@@ -202,7 +236,7 @@
 
 .peek-dot-line {
   width: 2px;
-  height: 12px;
+  height: 10px;
   background: rgba(0, 0, 0, 0.12);
   border-radius: 1px;
 }
@@ -222,7 +256,7 @@
 
 .peek-from,
 .peek-to {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text);
   white-space: nowrap;
@@ -247,13 +281,13 @@
 
 .peek-time-value {
   font-size: 15px;
-  font-weight: 700;
-  color: var(--text);
+  font-weight: 800;
+  color: #2563eb;
   line-height: 1;
 }
 
 .peek-time-label {
-  font-size: 10px;
+  font-size: 9px;
   color: var(--sub);
   margin-top: 1px;
 }
@@ -261,11 +295,11 @@
 /* ── Scrollable content ──────────────────────────────────────────────────── */
 .legend-body {
   padding: 0 20px 24px;
-  overflow-y: auto;
+  overflow-y: overlay; /* Better for glassmorphism */
   -webkit-overflow-scrolling: touch;
   flex: 1;
   min-height: 0;
-  animation: body-fade 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: body-fade 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .legend-body::-webkit-scrollbar { width: 4px; }
@@ -290,7 +324,7 @@
   align-items: center;
   gap: 8px;
   margin-bottom: 14px;
-  animation: item-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: item-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .profile-icon {
@@ -337,7 +371,7 @@
   display: flex;
   flex-direction: row;
   gap: 8px;
-  padding: 4px 16px 16px;
+  padding: 4px 16px 14px; /* Cleaned up duplicate padding */
   flex-shrink: 0;
 }
 
@@ -347,66 +381,63 @@
   flex-direction: row;
   gap: 8px;
   margin: 12px 0;
-  animation: item-in 0.32s 0.05s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: item-in 0.3s 0.05s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .legend-profile-btn {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.5);
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
-  border: 0.5px solid rgba(255, 255, 255, 0.5);
+  gap: 4px;
+  padding: 10px 4px;
+  background: rgba(0, 0, 0, 0.03);
   border-radius: 30px;
   font-size: 13px;
   font-weight: 500;
   color: var(--text);
   cursor: pointer;
   transition:
-    transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1),
+    transform 0.2s cubic-bezier(0.2, 0.9, 0.4, 1.1),
     background 0.2s ease,
     border-color 0.2s ease,
     box-shadow 0.2s ease,
     color 0.2s ease;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  border: 1px solid transparent;
 }
 
 .legend-profile-btn:hover {
-  transform: scale(1.03);
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.8);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 .legend-profile-btn:active {
-  transform: scale(0.97);
+  transform: scale(0.95);
   transition-duration: 0.05s;
 }
 
 .legend-profile-btn--active {
-  background: rgba(37, 99, 235, 0.1);
-  border-color: rgba(37, 99, 235, 0.3);
+  background: var(--surface);
+  border-color: rgba(37, 99, 235, 0.2);
   color: #2563eb;
-  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  /* Subtle scale-down and inner glow for the selected state */
+  transform: scale(0.97);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08), inset 0 0 10px rgba(37, 99, 235, 0.15);
 }
 
 .legend-profile-btn--active:hover {
-  background: rgba(37, 99, 235, 0.15);
-  border-color: rgba(37, 99, 235, 0.42);
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.18);
+  background: var(--surface);
+  transform: scale(0.98);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12), inset 0 0 10px rgba(37, 99, 235, 0.15);
 }
 
 .ug-root.dark .legend-profile-btn {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .ug-root.dark .legend-profile-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
@@ -414,7 +445,8 @@
   background: rgba(96, 165, 250, 0.15);
   border-color: rgba(96, 165, 250, 0.35);
   color: #60a5fa;
-  box-shadow: 0 2px 10px rgba(96, 165, 250, 0.15);
+  transform: scale(0.97);
+  box-shadow: 0 2px 10px rgba(96, 165, 250, 0.15), inset 0 0 12px rgba(96, 165, 250, 0.1);
 }
 
 /* ── Voice button ────────────────────────────────────────────────────────── */
@@ -728,17 +760,17 @@
   animation: step-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* Each step arrives 30ms after the previous */
+/* Each step arrives 40ms after the previous to better match the 0.42s body animation */
 .legend-direction-step:nth-child(1)  { animation-delay: 0.00s; }
-.legend-direction-step:nth-child(2)  { animation-delay: 0.03s; }
-.legend-direction-step:nth-child(3)  { animation-delay: 0.06s; }
-.legend-direction-step:nth-child(4)  { animation-delay: 0.09s; }
-.legend-direction-step:nth-child(5)  { animation-delay: 0.12s; }
-.legend-direction-step:nth-child(6)  { animation-delay: 0.15s; }
-.legend-direction-step:nth-child(7)  { animation-delay: 0.18s; }
-.legend-direction-step:nth-child(8)  { animation-delay: 0.21s; }
-.legend-direction-step:nth-child(9)  { animation-delay: 0.24s; }
-.legend-direction-step:nth-child(10) { animation-delay: 0.27s; }
+.legend-direction-step:nth-child(2)  { animation-delay: 0.04s; }
+.legend-direction-step:nth-child(3)  { animation-delay: 0.08s; }
+.legend-direction-step:nth-child(4)  { animation-delay: 0.12s; }
+.legend-direction-step:nth-child(5)  { animation-delay: 0.16s; }
+.legend-direction-step:nth-child(6)  { animation-delay: 0.20s; }
+.legend-direction-step:nth-child(7)  { animation-delay: 0.24s; }
+.legend-direction-step:nth-child(8)  { animation-delay: 0.28s; }
+.legend-direction-step:nth-child(9)  { animation-delay: 0.32s; }
+.legend-direction-step:nth-child(10) { animation-delay: 0.36s; }
 
 @keyframes step-in {
   from { opacity: 0; transform: translateX(-6px); }

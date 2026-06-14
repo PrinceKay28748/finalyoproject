@@ -1,7 +1,8 @@
 // components/Map/RouteLayer.jsx
 
-import { useEffect, useRef, useState, useCallback } from "react";
-import { Polyline } from "react-leaflet";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { Polyline, Marker } from "react-leaflet";
+import L from "leaflet";
 import { ROUTE_COLORS } from "../../function/utils/colors";
 import { useVoiceGuidance } from "../../hooks/useVoiceGuidance";
 import { useFocus } from "../../context/FocusContext";
@@ -49,8 +50,11 @@ export default function RouteLayer({
   profile = "standard",
   currentLocation = null,
   showProgress = true,
+  isRecalculating = false,
+  resetProgressTimestamp = 0, // New prop
   onTurnApproach = null,
-  onRouteDirectionChange = null, // New: callback for parent to get direction
+  onRouteDirectionChange = null,
+  onArrivalSummary = null,
 }) {
   const [displayedCoords,    setDisplayedCoords]    = useState([]);
   const [completedCoords,    setCompletedCoords]    = useState([]);
@@ -60,6 +64,7 @@ export default function RouteLayer({
   const [instructions,       setInstructions]       = useState([]);
   const [hasAnnouncedArrival, setHasAnnouncedArrival] = useState(false);
   const [routeDirection, setRouteDirection] = useState(0);
+  const [hoveredAlt, setHoveredAlt] = useState(null);
 
   const animationRef          = useRef(null);
   const lastCompletedIndexRef = useRef(-1);
@@ -69,7 +74,8 @@ export default function RouteLayer({
 
   const announcedTurnsRef = useRef(new Map());
 
-  const mainColor      = ROUTE_COLORS[profile] || ROUTE_COLORS.standard;
+  // Memoize colors to prevent unnecessary re-renders
+  const mainColor = useMemo(() => ROUTE_COLORS[profile] || ROUTE_COLORS.standard, [profile]);
   const completedColor = "#94a3b8";
   const remainingColor = mainColor;
 
@@ -97,17 +103,65 @@ export default function RouteLayer({
     setHasAnnouncedArrival(false);
   }, [route, visible]);
 
-  // Update completed/remaining based on smooth index
+  // Senior Fix: Reset internal progress when requested (e.g., after a swap)
+  useEffect(() => {
+    if (resetProgressTimestamp > 0) {
+      lastCompletedIndexRef.current = -1;
+      setCompletedCoords([]);
+      setRemainingCoords([]);
+      // We don't reset isAnimationComplete here, as the route drawing useEffect handles it.
+    }
+  }, [resetProgressTimestamp]);
+
+  // Dynamic destination pulse speed based on remaining distance
+  const haloDuration = useMemo(() => {
+    if (!remainingCoords.length || !isAnimationComplete) return "2.2s";
+    
+    // Calculate approximate distance based on remaining points 
+    // (Assuming ~5-10 meters between points in your graph)
+    const approxDist = remainingCoords.length * 7; 
+    
+    // Scale duration: 500m+ away = 2.2s pulse, 0m away = 0.5s pulse
+    const duration = Math.max(0.5, Math.min(2.2, approxDist / 230));
+    
+    return `${duration.toFixed(2)}s`;
+  }, [remainingCoords, isAnimationComplete]);
+
+  // Update segments based on smooth index or route profile changes
   useEffect(() => {
     if (!visible || !route?.coordinates?.length || !showProgress || smoothIndex === undefined) return;
-    
-    const intIndex = Math.floor(smoothIndex);
-    if (intIndex >= 0 && intIndex !== lastCompletedIndexRef.current) {
-      lastCompletedIndexRef.current = intIndex;
-      setCompletedCoords(route.coordinates.slice(0, intIndex + 1).map((c) => [c.lat, c.lng]));
-      setRemainingCoords(route.coordinates.slice(intIndex).map((c) => [c.lat, c.lng]));
+
+    // If animating, keep displayedCoords as the source of truth
+    // Once animation is complete, switch to the split segment view
+    if (!isAnimationComplete) return;
+
+    // Senior Fix: Temporarily cap progress at 0 after a swap to allow the line to draw.
+    // This prevents the route from immediately appearing "completed" if currentLocation
+    // is near the new destination.
+    const RESET_DELAY_MS = 1000; // How long to cap progress after a swap
+    const isRecentlyReset = (Date.now() - resetProgressTimestamp) < RESET_DELAY_MS;
+
+    let effectiveSmoothIndex = Math.floor(smoothIndex);
+    if (isRecentlyReset && effectiveSmoothIndex > 0) {
+        effectiveSmoothIndex = 0; // Force progress to 0 if recently reset
     }
-  }, [smoothIndex, route, visible, showProgress]);
+
+    const safeIndex = Math.max(0, Math.min(effectiveSmoothIndex, route.coordinates.length - 1));
+    
+    // Only update if the index has actually moved forward or if it's the first update after animation
+    if (safeIndex > lastCompletedIndexRef.current || lastCompletedIndexRef.current === -1) {
+      lastCompletedIndexRef.current = safeIndex;
+    }
+    
+    const coords = route.coordinates.map(c => [c.lat, c.lng]);
+    setCompletedCoords(coords.slice(0, lastCompletedIndexRef.current + 1));
+    setRemainingCoords(coords.slice(lastCompletedIndexRef.current));
+
+    // Important: Update displayedCoords too so the "main" line is ready 
+    // if the system falls back to it during transitions
+    setDisplayedCoords(coords);
+
+  }, [smoothIndex, route, visible, showProgress, isAnimationComplete]);
 
   // Calculate route direction from smooth position for arrow
   useEffect(() => {
@@ -132,19 +186,17 @@ export default function RouteLayer({
       
       setRouteDirection(bearing);
       
-      // Notify parent component of direction for LocationMarker
       if (onRouteDirectionChange) {
         onRouteDirectionChange(bearing);
       }
     }
   }, [smoothPosition, smoothIndex, route, showProgress, onRouteDirectionChange]);
 
-  // Progress monitoring + turn announcements (uses smooth position or raw location)
+  // Progress monitoring + turn announcements
   useEffect(() => {
     if (!visible || !route?.coordinates?.length || !currentLocation || !isVoiceEnabled) return;
 
     const checkProgress = () => {
-      // Use smooth position if available for turn announcements
       const posToUse = smoothPosition || currentLocation;
       
       const { distanceFromStart } = findClosestPointOnRoute(
@@ -156,9 +208,18 @@ export default function RouteLayer({
       const totalDistance = (route.totalDistanceKm ?? route.totalDistance / 1000) * 1000;
       const remaining     = totalDistance - distanceFromStart;
 
-      if (remaining <= 30 && !hasAnnouncedArrival) {
+      // Trigger arrival when distance is low AND halo is pulsing at max speed (0.5s)
+      if (remaining <= 20 && !hasAnnouncedArrival && parseFloat(haloDuration) <= 0.6) {
         setHasAnnouncedArrival(true);
         speakArrival();
+        if (onArrivalSummary) {
+          onArrivalSummary({
+            totalDistance: totalDistance.toFixed(0),
+            profile,
+            // Assuming travel time is roughly 1.4m/s walking speed
+            estimatedMinutes: Math.ceil(totalDistance / (1.4 * 60))
+          });
+        }
         return;
       }
 
@@ -196,7 +257,7 @@ export default function RouteLayer({
     };
   }, [currentLocation, smoothPosition, route, visible, isVoiceEnabled, instructions, speakTurn, speakArrival, hasAnnouncedArrival]);
 
-  // Route draw animation — only runs when route/visible/profile changes
+  // Route draw animation — Identifies unique route geometries
   useEffect(() => {
     if (!visible || !route?.coordinates?.length) {
       setDisplayedCoords([]);
@@ -209,14 +270,41 @@ export default function RouteLayer({
       return;
     }
 
+    const start = route.coordinates[0];
+    const end = route.coordinates[route.coordinates.length - 1];
+    
+    // Senior Fix: The signature now includes the specific order of start/end.
+    // A swap will now correctly trigger a re-draw animation because the signature changes.
+    const routeSignature = `S:${start.lat.toFixed(5)},${start.lng.toFixed(5)}-E:${end.lat.toFixed(5)},${end.lng.toFixed(5)}`;
+    
+    // If this is a profile switch (same destination), don't re-animate the "drawing"
+    if (animationRef.current_sig === routeSignature) {
+      const coords = route.coordinates.map((c) => [c.lat, c.lng]);
+      // Immediately update segments to prevent the "old" profile from lingering
+      const idx = Math.max(0, lastCompletedIndexRef.current);
+      setCompletedCoords(coords.slice(0, idx + 1));
+      setRemainingCoords(coords.slice(idx));
+      setDisplayedCoords(coords);
+      setIsAnimationComplete(true);
+      
+      return;
+    }
+
+    // New signature detected (Swap happened) -> Full Reset
+    setIsAnimationComplete(false);
+    lastCompletedIndexRef.current = -1;
+    
+    animationRef.current_sig = routeSignature;
     const coords   = route.coordinates.map((c) => [c.lat, c.lng]);
     const total    = coords.length;
     const duration = getAnimationDuration(total);
 
-    setDisplayedCoords([]);
-    setIsAnimationComplete(false);
-    setAnimationProgress(0);
-    startTimeRef.current = null;
+    // Only reset animation state for entirely new destinations
+    if (!isAnimationComplete) {
+      setDisplayedCoords([]);
+      setAnimationProgress(0);
+      startTimeRef.current = null;
+    }
 
     const animate = (timestamp) => {
       if (!startTimeRef.current) startTimeRef.current = timestamp;
@@ -240,19 +328,22 @@ export default function RouteLayer({
 
     animationRef.current = requestAnimationFrame(animate);
     return () => { if (animationRef.current) { cancelAnimationFrame(animationRef.current); animationRef.current = null; } };
-  }, [route, visible, profile]);
+  }, [route?.coordinates, visible]);
 
-  if (!visible || (displayedCoords.length < 2 && completedCoords.length < 2 && remainingCoords.length < 2)) {
+  // Render nothing if hidden or no data
+  const hasAnimationData = displayedCoords.length >= 2;
+  const hasNavData = completedCoords.length >= 2 || remainingCoords.length >= 2;
+
+  if (!visible || (!hasAnimationData && !hasNavData)) {
     return null;
   }
 
-  // Determine focus classes
   const isRouteFocused = focus.isFocused('route', route?.id);
-  const routeFocusClass = isRouteFocused ? 'route--focused' : (focus.hasFocus ? 'route--blurred' : '');
+  const routeFocusClass = `${isRouteFocused ? 'route--focused' : (focus.hasFocus ? 'route--blurred' : '')} ${isRecalculating ? 'route--recalculating' : ''}`;
 
   if (showProgress && isAnimationComplete && (completedCoords.length > 0 || remainingCoords.length > 0)) {
     return (
-      <>
+      <div style={{ '--profile-color': mainColor }}>
         {completedCoords.length >= 2 && (
           <Polyline
             positions={completedCoords}
@@ -269,8 +360,8 @@ export default function RouteLayer({
           <>
             <Polyline
               positions={remainingCoords}
-              color={remainingColor}
-              weight={9}
+              color={mainColor}
+            weight={9} // Primary route weight
               opacity={isRouteFocused ? 1 : 0.95}
               smoothFactor={2}
               lineCap="round"
@@ -280,7 +371,7 @@ export default function RouteLayer({
             />
             <Polyline
               positions={remainingCoords}
-              color={remainingColor}
+              color={mainColor}
               weight={14}
               opacity={isRouteFocused ? 0.25 : 0.15}
               smoothFactor={2}
@@ -288,14 +379,36 @@ export default function RouteLayer({
               lineJoin="round"
               className={`route-remaining-glow ${routeFocusClass}`}
             />
+            {/* Destination Point Halo Glow */}
+            <Marker
+              position={[route.coordinates[route.coordinates.length - 1].lat, route.coordinates[route.coordinates.length - 1].lng]}
+              icon={L.divIcon({
+                className: "dest-halo-container",
+                html: `<div class="dest-halo" style="--profile-color: ${mainColor}; --halo-duration: ${haloDuration}"></div>`,
+                iconSize: [0, 0],
+                iconAnchor: [0, 0],
+              })}
+              interactive={false}
+              zIndexOffset={-100}
+            />
+            {/* Directional Flow Layer */}
+            <Polyline
+              positions={remainingCoords}
+              color="#ffffff"
+              weight={3}
+              opacity={0.6}
+              smoothFactor={2}
+              lineCap="round"
+              className="route-flow-indicator"
+            />
           </>
         )}
-      </>
+      </div>
     );
   }
 
   return (
-    <>
+    <div style={{ '--profile-color': mainColor }}>
       <Polyline
         positions={displayedCoords}
         color={mainColor}
@@ -317,6 +430,6 @@ export default function RouteLayer({
         className={`${isAnimationComplete ? "route-main route-complete" : "route-main route-animating"} ${routeFocusClass}`}
         eventHandlers={!isRouteFocused ? { click: () => focus.setFocus('route', route?.id, 'tap') } : {}}
       />
-    </>
+    </div>
   );
 }

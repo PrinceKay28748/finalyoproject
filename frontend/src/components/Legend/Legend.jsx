@@ -318,16 +318,20 @@ const Legend = forwardRef(function Legend(
   const lastDragY = useRef(0);
   const expandedTranslateY = useRef(0);
   const peekTranslateY = useRef(0);
+  const lastThresholdStateRef = useRef(null);
   const userManuallyPeeked = useRef(false);
 
   const sheetRef = useRef(null);
   const headerRef = useRef(null);
   const directionsRef = useRef(null);
 
-  const peekHeight = 115;
+  // Increased to 150 to accommodate the handle, peek info, and profile buttons 
+  // without clipping at the bottom of the screen.
+  const peekHeight = 150;
 
   const lastAnnouncedRouteIdRef = useRef(null);
   const pendingRouteSummaryRef = useRef(null);
+  const lastRouteSigRef = useRef(null); // Senior Fix: Track if destination actually changed
 
   const { isVoiceEnabled, toggleVoice, speak } = useVoiceGuidance();
   const focus = useFocus();
@@ -335,19 +339,39 @@ const Legend = forwardRef(function Legend(
   // ── Helpers ──────────────────────────────────────────────────────────────
 
   const setTranslate = (y) => {
-    if (sheetRef.current) {
-      const isDesktop = window.innerWidth >= 1024;
-      if (isDesktop) {
-        sheetRef.current.style.transform = `translateX(-50%) translateY(${y}px)`;
-      } else {
-        sheetRef.current.style.transform = `translateY(${y}px)`;
-      }
-    }
+    const el = sheetRef.current;
+    if (!el) return;
+
+    const minY = expandedTranslateY.current;
+    const maxY = peekTranslateY.current;
+    const range = maxY - minY;
+    
+    // Normalized progress: 0 (peek) to 1 (expanded)
+    const progress = range > 0 ? Math.max(0, Math.min(1, (maxY - y) / range)) : 0;
+
+    // Senior Design Fix: Use constant blur to keep UI elements sharp and map readable.
+    const blurValue = 20; 
+    const opacityValue = 0.82 + (progress * 0.08);
+
+    el.style.setProperty('--sheet-blur', `${blurValue}px`);
+    el.style.setProperty('--sheet-opacity', opacityValue);
+
+    const isDesktop = window.innerWidth >= 1024;
+    el.style.transform = isDesktop 
+      ? `translateX(-50%) translateY(${y}px)` 
+      : `translateY(${y}px)`;
+
+    // Pass normalized progress to external listeners (e.g., map blur)
+    if (onDragProgress) onDragProgress(progress);
   };
 
   const snapTo = (targetY) => {
     const el = sheetRef.current;
     if (!el) return;
+
+    // Ensure visual variables are set to their target values before snapping
+    setTranslate(targetY);
+
     el.classList.add("legend-sheet--snapping");
     const isDesktop = window.innerWidth >= 1024;
     if (isDesktop) {
@@ -364,28 +388,13 @@ const Legend = forwardRef(function Legend(
 
   const recalcPositions = () => {
     if (!sheetRef.current) return;
-    const computedStyle = getComputedStyle(sheetRef.current);
-    const sheetPaddingBottom = parseFloat(computedStyle.paddingBottom) || 0;
-    const h = sheetRef.current.offsetHeight - sheetPaddingBottom;
-
-    const isStandalone = window.matchMedia(
-      "(display-mode: standalone)",
-    ).matches;
-    const isIOS =
-      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-
-    let extraOffset = 0;
-
-    if (isStandalone && isIOS) {
-      extraOffset = -34;
-    } else if (isIOS) {
-      extraOffset = -50;
-    } else {
-      extraOffset = 0;
-    }
-
-    peekTranslateY.current = h - peekHeight + extraOffset;
+    
+    // By moving the visual fill to a pseudo-element (::after),
+    // offsetHeight now correctly measures only the visible content.
+    // This makes the drag-up math (h - peekHeight) robust and snappy.
+    const h = sheetRef.current.offsetHeight;
+    
+    peekTranslateY.current = h - peekHeight;
     expandedTranslateY.current = 0;
   };
 
@@ -501,15 +510,27 @@ const Legend = forwardRef(function Legend(
 
   // ── Recalc when route changes (new search result) ────────────────────────
   useEffect(() => {
-    if (!route) return;
+    if (!route?.coordinates?.length) {
+      lastRouteSigRef.current = null;
+      return;
+    }
+
+    const start = route.coordinates[0];
+    const end = route.coordinates[route.coordinates.length - 1];
+    const signature = `${start.lat.toFixed(5)},${start.lng.toFixed(5)}-${end.lat.toFixed(5)},${end.lng.toFixed(5)}`;
+
     const el = sheetRef.current;
     if (!el) return;
 
-    setExpanded(false);
+    // Only collapse if the route signature (start/end) has actually changed.
+    // This prevents the sheet from "dragging down" during a simple profile switch.
+    const isNewRoute = lastRouteSigRef.current !== signature;
+    if (isNewRoute) setExpanded(false);
+    lastRouteSigRef.current = signature;
 
     const ro = new ResizeObserver(() => {
       recalcPositions();
-      snapTo(peekTranslateY.current);
+      snapTo(isNewRoute ? peekTranslateY.current : (expanded ? expandedTranslateY.current : peekTranslateY.current));
       ro.disconnect();
     });
     ro.observe(el);
@@ -592,85 +613,95 @@ const Legend = forwardRef(function Legend(
 
   // ── Report drag progress for map blur ────────────────────────────────────
   const reportDragProgress = (currentY) => {
-    if (!onDragProgress) return;
-    const minY = expandedTranslateY.current;
-    const maxY = peekTranslateY.current;
-    const range = maxY - minY;
-    if (range <= 0) {
-      onDragProgress(0);
-      return;
-    }
-    const progress = 1 - Math.max(0, Math.min(1, (currentY - minY) / range));
-    onDragProgress(progress);
+    // Logic moved into setTranslate for higher performance and atomicity
   };
 
   // ── DRAG HANDLERS ────────────────────────────────────────────────────────
 
   const handleDragStart = (e) => {
     if (disableDrag) return;
+    
+    // For standard compliance, we only preventDefault on touch to seize control from the browser
+    if (e.type === 'touchstart' && e.cancelable) e.preventDefault();
     e.stopPropagation();
-    e.preventDefault();
 
-    recalcPositions();
+    const el = sheetRef.current;
+    if (!el) return;
+
+    // 1. INSTANT INTERRUPT: Hard-kill any transitions so the sheet is "glued" to the finger
+    el.classList.remove("legend-sheet--snapping");
+    el.style.setProperty('transition', 'none', 'important'); 
+
+    // 2. PRECISION CATCH: Get the EXACT current translateY via DOMMatrix
+    const style = window.getComputedStyle(el);
+    const matrix = new DOMMatrix(style.transform);
+    const currentY = matrix.m42;
+    
+    // Store the exact starting point
+    dragStartScrollTop.current = currentY;
 
     const clientY = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
     dragStartY.current = clientY;
-    dragCurrentY.current = clientY;
     lastDragY.current = clientY;
     lastDragTime.current = performance.now();
-    dragVelocity.current = 0;
     dragStartExpanded.current = expanded;
+    dragVelocity.current = 0;
 
-    dragStartScrollTop.current = expanded
-      ? expandedTranslateY.current
-      : peekTranslateY.current;
+    // 3. THRESHOLD INIT: Set up haptic monitoring
+    const mid = (expandedTranslateY.current + peekTranslateY.current) / 2;
+    lastThresholdStateRef.current = currentY < mid;
 
     setIsDragging(true);
-
-    const el = sheetRef.current;
-    if (el) {
-      el.classList.remove("legend-sheet--snapping");
-      el.classList.add("dragging");
-    }
+    el.classList.add("dragging");
   };
 
   const handleDragMove = (e) => {
     if (!isDragging) return;
+
+    // Block native scroll instantly
+    if (e.cancelable) e.preventDefault();
     e.stopPropagation();
-    e.preventDefault();
 
     const clientY = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
     const now = performance.now();
-    const dt = Math.max(1, now - lastDragTime.current);
+    const dt = now - lastDragTime.current;
 
-    dragVelocity.current =
-      0.7 * dragVelocity.current + 0.3 * ((clientY - lastDragY.current) / dt);
+    // Damped velocity calculation to prevent "shooting" from single-frame spikes
+    if (dt > 0) {
+      const instantVelocity = (clientY - lastDragY.current) / dt;
+      dragVelocity.current = 0.8 * dragVelocity.current + 0.2 * instantVelocity;
+    }
+    
     lastDragY.current = clientY;
     lastDragTime.current = now;
 
-    const delta = clientY - dragStartY.current;
-    const rawY = dragStartScrollTop.current + delta;
+    // 1:1 Displacement Math
+    const deltaY = clientY - dragStartY.current;
+    const rawY = dragStartScrollTop.current + deltaY;
 
     const minY = expandedTranslateY.current;
     const maxY = peekTranslateY.current;
 
-    let clampedY;
+    // Resistance at boundaries (Rubber-banding)
+    let targetY = rawY;
     if (rawY < minY) {
-      clampedY = minY + (rawY - minY) / 3;
+      targetY = minY - Math.pow(minY - rawY, 0.85);
     } else if (rawY > maxY) {
-      clampedY = maxY + (rawY - maxY) / 3;
-    } else {
-      clampedY = rawY;
+      targetY = maxY + Math.pow(rawY - maxY, 0.85);
     }
 
-    setTranslate(clampedY);
+    // Haptic monitoring
+    const midThreshold = (minY + maxY) / 2;
+    const predictedExpand = (Math.abs(dragVelocity.current) > 0.5) 
+      ? dragVelocity.current < 0 
+      : targetY < midThreshold;
 
-    const currentY = parseFloat(
-      sheetRef.current?.style.transform?.match(
-        /translateY\(([-\d.]+)px\)/,
-      )?.[1] ?? "0",
-    );
-    reportDragProgress(currentY);
+    if (lastThresholdStateRef.current !== predictedExpand) {
+      if (navigator.vibrate) navigator.vibrate(8);
+      lastThresholdStateRef.current = predictedExpand;
+    }
+
+    setTranslate(targetY);
   };
 
   const handleDragEnd = (e) => {
@@ -689,12 +720,17 @@ const Legend = forwardRef(function Legend(
     const minY = expandedTranslateY.current;
     const maxY = peekTranslateY.current;
     const mid = (minY + maxY) / 2;
-
+    
     let shouldExpand;
     if (Math.abs(dragVelocity.current) > 0.4) {
       shouldExpand = dragVelocity.current < 0;
     } else {
       shouldExpand = currentY < mid;
+    }
+
+    // Final snap initiation haptic
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(shouldExpand !== expanded ? 15 : 10);
     }
 
     snapTo(shouldExpand ? minY : maxY);
@@ -822,6 +858,7 @@ const Legend = forwardRef(function Legend(
                   className={`legend-profile-btn ${isActive ? "legend-profile-btn--active" : ""}`}
                   onClick={() => onProfileChange?.(p.key)}
                   title={p.label}
+                  aria-label={`Switch to ${p.label} profile`}
                 >
                   <span className="legend-profile-icon">
                     <IconComponent
@@ -829,7 +866,7 @@ const Legend = forwardRef(function Legend(
                       color={isActive ? p.color : "currentColor"}
                     />
                   </span>
-                  <span>{p.label}</span>
+                  <span style={{ fontSize: '10px', marginTop: '2px' }}>{p.label}</span>
                 </button>
               );
             })}

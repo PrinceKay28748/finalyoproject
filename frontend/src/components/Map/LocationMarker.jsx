@@ -48,7 +48,7 @@ function createPulsingIcon(speed, heading, isLowAccuracy = false, routeDirection
       margin-left: -20px;
       margin-top: -20px;
       border-radius: 50%;
-      background: radial-gradient(circle, ${dotColor}20 0%, ${dotColor}08 70%, transparent 100%);
+      background: radial-gradient(circle, ${dotColor}30 0%, ${dotColor}00 70%);
       animation: pulseRing 1.5s ease-out infinite;
       pointer-events: none;
     "></div>
@@ -84,23 +84,20 @@ function createPulsingIcon(speed, heading, isLowAccuracy = false, routeDirection
         ${speedText}
       </div>
     `,
-    className: "custom-direction-icon",
-    iconSize: [24, 36],
-    iconAnchor: [12, 36],
+    className: "nav-location-marker",
+    iconSize: [18, 18], // 18px dot as requested
+    iconAnchor: [9, 9],
     popupAnchor: [0, -36]
   });
 }
 
-// GPS marker — color changes based on accuracy, SNAPS TO ROUTE with smooth gliding
 export function GpsLocationMarker({ 
   location, 
   accuracy, 
   isLowAccuracy = false, 
   routeDirection = null,
-  smoothedPosition = null  // NEW: Position snapped and smoothed to route
+  smoothedPosition = null 
 }) {
-  // Use smoothed route position if available (gliding blue dot)
-  // Otherwise fall back to raw GPS location
   const displayPosition = smoothedPosition || location;
   
   if (!displayPosition) return null;
@@ -111,10 +108,25 @@ export function GpsLocationMarker({
   // Orange for low accuracy, blue for good accuracy
   const markerColor = isLowAccuracy ? "#f59e0b" : "#2563eb";
   
+  // Create the 18px blue dot with white border as per design requirements
+  const dotIcon = L.divIcon({
+    html: `<div style="
+      width: 18px; 
+      height: 18px; 
+      background: ${markerColor}; 
+      border: 2.5px solid white; 
+      border-radius: 50%; 
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    "></div>`,
+    className: 'nav-dot-icon',
+    iconSize: [18, 18],
+    iconAnchor: [9, 9]
+  });
+
   // Pass routeDirection to the icon creator (for arrow alignment)
-  const markerIcon = (hasHeading || hasSpeed)
+  const markerIcon = (hasHeading || hasSpeed || routeDirection !== null)
     ? createPulsingIcon(location?.speed, location?.heading, isLowAccuracy, routeDirection)
-    : currentLocationIcon;
+    : dotIcon;
 
   // Calculate opacity based on accuracy
   const opacity = accuracy ? Math.max(0.5, Math.min(1, 30 / accuracy)) : 0.8;
