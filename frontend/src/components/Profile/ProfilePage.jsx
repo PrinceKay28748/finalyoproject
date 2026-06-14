@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthContext } from "../../context/AuthContext";
 import { API_URL } from "../../config";
-import { loadPreferences } from "../../services/preferencesStore";
+import { loadPreferences, savePreferences } from "../../services/preferencesStore";
 import { isTokenValid } from "./auth";
 import EditProfileModal from "./EditProfileModal";
 import ChangePasswordModal from "./ChangePasswordModal";
@@ -14,43 +14,52 @@ import "./ProfilePage.css";
 
 // Modern SVG Icons
 const IconBack = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M19 12H5M12 19l-7-7 7-7" />
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M19 12H5M12 19l-7-7 7-7"/>
   </svg>
 );
 
 const IconEdit = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M17 3l4 4-7 7-4-4 7-7z" />
-    <path d="M4 20l4-4 4 4" />
-    <path d="M3 21h18" />
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
   </svg>
 );
 
 const IconLock = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="5" y="11" width="14" height="11" rx="2" ry="2" />
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
     <path d="M7 11V7a5 5 0 0 1 10 0v4" />
   </svg>
 );
 
 const IconTrash = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="3 6 5 6 21 6" />
-    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-    <line x1="10" y1="11" x2="10" y2="17" />
-    <line x1="14" y1="11" x2="14" y2="17" />
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6" />
   </svg>
 );
 
 const IconArrowRight = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="9 18 15 12 9 6" />
   </svg>
 );
 
+const IconSun = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="5" />
+    <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42 1.42" />
+  </svg>
+);
+
+const IconMoon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" />
+  </svg>
+);
+
 const IconSpinner = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="profile-spinner-icon">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="profile-spinner-icon">
     <path d="M21 12a9 9 0 1 1-6.219-8.56" />
   </svg>
 );
@@ -128,6 +137,17 @@ export default function ProfilePage() {
     
     loadDarkMode();
   }, []);
+
+  const handleToggleDarkMode = async () => {
+    const newMode = !darkMode;
+    setDarkMode(newMode);
+    try {
+      // Persist app-wide
+      await savePreferences({ darkMode: newMode });
+    } catch (err) {
+      console.warn("[ProfilePage] Failed to save theme preference:", err);
+    }
+  };
 
   // Fetch user profile from backend
   const fetchProfile = useCallback(async () => {
@@ -228,10 +248,9 @@ export default function ProfilePage() {
     );
   }
 
-  // DIRECT CONTENT - NO profile-container, NO profile-card
   return (
     <div className={`ug-root ${darkMode ? "dark" : ""}`}>
-      {/* Header */}
+      {/* Header - Decoupled and Sticky */}
       <div className="profile-header">
         <button
           className="profile-back-btn"
@@ -244,7 +263,8 @@ export default function ProfilePage() {
         <h1>My Profile</h1>
       </div>
 
-      {/* Avatar Section */}
+      {/* Scrollable Body */}
+      <div className="profile-body">
       <div className="profile-avatar-section">
         <img
           src={`https://api.navii.dev/avatar/${encodeURIComponent(profile.username || profile.email)}?size=120&motion=true`}
@@ -257,6 +277,24 @@ export default function ProfilePage() {
           Member since {formatDate(profile.created_at)}
         </p>
       </div>
+
+        {/* Appearance Section */}
+        <div className="profile-section">
+          <h3>Appearance</h3>
+          <div className="profile-settings-list">
+            <button 
+              className="profile-setting-btn"
+              onClick={handleToggleDarkMode}
+            >
+              <span className="profile-setting-icon">{darkMode ? <IconMoon /> : <IconSun />}</span>
+              <div className="profile-setting-info">
+                <strong>Dark Mode</strong>
+                <span>{darkMode ? "Theme is set to Dark" : "Theme is set to Light"}</span>
+              </div>
+              <div className={`theme-toggle-pill ${darkMode ? 'active' : ''}`} />
+            </button>
+          </div>
+        </div>
 
       {/* Account Settings */}
       <div className="profile-section">
@@ -340,6 +378,7 @@ export default function ProfilePage() {
             <span className="profile-setting-arrow"><IconArrowRight /></span>
           </button>
         </div>
+      </div>
       </div>
 
       {/* Modals */}
