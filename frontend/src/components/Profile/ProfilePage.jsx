@@ -236,7 +236,7 @@ export default function ProfilePage() {
 
   if (error) {
     return (
-      <div className={`ug-root ${darkMode ? "dark" : ""}`}>
+      <div className={`ug-root profile-page-layout ${darkMode ? "dark" : ""}`}>
         <div className="profile-error">
           <span>⚠️</span>
           <p>{error}</p>
@@ -248,7 +248,7 @@ export default function ProfilePage() {
 
   if (!profile) {
     return (
-      <div className={`ug-root ${darkMode ? "dark" : ""}`}>
+      <div className={`ug-root profile-page-layout ${darkMode ? "dark" : ""}`}>
         <div className="profile-error">
           <p>No profile data found</p>
           <button onClick={() => navigate("/")}>Go Home</button>

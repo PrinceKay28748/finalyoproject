@@ -16,7 +16,8 @@
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: 100px; /* Ensures the last section is fully visible */
+  overscroll-behavior: contain; /* Prevents the whole app from bouncing on mobile */
+  padding-bottom: 140px; /* Increased padding to ensure full visibility of Danger Zone */
 }
 
 .ug-root.dark .profile-card {
