@@ -1,27 +1,22 @@
 /* ProfilePage.css - Complete file */
 
 .ug-root {
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
   background: var(--bg);
-}
-
-.profile-container {
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: calc(100vh - 40px);
-}
-
-.profile-card {
-  max-width: 500px;
-  width: 100%;
-  background: var(--panel);
-  backdrop-filter: blur(20px) saturate(180%);
-  border-radius: 32px;
-  border: 0.5px solid rgba(255, 255, 255, 0.2);
-  box-shadow: var(--shadow-card);
   overflow: hidden;
+}
+
+.profile-page-layout {
+  display: flex;
+  flex-direction: column;
+}
+
+.profile-body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 100px; /* Ensures the last section is fully visible */
 }
 
 .ug-root.dark .profile-card {
@@ -35,7 +30,10 @@
   align-items: center;
   gap: 16px;
   padding: 20px 24px;
+  background: var(--panel);
   border-bottom: 0.5px solid var(--border);
+  flex-shrink: 0;
+  z-index: 10;
 }
 
 .profile-back-btn {

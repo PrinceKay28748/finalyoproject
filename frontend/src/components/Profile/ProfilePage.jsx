@@ -81,11 +81,7 @@ const IconLogout = () => (
 );
 
 const ProfileSkeleton = () => (
-  <div className="profile-skeleton">
-    <div className="profile-header">
-      <div className="skeleton-shimmer skeleton-back"></div>
-      <div className="skeleton-shimmer skeleton-title-text"></div>
-    </div>
+  <div className="profile-body profile-skeleton">
 
     <div className="profile-avatar-section">
       <div className="skeleton-shimmer skeleton-avatar"></div>
@@ -219,8 +215,21 @@ export default function ProfilePage() {
 
   if (isLoading) {
     return (
-      <div className={`ug-root ${darkMode ? "dark" : ""}`}>
-        <ProfileSkeleton />
+      <div className={`ug-root profile-page-layout ${darkMode ? "dark" : ""}`}>
+        <div className="profile-header">
+          <button
+            className="profile-back-btn"
+            disabled
+            aria-label="Loading"
+          >
+            <IconBack />
+            <span>Back</span>
+          </button>
+          <h1>My Profile</h1>
+        </div>
+        <div className="profile-body">
+          <ProfileSkeleton />
+        </div>
       </div>
     );
   }
@@ -249,7 +258,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className={`ug-root ${darkMode ? "dark" : ""}`}>
+    <div className={`ug-root profile-page-layout ${darkMode ? "dark" : ""}`}>
       {/* Header - Decoupled and Sticky */}
       <div className="profile-header">
         <button

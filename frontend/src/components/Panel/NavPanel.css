@@ -121,9 +121,9 @@
 }
 
 .ug-root.dark .nav-pill-logo-wrap {
-  background: #f8fafc; /* Bright slate to keep the logo popping in dark mode */
+  background: #020617; /* Slate 950 */
   box-shadow: 0 0 12px rgba(37, 99, 235, 0.2);
-  border-color: rgba(37, 99, 235, 0.3);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .nav-pill-logo {
