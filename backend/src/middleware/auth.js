@@ -7,6 +7,15 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 /**
+ * Internal helper to check for malformed tokens
+ */
+const isTokenMalformed = (token) => {
+  return !token || 
+         ['undefined', 'null', '[object Object]'].includes(token) || 
+         token.split('.').length !== 3;
+};
+
+/**
  * Verify JWT access token - Supports Supabase tokens and custom JWT
  * Attached to protected routes
  */
@@ -14,10 +23,16 @@ export function verifyToken(req, res, next) {
   try {
     const token = req.headers.authorization?.split(' ')[1];
     
-    if (!token) {
+    if (isTokenMalformed(token)) {
       return res.status(401).json({ 
         error: 'No authorization token provided' 
       });
+    }
+
+    // Dev Mode Bypass: Support local testing with mock tokens
+    if (process.env.NODE_ENV !== 'production' && token === 'mock-token') {
+      req.user = { userId: '00000000-0000-0000-0000-000000000000', email: 'dev@example.com' };
+      return next();
     }
 
     // First, try to decode as Supabase token (without verification)

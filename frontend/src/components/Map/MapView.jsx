@@ -158,8 +158,6 @@ export default function MapView({
   onNavPanelClose,
   isPanelTransitioning = false,
   isMapBlurred = false,
-  legendDragProgress = 0,
-  onLegendDragProgressChange,
 }) {
   const showDestinationMarker = !!destPoint;
   const displayStartPoint =
@@ -227,13 +225,14 @@ export default function MapView({
   const [smoothedRoutePosition, setSmoothedRoutePosition] = useState(null);
 
   return (
-    <div className={`map-wrap ${isMapBlurred ? "map-blurred" : ""}`}>
+    <>
+      <div className={`map-wrap ${isMapBlurred ? "map-blurred" : ""}`}>
       {/* Apple-style glass blur overlay */}
       <div
         className="map-blur-overlay"
         style={{
-          opacity:
-            legendDragProgress > 0 ? legendDragProgress : isNavExpanded ? 1 : 0,
+          // Senior Fix: Ensure map stays sharp while legend is expanded
+          opacity: isNavExpanded ? 1 : 0,
         }}
       />
 
@@ -455,14 +454,11 @@ export default function MapView({
           <span>Calculating routes...</span>
         </div>
       )}
+      </div>
 
       <Legend
         ref={legendRef}
-        startText={
-          useCustomLocation && customStartPoint
-            ? customStartPoint.name || "Custom location"
-            : startText
-        }
+        startText={displayStartPoint?.name || startText || "Start"}
         destText={destText}
         visible={markersVisible}
         route={primaryRoute}
@@ -477,7 +473,6 @@ export default function MapView({
         autoCollapse={isNavExpanded}
         disableDrag={isPanelTransitioning}
         onNavPanelClose={onNavPanelClose}
-        onDragProgress={onLegendDragProgressChange}
       />
 
       {waitingForStart && (
@@ -485,6 +480,6 @@ export default function MapView({
           📍 Tap to set start point
         </div>
       )}
-    </div>
+    </>
   );
 }

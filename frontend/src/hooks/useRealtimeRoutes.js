@@ -5,9 +5,9 @@ import { getDistanceToRoute, distanceBetween, findClosestPointOnRoute } from "..
 import { logRouteSegments, resetHeatmapSession } from "../services/heatmapAnalytics";
 import { useVoiceGuidance } from "./useVoiceGuidance";
 
-const DEVIATION_THRESHOLD_METERS  = 30;
+const DEVIATION_THRESHOLD_METERS  = 45;
 const REROUTE_DEBOUNCE_MS         = 2000;
-const MIN_POSITION_CHANGE_METERS  = 5;
+const MIN_POSITION_CHANGE_METERS  = 8;
 const PROGRESS_UPDATE_INTERVAL_MS = 1000;
 const NEAREST_NODE_MAX_DISTANCE_DEG = 0.005;
 
@@ -18,8 +18,6 @@ export const ROUTE_PROFILES = {
   night:      { key: "night",      label: "Night Safety", icon: "🌙", color: "#f59e0b", description: "Prioritises well-lit, busy roads" },
 };
 
-// Stable format helpers defined outside the hook so they never cause
-// stale-closure issues inside useCallback deps.
 function formatDistanceForVoice(meters) {
   if (meters < 1000) return `${Math.round(meters)} meters`;
   return `${(meters / 1000).toFixed(1)} kilometers`;
@@ -44,28 +42,25 @@ export function useRealtimeRoutes({
   vehicleMode = 'walk',
   isActive,
 }) {
-  const [routes,            setRoutes]            = useState({ standard: null, fastest: null, accessible: null, night: null });
+  const [routes,            setRoutes]            = useState({ standard: null, fastest: null, accessible: null, night: null, lastUpdated: 0 });
   const [isLoading,         setIsLoading]         = useState(false);
   const [isRerouting,       setIsRerouting]       = useState(false);
   const [deviationDetected, setDeviationDetected] = useState(false);
-  const [lastRouteUpdate,   setLastRouteUpdate]   = useState(null);
   const [routeProgress,     setRouteProgress]     = useState({
     completedDistance: 0, remainingDistance: 0, percentage: 0, closestPointIndex: -1,
   });
 
   const lastRerouteTime         = useRef(0);
+  const lastNodePairRef         = useRef("");
   const lastPositionRef         = useRef(null);
   const deviationTimerRef       = useRef(null);
   const progressUpdateIntervalRef = useRef(null);
   const currentStartNodeIdRef   = useRef(startNodeId);
 
-  // Prevents the deviation voice firing on every position tick — resets when
-  // a reroute completes or deviation clears.
   const hasSpokenDeviationRef   = useRef(false);
 
   const { isVoiceEnabled, speakRouteSummary, speakDeviation } = useVoiceGuidance();
   
-  // Keep a ref to the current voice state to avoid stale closures
   const isVoiceEnabledRef = useRef(isVoiceEnabled);
   useEffect(() => {
     isVoiceEnabledRef.current = isVoiceEnabled;
@@ -76,10 +71,22 @@ export function useRealtimeRoutes({
   }, [startNodeId]);
 
   const calculateRoutes = useCallback(async (fromNodeId, reason = "initial") => {
-    if (!graph || !fromNodeId || !endNodeId) return;
+    if (!graph || !fromNodeId || !endNodeId) {
+      console.warn('[useRealtimeRoutes] Missing graph or node IDs');
+      return;
+    }
 
     const now = Date.now();
-    if (now - lastRerouteTime.current < 500) return;
+    if (now - lastRerouteTime.current < 800 && reason === "deviation") {
+      console.log('[useRealtimeRoutes] Skipping reroute (too soon)');
+      return;
+    }
+
+    console.log('[useRealtimeRoutes] Calculating all profiles:', { 
+      reason, 
+      fromNodeId, 
+      vehicleMode
+    });
 
     const isReroute = reason !== "initial";
     if (isReroute) setIsRerouting(true);
@@ -87,15 +94,17 @@ export function useRealtimeRoutes({
 
     lastRerouteTime.current       = now;
     currentStartNodeIdRef.current = fromNodeId;
+    lastNodePairRef.current       = `${fromNodeId}-${endNodeId}`;
 
     if (reason === "initial") resetHeatmapSession();
 
     try {
+      // Fetch all profiles in parallel (handled by services/routing)
       const allRoutes = await getAllRoutes(graph, fromNodeId, endNodeId, activeProfile, vehicleMode);
-      setRoutes(allRoutes);
-      setLastRouteUpdate(now);
+      
+      setRoutes({ ...allRoutes, lastUpdated: now });
       setDeviationDetected(false);
-      hasSpokenDeviationRef.current = false; // reset so next deviation speaks again
+      hasSpokenDeviationRef.current = false;
 
       setRouteProgress({
         completedDistance: 0,
@@ -104,7 +113,6 @@ export function useRealtimeRoutes({
         closestPointIndex: -1,
       });
 
-      // Voice: announce reroute or initial route - ONLY if voice is actually enabled
       if (allRoutes[activeProfile] && isVoiceEnabledRef.current) {
         const dist = formatDistanceForVoice(allRoutes[activeProfile].totalDistance);
         const time = formatTravelTimeForVoice(allRoutes[activeProfile].totalDistance, vehicleMode);
@@ -120,11 +128,11 @@ export function useRealtimeRoutes({
       setIsLoading(false);
       setIsRerouting(false);
     }
-  }, [graph, endNodeId, activeProfile, vehicleMode, speakRouteSummary]); // isVoiceEnabledRef is a ref, not a dep
+  }, [graph, endNodeId, vehicleMode, speakRouteSummary]);
 
   const updateRouteProgress = useCallback(() => {
     const activeRoute = routes[activeProfile];
-    if (!isActive || !currentLocation || !activeRoute?.coordinates?.length) return;
+    if (!isActive || !currentLocation || !activeRoute?.coordinates?.length || isRerouting) return;
 
     const { lat, lng } = currentLocation;
     const { closestIndex, distanceFromStart } = findClosestPointOnRoute(lat, lng, activeRoute.coordinates);
@@ -133,12 +141,17 @@ export function useRealtimeRoutes({
     const remaining     = Math.max(0, totalDistance - completed);
     const percentage    = totalDistance > 0 ? (completed / totalDistance) * 100 : 0;
 
-    setRouteProgress({ completedDistance: completed, remainingDistance: remaining, percentage, closestPointIndex: closestIndex, distanceToRoute: 0 });
-  }, [routes, activeProfile, isActive, currentLocation]);
+    setRouteProgress(prev => {
+      if (Math.abs(prev.completedDistance - completed) < 10) return prev;
+      return { completedDistance: completed, remainingDistance: remaining, percentage, closestPointIndex: closestIndex, distanceToRoute: 0 };
+    });
+  }, [routes, activeProfile, isActive, currentLocation, isRerouting]);
 
   // Initial route calculation
   useEffect(() => {
-    if (startNodeId && endNodeId && graph) calculateRoutes(startNodeId, "initial");
+    if (startNodeId && endNodeId && graph) {
+      calculateRoutes(startNodeId, "initial");
+    }
   }, [startNodeId, endNodeId, graph, calculateRoutes]);
 
   // Progress interval
@@ -161,7 +174,7 @@ export function useRealtimeRoutes({
     if (!activeRoute?.coordinates?.length) return;
 
     const { lat, lng } = currentLocation;
-
+    
     if (lastPositionRef.current) {
       const moved = distanceBetween(lat, lng, lastPositionRef.current.lat, lastPositionRef.current.lng);
       if (moved < MIN_POSITION_CHANGE_METERS) return;
@@ -173,12 +186,10 @@ export function useRealtimeRoutes({
     if (distanceToRoute > DEVIATION_THRESHOLD_METERS) {
       if (!deviationDetected) setDeviationDetected(true);
 
-      // Speak deviation voice ONCE per deviation event - ONLY if voice is enabled
       if (isVoiceEnabledRef.current && !hasSpokenDeviationRef.current) {
         hasSpokenDeviationRef.current = true;
         speakDeviation();
       } else if (!isVoiceEnabledRef.current && !hasSpokenDeviationRef.current) {
-        // Still mark as spoken to prevent future attempts when voice is off
         hasSpokenDeviationRef.current = true;
       }
 
@@ -199,15 +210,18 @@ export function useRealtimeRoutes({
     } else {
       if (deviationDetected) {
         setDeviationDetected(false);
-        hasSpokenDeviationRef.current = false; // cleared — can speak again next time
+        hasSpokenDeviationRef.current = false;
       }
       if (deviationTimerRef.current) { clearTimeout(deviationTimerRef.current); deviationTimerRef.current = null; }
     }
 
     return () => { if (deviationTimerRef.current) clearTimeout(deviationTimerRef.current); };
-  }, [currentLocation, routes, activeProfile, graph, endNodeId, calculateRoutes, deviationDetected, isActive, speakDeviation]); // isVoiceEnabledRef is a ref
+  }, [currentLocation, routes, activeProfile, graph, endNodeId, calculateRoutes, deviationDetected, isActive, speakDeviation]);
 
-  const getPrimaryRoute      = useCallback(() => routes[activeProfile], [routes, activeProfile]);
+  const getPrimaryRoute = useCallback(() => {
+    return routes[activeProfile];
+  }, [routes, activeProfile]);
+  
   const getAlternativeRoutes = useCallback(() => {
     const primaryRoute = routes[activeProfile];
     const alternatives = [];
@@ -229,7 +243,7 @@ export function useRealtimeRoutes({
     isLoading,
     isRerouting,
     deviationDetected,
-    lastRouteUpdate,
+    lastRouteUpdate: routes.lastUpdated,
     routeProgress,
     refreshRoutes: () => { if (startNodeId && endNodeId) calculateRoutes(startNodeId, "manual"); },
   };

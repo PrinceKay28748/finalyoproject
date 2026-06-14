@@ -7,7 +7,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import { query } from './config/db.js';
+import { query, runDevMigrations } from './config/db.js';
 import { sanitizeParams } from './middleware/validation.js';
 import { handleError } from './utils/errorHandler.js';
 import authRoutes from './routes/auth.js';
@@ -382,7 +382,12 @@ app.use((err, req, res, next) => {
 });
 
 // ─── Server Startup ───────────────────────────────────────────────────────────
-const server = app.listen(PORT, '0.0.0.0', () => {
+async function startServer() {
+  if (process.env.NODE_ENV !== 'production') {
+    await runDevMigrations();
+  }
+
+  return app.listen(PORT, '0.0.0.0', () => {
   console.log(`
 ╔════════════════════════════════════════════════════════════╗
 ║                                                            ║
@@ -406,7 +411,10 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 ║                                                            ║
 ╚════════════════════════════════════════════════════════════╝
   `);
-});
+  });
+}
+
+const server = await startServer();
 
 // ─── Keep-alive ping (prevents Render free tier cold starts) ─────────────────
 if (process.env.NODE_ENV === 'production') {

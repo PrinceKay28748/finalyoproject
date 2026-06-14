@@ -113,8 +113,8 @@ html, body, #root {
 }
 
 /* Restore the transitions these specific elements actually need */
-.legend-sheet {
-  transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1) !important;
+.legend-sheet, .legend-sheet * {
+  transition: none !important;
 }
 
 .searchbox-input {

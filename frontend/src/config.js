@@ -11,8 +11,13 @@ const getApiUrl = () => {
   }
   
   // Development (localhost)
-  const devUrl = `http://${window.location.hostname}:3001`;
-  console.log('[Config] Development mode, API URL:', devUrl);
+  // Standardize on localhost:3001 for consistency across environments
+  const devUrl = import.meta.env.VITE_DEV_API_URL || "http://localhost:3001";
+
+  if (typeof window !== 'undefined') {
+    console.log(`%c[API Config] Running in DEV mode. Target: ${devUrl}`, "color: #2563eb; font-weight: bold;");
+  }
+
   return devUrl;
 };
 

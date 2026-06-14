@@ -157,6 +157,7 @@ export default function MapLibre3DView({
   weather,
   showHeatmap,
   selectedHour,
+  shakeTrigger = 0, // Counter to trigger the "nudge" effect
 }) {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
@@ -470,12 +471,48 @@ export default function MapLibre3DView({
     try {
       mapRef.current.flyTo({
         center: [flyTarget.lng, flyTarget.lat],
-        zoom: 17,
-        pitch: 60,
-        duration: 1200,
+        zoom: 17.5,           // Tighter zoom for targets
+        pitch: 65,            // More dramatic tilt
+        duration: 2000,       // Slower, more premium feel
+        essential: true,      // Ensures animation runs even if user is moving
+        curve: 1.42,          // Controls the "height" of the parabolic arc
       });
     } catch (_) {}
   }, [flyTarget]);
+
+  // ── Camera Nudge (The "Senior" Shake) ─────────────────────────────────────
+  useEffect(() => {
+    if (!mapRef.current || shakeTrigger === 0) return;
+
+    try {
+      // 1. Physical Feedback (Haptic)
+      if (navigator.vibrate) {
+        navigator.vibrate([100, 50, 100]); // Double thud
+      }
+
+      // 2. Visual Nudge (Pitch Dip)
+      const currentPitch = mapRef.current.getPitch();
+      
+      // Briefly dip the pitch and zoom slightly
+      mapRef.current.easeTo({
+        pitch: currentPitch + 10,
+        zoom: mapRef.current.getZoom() + 0.2,
+        duration: 100,
+      });
+
+      // Return to original state with a slower, smoother curve
+      setTimeout(() => {
+        mapRef.current?.easeTo({
+          pitch: currentPitch,
+          zoom: mapRef.current.getZoom() - 0.2,
+          duration: 400,
+          easing: (t) => t * (2 - t), // Ease out
+        });
+      }, 100);
+    } catch (err) {
+      console.warn("[MapLibre3D] Nudge failed:", err);
+    }
+  }, [shakeTrigger]);
 
   const hasFlownRef = useRef(false);
   useEffect(() => {
@@ -483,9 +520,10 @@ export default function MapLibre3DView({
     try {
       mapRef.current.flyTo({
         center: [currentLocation.lng, currentLocation.lat],
-        zoom: 17,
+        zoom: 18,             // Focus on the user
         pitch: 60,
-        duration: 1500,
+        duration: 2500,
+        essential: true,
       });
       hasFlownRef.current = true;
     } catch (_) {}
@@ -496,6 +534,15 @@ export default function MapLibre3DView({
   useEffect(() => {
     if (!mapLoaded || !mapRef.current) return;
     clearMarkers();
+
+    // Helper to check if a pin is basically on top of the blue dot
+    const isAtCurrent = (loc) => {
+      if (!loc || !currentLocation) return false;
+      const dLat = Math.abs(loc.lat - currentLocation.lat);
+      const dLng = Math.abs(loc.lng - currentLocation.lng);
+      return dLat < 0.00005 && dLng < 0.00005; // ~5 meter tolerance
+    };
+
     const add = (loc, color, large) => {
       const m = new maplibregl.Marker({
         element: makeMarkerEl(color, large),
@@ -505,9 +552,11 @@ export default function MapLibre3DView({
         .addTo(mapRef.current);
       markersRef.current.push(m);
     };
+
     if (currentLocation) add(currentLocation, "#2563eb", false);
-    if (startPoint) add(startPoint, "#2563eb", true);
-    if (destPoint) add(destPoint, "#22c55e", true);
+    // Only show pins if they aren't redundant with the current location dot
+    if (startPoint && !isAtCurrent(startPoint)) add(startPoint, "#2563eb", true);
+    if (destPoint && !isAtCurrent(destPoint)) add(destPoint, "#22c55e", true); // destPoint here is finalDestPoint from App.jsx
   }, [currentLocation, startPoint, destPoint, mapLoaded, clearMarkers]);
 
 
