@@ -98,7 +98,7 @@ const ProfileSkeleton = () => (
 );
 
 export default function ProfilePage() {
-  const { user, getAuthHeader } = useAuthContext();
+  const { user, getAuthHeader, logout } = useAuthContext();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -111,6 +111,8 @@ export default function ProfilePage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   // Load dark mode from IndexedDB
   useEffect(() => {

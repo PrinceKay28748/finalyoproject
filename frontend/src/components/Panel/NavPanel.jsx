@@ -8,7 +8,6 @@ import { useNavigate } from "react-router-dom";
 import logo from "./icon-192.png";
 import {
   IconSwap,
-  IconSearch,
   IconDirections,
 } from "../ui/icon";
 import "./NavPanel.css";
@@ -236,7 +235,7 @@ export default function NavPanel({
                 className="nav-pill-logo-wrap nav-pill-logo-wrap--active" 
                 style={{ "--profile-glow": activeColor }}
               >
-                <img src={logo} alt="" className="nav-pill-logo" />
+                <img src={logo} alt="UG Navigator" className="nav-pill-logo" />
               </div>
               <div
                 className="nav-pill-content"
