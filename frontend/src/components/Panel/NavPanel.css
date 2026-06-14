@@ -1,11 +1,12 @@
 /* NavPanel.css */
 
 .nav-panel {
-  background: rgba(255, 255, 255, 0.48);
-  backdrop-filter: blur(32px) saturate(180%);
-  -webkit-backdrop-filter: blur(32px) saturate(180%);
-  border-radius: 28px;
-  border: 0.5px solid rgba(255, 255, 255, 0.5);
+  /* Unified Premium Glass Specification (Legend Recipe) */
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(25px) saturate(210%);
+  -webkit-backdrop-filter: blur(25px) saturate(210%);
+  border-radius: 32px;
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
   box-shadow:
     0 8px 24px rgba(0, 0, 0, 0.06),
     0 2px 4px rgba(0, 0, 0, 0.02),
@@ -14,29 +15,159 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  transition: all 0.3s ease;
+  /* Senior Dev Fix: Don't transition 'all'. Transitioning 'transform' while width changes causes the shift. */
+  transition: width 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1), 
+              height 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1), 
+              background-color 0.3s ease, 
+              border-radius 0.4s ease;
+  transform-origin: center top;
   animation: ugslide 0.35s cubic-bezier(0.22, 1, 0.36, 1);
   position: fixed;
-
   top: env(safe-area-inset-top);
-  left: 12px;
-  right: 12px;
-
-  max-width: 480px;
-  margin: 0 auto;
-
-  padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
-
+  left: 50%;
+  width: calc(100% - 24px);
+  max-width: 520px;
+  /* Standard expanded padding */
+  padding: calc(16px + env(safe-area-inset-top)) 16px 16px;
   overflow: visible !important;
-  transform: translateZ(0);
+  transform: translateX(-50%) translateZ(0); /* Senior Fix: Unified transform prevents horizontal jump */
+}
+
+/* ─── Pill Layouts ──────────────────────────────────────────────────────── */
+.nav-panel--pill {
+  /* Senior Fix: Reset padding to allow content to center in the 56px height */
+  padding: 0 16px !important;
+  border-radius: 50px; /* Full pill shape */
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.nav-pill-row, 
+.nav-compact-row {
+  display: flex;
+  align-items: center; 
+  gap: 12px; /* Increased gap for better logo-to-text separation */
+  width: 100%;
+  height: 100%;
+}
+
+.nav-pill-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--hover-row);
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.nav-pill-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ── Jeweled Logo Style ────────────────────────────────────────────────── */
+.nav-pill-logo-wrap {
+  width: 32px;
+  height: 32px;
+  background: white;
+  flex-shrink: 0; /* Senior Fix: Prevent logo from squishing */
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden; /* Clips the shimmer sweep */
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Active Profile Glow Style */
+.nav-pill-logo-wrap--active {
+  box-shadow: 
+    0 0 15px 2px var(--profile-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+  border-color: var(--profile-glow) !important;
+  /* Subtle "active" state scaling */
+  transform: scale(1.05);
+}
+
+.nav-pill-logo-wrap::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -100%;
+  width: 50%;
+  height: 200%;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(255, 255, 255, 0.6),
+    transparent
+  );
+  transform: rotate(30deg);
+  animation: logoShimmer 4s infinite cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ug-root.dark .nav-pill-logo-wrap {
+  background: #f8fafc; /* Bright slate to keep the logo popping in dark mode */
+  box-shadow: 0 0 12px rgba(37, 99, 235, 0.2);
+  border-color: rgba(37, 99, 235, 0.3);
+}
+
+.nav-pill-logo {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1; /* Stay above the shimmer */
+}
+
+.nav-where-to-pill {
+  flex: 1;
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--sub);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* ── Search Hint Animation ─────────────────────────────────────────────── */
+.nav-search-text-hint {
+  /* 3 gentle pulses on load, then settle */
+  animation: navSearchPulse 3s ease-in-out 3;
+  will-change: opacity, transform;
+}
+
+@keyframes navSearchPulse {
+  0%, 100% { opacity: 0.5; transform: translateX(0); }
+  50% { 
+    opacity: 1; 
+    color: var(--text); /* Briefly shift to main text color to draw focus */
+  }
 }
 
 /* ─── Base glass button ─────────────────────────────────────────────────── */
 .nav-glass-btn {
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
-  border: 0.5px solid rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 50%;
   min-width: 44px;
   min-height: 44px;
@@ -103,23 +234,6 @@
   box-shadow:
     0 4px 12px rgba(0, 0, 0, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.12);
-}
-
-/* ─── Dark mode toggle ──────────────────────────────────────────────────── */
-.nav-mode-btn {
-  /* inherits nav-glass-btn */
-}
-
-.nav-mode-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-  will-change: transform;
-}
-
-.nav-mode-icon--spin {
-  transform: rotate(180deg);
 }
 
 /* ─── Logout button ─────────────────────────────────────────────────────── */
@@ -343,28 +457,19 @@
   padding: 10px 16px;
 }
 
-.nav-compact-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.nav-compact-location {
+.nav-pill-content {
   flex: 1;
+  min-width: 0; /* Crucial: allows children to truncate */
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: rgba(255, 255, 255, 0.5);
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
-  padding: 8px 14px;
+  gap: 6px;
+  /* Senior Fix: Removed redundant glass inside glass */
+  background: transparent;
+  backdrop-filter: none;
+  padding: 0 4px;
   border-radius: 40px;
-  border: 0.5px solid rgba(255, 255, 255, 0.5);
+  border: none;
   cursor: pointer;
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.75);
   transition:
     transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1),
     background 0.2s ease,
@@ -408,13 +513,14 @@
 }
 
 .nav-compact-start {
-  font-size: 13px;
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
   font-weight: 500;
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 110px;
 }
 
 .nav-compact-arrow {
@@ -426,26 +532,31 @@
 }
 
 .nav-compact-dest {
-  font-size: 13px;
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
   font-weight: 500;
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex: 1;
 }
 
 /* Compact swap — uses nav-glass-btn base class */
 .nav-compact-swap {
-  width: 44px;
-  height: 44px;
+  width: 38px;
+  height: 38px;
   padding: 0;
-  flex-shrink: 0;
+  flex-shrink: 0; /* Senior Fix: Guaranteed visibility for swap button */
+  /* Senior Fix: Use a bouncy spring curve for the rotation */
+  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), 
+              background 0.2s ease, 
+              border-color 0.2s ease !important;
 }
 
 .nav-compact-swap svg {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
 }
 
 /* Dark mode compact */
@@ -561,6 +672,11 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes logoShimmer {
+  0% { left: -100%; }
+  20%, 100% { left: 150%; }
+}
+
 /* ─── Input sections ────────────────────────────────────────────────────── */
 .nav-input-section {
   display: flex;
@@ -664,11 +780,12 @@
 /* ─── Panel shell ───────────────────────────────────────────────────────── */
 .ug-root.dark .nav-panel {
   background: rgba(28, 28, 30, 0.72);
-  border-color: rgba(255, 255, 255, 0.1);
+  border: 1.5px solid rgba(37, 99, 235, 0.2); /* Tinted border for glow effect */
   box-shadow:
     0 8px 28px rgba(0, 0, 0, 0.35),
     0 2px 6px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 15px rgba(37, 99, 235, 0.12); /* Senior Fix: Subtle outer glow in dark mode */
 }
 
 /* ─── Header ────────────────────────────────────────────────────────────── */
@@ -746,8 +863,8 @@
 
 /* ─── Animations ────────────────────────────────────────────────────────── */
 @keyframes ugslide {
-  from { opacity: 0; transform: translateY(-14px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  from { opacity: 0; transform: translateX(-50%) translateY(-14px) scale(0.98) translateZ(0); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1) translateZ(0); }
 }
 
 @keyframes ugfade {
@@ -762,11 +879,8 @@
 /* ─── Mobile ────────────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
   .nav-panel {
-    top: 8px;
-    left: 8px;
-    right: 8px;
-    padding: 10px 14px;
-    border-radius: 24px;
+    top: calc(env(safe-area-inset-top) + 8px);
+    padding: 8px 12px;
   }
 
   .nav-title     { font-size: 15px; }
@@ -774,12 +888,6 @@
 
   .nav-logo      { width: 32px; height: 32px; }
   .nav-logo svg  { width: 16px; height: 16px; }
-
-  .nav-compact-start,
-  .nav-compact-dest {
-    font-size: 12px;
-    max-width: 90px;
-  }
 
   .nav-where-to        { padding: 10px 14px; }
   .nav-where-to-text   { font-size: 14px; }
@@ -810,12 +918,9 @@
 @media (min-width: 901px) {
   .nav-panel {
     max-width: 650px;
-    left: 20px;
-    right: 20px;
+    left: 50%;
+    right: auto;
   }
-
-  .nav-compact-start { max-width: 200px; }
-  .nav-compact-dest  { max-width: 280px; }
 
   .nav-title   { font-size: 18px; }
   .nav-logo    { width: 40px; height: 40px; }
@@ -925,6 +1030,20 @@
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* ── Floating Avatar ────────────────────────────────────────────────────── */
+.nav-floating-avatar {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 8px);
+  right: 12px;
+  z-index: 1100;
+  transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+}
+
+.nav-floating-avatar:active {
+  transform: scale(0.92);
+}
+
 
 /* ─── Desktop: Solid panels for readability ─────────────────────────────── */
 @media (min-width: 1024px) {

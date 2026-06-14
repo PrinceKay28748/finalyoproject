@@ -1,11 +1,15 @@
 // frontend/src/components/Profile/ProfilePage.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuthContext } from "../../context/AuthContext";
 import { API_URL } from "../../config";
 import { loadPreferences } from "../../services/preferencesStore";
+import { isTokenValid } from "./auth";
 import EditProfileModal from "./EditProfileModal";
 import ChangePasswordModal from "./ChangePasswordModal";
 import DeleteAccountModal from "./DeleteAccountModal";
+import LogoutConfirmationModal from "./LogoutConfirmationModal";
+import HelpGuideModal from "./HelpGuideModal";
 import "./ProfilePage.css";
 
 // Modern SVG Icons
@@ -51,8 +55,51 @@ const IconSpinner = () => (
   </svg>
 );
 
+const IconHelp = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+    <line x1="12" y1="17" x2="12.01" y2="17" />
+  </svg>
+);
+
+const IconLogout = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <polyline points="16 17 21 12 16 7" />
+    <line x1="21" y1="12" x2="9" y2="12" />
+  </svg>
+);
+
+const ProfileSkeleton = () => (
+  <div className="profile-skeleton">
+    <div className="profile-header">
+      <div className="skeleton-shimmer skeleton-back"></div>
+      <div className="skeleton-shimmer skeleton-title-text"></div>
+    </div>
+
+    <div className="profile-avatar-section">
+      <div className="skeleton-shimmer skeleton-avatar"></div>
+      <div className="skeleton-shimmer skeleton-name"></div>
+      <div className="skeleton-shimmer skeleton-email"></div>
+      <div className="skeleton-shimmer skeleton-date"></div>
+    </div>
+
+    <div className="profile-section">
+      <div className="skeleton-shimmer skeleton-subtitle"></div>
+      <div className="skeleton-shimmer skeleton-item"></div>
+      <div className="skeleton-shimmer skeleton-item"></div>
+    </div>
+    <div className="profile-section">
+      <div className="skeleton-shimmer skeleton-subtitle"></div>
+      <div className="skeleton-shimmer skeleton-item"></div>
+    </div>
+  </div>
+);
+
 export default function ProfilePage() {
   const { user, getAuthHeader } = useAuthContext();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -81,32 +128,49 @@ export default function ProfilePage() {
   }, []);
 
   // Fetch user profile from backend
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const response = await fetch(`${API_URL}/auth/me`, {
-          headers: {
-            ...getAuthHeader(),
-            "Content-Type": "application/json",
-          },
-        });
+  const fetchProfile = useCallback(async () => {
+    // Robust check: Ensure token is present and is not a "junk" string
+    const token = sessionStorage.getItem('accessToken');
+    if (!isTokenValid(token)) {
+      console.warn("[ProfilePage] No access token found. Redirecting to login.");
+      navigate("/login");
+      return;
+    }
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch profile");
-        }
+    try {
+      setIsLoading(true);
+      const headers = getAuthHeader();
+      const response = await fetch(`${API_URL}/auth/me`, {
+        headers: { ...headers, "Content-Type": "application/json" },
+      });
 
-        const data = await response.json();
-        setProfile(data.user);
-      } catch (err) {
-        console.error("[ProfilePage] Error:", err);
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
+      if (response.status === 401 || response.status === 403) {
+        // Handle expired or malformed session
+        console.error(`[ProfilePage] Session error (${response.status}).`);
+        sessionStorage.removeItem('accessToken');
+        navigate("/login");
+        return;
       }
-    };
 
+      if (!response.ok) {
+        throw new Error("Failed to fetch profile");
+      }
+
+      const data = await response.json();
+      // Ensure we handle both direct user object or wrapped { user } response
+      setProfile(data.user || data);
+      setError(null);
+    } catch (err) {
+      console.error("[ProfilePage] Error:", err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [getAuthHeader, navigate]);
+
+  useEffect(() => {
     fetchProfile();
-  }, [getAuthHeader]);
+  }, [fetchProfile]);
 
   const formatDate = (dateString) => {
     if (!dateString) return "Unknown";
@@ -127,16 +191,14 @@ export default function ProfilePage() {
   };
 
   const handleAccountDelete = () => {
-    window.location.href = "/login";
+    // Use navigate for smoother transition
+    navigate("/login");
   };
 
   if (isLoading) {
     return (
       <div className={`ug-root ${darkMode ? "dark" : ""}`}>
-        <div className="profile-loading">
-          <IconSpinner />
-          <p>Loading profile...</p>
-        </div>
+        <ProfileSkeleton />
       </div>
     );
   }
@@ -158,7 +220,7 @@ export default function ProfilePage() {
       <div className={`ug-root ${darkMode ? "dark" : ""}`}>
         <div className="profile-error">
           <p>No profile data found</p>
-          <button onClick={() => (window.location.href = "/")}>Go Home</button>
+          <button onClick={() => navigate("/")}>Go Home</button>
         </div>
       </div>
     );
@@ -171,7 +233,7 @@ export default function ProfilePage() {
       <div className="profile-header">
         <button
           className="profile-back-btn"
-          onClick={() => (window.location.href = "/")}
+          onClick={() => navigate("/")}
           aria-label="Go back"
         >
           <IconBack />
@@ -224,6 +286,42 @@ export default function ProfilePage() {
         </div>
       </div>
 
+      {/* Support & Feedback */}
+      <div className="profile-section">
+        <h3>Support & Feedback</h3>
+        <div className="profile-settings-list">
+          <button 
+            className="profile-setting-btn"
+            onClick={() => setIsHelpModalOpen(true)}
+          >
+            <span className="profile-setting-icon"><IconHelp /></span>
+            <div className="profile-setting-info">
+              <strong>User Guide</strong>
+              <span>How to navigate Legon & Accra</span>
+            </div>
+            <span className="profile-setting-arrow"><IconArrowRight /></span>
+          </button>
+        </div>
+      </div>
+
+      {/* Session Management */}
+      <div className="profile-section">
+        <h3>Session</h3>
+        <div className="profile-settings-list">
+          <button 
+            className="profile-setting-btn"
+            onClick={() => setIsLogoutModalOpen(true)}
+          >
+            <span className="profile-setting-icon"><IconLogout /></span>
+            <div className="profile-setting-info">
+              <strong>Sign Out</strong>
+              <span>Logout from your current session</span>
+            </div>
+            <span className="profile-setting-arrow"><IconArrowRight /></span>
+          </button>
+        </div>
+      </div>
+
       {/* Danger Zone */}
       <div className="profile-section profile-danger-zone">
         <h3>Danger Zone</h3>
@@ -260,6 +358,17 @@ export default function ProfilePage() {
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={handleAccountDelete}
+      />
+
+      <HelpGuideModal
+        isOpen={isHelpModalOpen}
+        onClose={() => setIsHelpModalOpen(false)}
+      />
+
+      <LogoutConfirmationModal
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirm={logout}
       />
     </div>
   );

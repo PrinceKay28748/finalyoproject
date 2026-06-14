@@ -32,10 +32,11 @@
    ───────────────────────────────────────────── */
 .report-modal {
   background: #ffffff;
-  border-radius: 22px;
-  width: 90%;
-  max-width: 480px;
-  max-height: 90vh;
+  border-radius: 0; /* Remove radius for full-screen look */
+  width: 100%;
+  max-width: none;
+  height: 100dvh; /* dynamic viewport height for mobile */
+  max-height: none;
   overflow-y: auto;
   overflow-x: hidden;
   box-shadow:
@@ -45,7 +46,7 @@
 
   /* Exit state (hidden) */
   opacity: 0;
-  transform: translateY(20px) scale(0.97);
+  transform: translateY(100%); /* Slide out to the bottom */
   /* Exit: quick ease-in */
   transition:
     opacity  0.25s ease-in,
@@ -54,7 +55,7 @@
 
 .report-modal.report-modal--visible {
   opacity: 1;
-  transform: translateY(0) scale(1);
+  transform: translateY(0);
   /* Enter: spring-like cubic-bezier */
   transition:
     opacity  0.4s cubic-bezier(0.16, 1, 0.3, 1),
@@ -91,6 +92,7 @@
   padding: 20px 24px 18px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.07);
   position: sticky;
+  top: 0; /* Ensure header sticks to top */
   top: 0;
   background: inherit;
   z-index: 1;
@@ -516,11 +518,25 @@
   display: flex;
   gap: 10px;
   padding: 18px 24px;
+  position: sticky; /* Make buttons sticky */
+  bottom: 0;
+  background: #ffffff; /* Senior Fix: Solid background prevents content bleed-through */
+  border-top: 1px solid rgba(0, 0, 0, 0.06); /* Add top border for separation */
+  z-index: 1; /* Ensure it's above scrolling content */
   border-top: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .ug-root.dark .report-actions {
+  background: #1c1c1e; /* Solid dark background for dark mode */
+}
+
+.ug-root.dark .report-actions {
   border-top-color: rgba(255, 255, 255, 0.07);
+}
+
+/* Adjust padding of the modal body to prevent content from being hidden under sticky footer */
+.report-modal {
+  padding-bottom: 0; 
 }
 
 .report-btn {
@@ -643,6 +659,8 @@
 .report-success-popup {
   display: flex;
   flex-direction: column;
+  justify-content: center; /* Center success content in full screen */
+  min-height: calc(100dvh - 71px); /* Fill space below sticky header */
   align-items: center;
   text-align: center;
   padding: 44px 32px 36px;
@@ -754,9 +772,9 @@
    ───────────────────────────────────────────── */
 @media (max-width: 600px) {
   .report-modal {
-    width: 96%;
-    border-radius: 18px;
-    max-height: 94vh;
+    width: 100%;
+    border-radius: 0;
+    height: 100dvh;
   }
 
   .report-issue-grid {
@@ -774,6 +792,7 @@
   .report-actions {
     padding: 14px 20px;
   }
+  .report-modal { padding-bottom: 70px; } /* Adjust for mobile */
 
   .report-success-popup {
     padding: 36px 24px 28px;

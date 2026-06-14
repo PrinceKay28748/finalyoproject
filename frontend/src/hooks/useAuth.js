@@ -4,6 +4,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { API_URL } from '../config';
+import { isUsingMockSupabase } from '../lib/supabase';
 
 export function useAuth() {
   const [user, setUser] = useState(null);
@@ -11,31 +12,39 @@ export function useAuth() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Helper to sync user with your backend's users table
-  const syncUserWithBackend = useCallback(async (supabaseUser, accessToken) => {
-    try {
-      const response = await fetch(`${API_URL}/auth/sync`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({
-          username: supabaseUser.user_metadata?.username || supabaseUser.email.split('@')[0]
-        })
-      });
+ 
 
-      if (!response.ok) {
-        throw new Error('Failed to sync user with backend');
-      }
+const syncUserWithBackend = useCallback(async (supabaseUser, accessToken) => {
+  // 🔥 FIX: Skip backend sync in dev mode with mock Supabase
+  if (isUsingMockSupabase()) {
+    console.log('[useAuth] Mock mode: skipping backend sync, using mock user');
+    return {
+      id: supabaseUser.id,
+      email: supabaseUser.email,
+      username: supabaseUser.user_metadata?.username || supabaseUser.email.split('@')[0],
+      created_at: new Date().toISOString(),
+      isMockUser: true
+    };
+  }
 
-      const data = await response.json();
-      return data.user;
-    } catch (err) {
-      console.error('[useAuth] Sync error:', err);
-      return null;
+  // Original code continues here for production
+  try {
+    const response = await fetch(`${API_URL}/auth/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user: supabaseUser, accessToken })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to sync user with backend: ${response.status}`);
     }
-  }, []);
+    
+    return await response.json();
+  } catch (error) {
+    console.error('[useAuth] Sync error:', error);
+    throw error;
+  }
+}, []);
 
   // Initialize auth - Restore session from Supabase on mount
   useEffect(() => {

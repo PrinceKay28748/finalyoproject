@@ -1,5 +1,6 @@
 // frontend/src/App.jsx - Simplified (no auth guards, no admin route)
 import { useState, useCallback, lazy, Suspense, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useGeolocation } from "./hooks/useGeolocation";
 import { useRealtimeRoutes } from "./hooks/useRealtimeRoutes";
 import { geocode, reverseGeocode } from "./services/geocoding";
@@ -27,7 +28,8 @@ function MapLoader() {
 }
 
 export default function App() {
-  const { user, logLogin } = useAuthContext();
+  const { user } = useAuthContext();
+  const navigate = useNavigate();
 
   const [startPoint, setStartPoint] = useState(null);
   const [destPoint, setDestPoint] = useState(null);
@@ -58,12 +60,16 @@ export default function App() {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportLocation, setReportLocation] = useState(null);
 
+  // Senior Fix: Graph loading state
   const [graph, setGraph] = useState(null);
   const [graphLoading, setGraphLoading] = useState(true);
 
   const legendCollapseRef = useRef(null);
 
   const { location: currentLocation, accuracy, error: locationError } = useGeolocation();
+
+  const [hasAutoFilled, setHasAutoFilled] = useState(false);
+  const [resetProgressTimestamp, setResetProgressTimestamp] = useState(0); // New state for resetting progress
 
   // ── Restore route state ──────────────────────────────────────────────────
   useEffect(() => {
@@ -77,6 +83,7 @@ export default function App() {
       if (savedState.activeProfile) setActiveProfile(savedState.activeProfile);
       if (savedState.vehicleMode)   setVehicleMode(savedState.vehicleMode);
       console.log('[App] Restored route state from storage');
+      setHasAutoFilled(true); // Skip auto-fill if we restored a valid state
     }
     setIsInitialLoad(false);
   }, []);
@@ -154,6 +161,10 @@ export default function App() {
     ? customStartPoint.name || "Custom location"
     : startText;
 
+  // Senior Fix: If 'My current location' is the destination, link it to live GPS
+  const isDestCurrentLocation = destText === "My current location";
+  const finalDestPoint = isDestCurrentLocation ? currentLocation : destPoint;
+
   const getNodeId = useCallback((point) => {
     if (!point || !graph) return null;
     if (point.nodeId) return point.nodeId;
@@ -161,7 +172,7 @@ export default function App() {
   }, [graph]);
 
   const startNodeId = effectiveStartPoint ? getNodeId(effectiveStartPoint) : null;
-  const destNodeId  = destPoint           ? getNodeId(destPoint)           : null;
+  const destNodeId  = finalDestPoint       ? getNodeId(finalDestPoint)      : null;
 
   const {
     primaryRoute,
@@ -177,8 +188,17 @@ export default function App() {
     currentLocation,
     activeProfile,
     vehicleMode,
-    isActive: markersVisible && !!effectiveStartPoint && !!destPoint,
+    isActive: markersVisible && !!effectiveStartPoint && !!finalDestPoint,
   });
+
+  // Senior SWE Optimization: Use a local ref to keep track of if the destination changed.
+  // If only the profile changed, we don't want to "draw" the route, we just want to update it.
+  const prevDestRef = useRef(null);
+  const isNewDestination = destPoint?.lat !== prevDestRef.current?.lat;
+  
+  useEffect(() => {
+    prevDestRef.current = destPoint;
+  }, [destPoint]);
 
   // ── Log route ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -199,12 +219,14 @@ export default function App() {
   const warnings = primaryRoute?.context?.warnings || [];
 
   // ── Auto-fill FROM with GPS ───────────────────────────────────────────────
-  const [hasAutoFilled, setHasAutoFilled] = useState(false);
-  if (currentLocation && !hasAutoFilled && !useCustomLocation) {
-    setStartPoint(currentLocation);
-    setStartText("My current location");
-    setHasAutoFilled(true);
-  }
+  useEffect(() => {
+    // Only auto-fill if we don't already have a start point (from restoration or user selection)
+    if (currentLocation && !hasAutoFilled && !useCustomLocation && !startPoint) {
+      setStartPoint(currentLocation);
+      setStartText("My current location");
+      setHasAutoFilled(true);
+    }
+  }, [currentLocation, hasAutoFilled, useCustomLocation, startPoint]);
 
   // ── Lock route when active ────────────────────────────────────────────────
   useEffect(() => {
@@ -349,22 +371,63 @@ export default function App() {
   };
 
   const handleSwap = () => {
+    // 1. Force a "Visual Reset" to clear the 'fainted' state and reset progress
+    setMarkersVisible(false);
+    
+    // 2. Clear the destination ref so RouteLayer treats this as a brand new journey
+    prevDestRef.current = null;
+
+    // 3. Prevent auto-fill from interfering with the manual user intent
+    setHasAutoFilled(true);
+
+    const sP = startPoint;
+    const dP = destPoint;
+    const sT = startText;
+    const dT = destText;
+
+    let newStartPointForFly = null; // This will be the point to fly to
+
     if (useCustomLocation && customStartPoint) {
-      setDestPoint(customStartPoint);
+      const oldCustom = customStartPoint;
+      setDestPoint(oldCustom);
       setDestText(customStartPoint.name || "Custom location");
-      setCustomStartPoint(destPoint);
-      setStartPoint(destPoint);
-      setStartText(destPoint?.name || "");
-      setUseCustomLocation(!!destPoint);
+      
+      setCustomStartPoint(sP); // Old start becomes new custom start
+      setStartPoint(sP);       // Old start becomes new start
+      setStartText(sT);        // Old start text becomes new start text
+      setUseCustomLocation(!!sP); // If old start was custom, new custom start is old start
+      newStartPointForFly = sP;
     } else {
-      setStartPoint(destPoint);
-      setDestPoint(startPoint);
-      setStartText(destText);
-      setDestText(startText);
+      // Standard swap logic
+      setStartPoint(dP);
+      setDestPoint(sP);
+      setStartText(dT);
+      setDestText(sT);
       setUseCustomLocation(false);
       setCustomStartPoint(null);
+      newStartPointForFly = dP; // New start is old dest
     }
     setIsSharedLocation(false);
+
+    // If the new start point is null (e.g., old dest was null),
+    // and we have currentLocation, make currentLocation the start.
+    if (!newStartPointForFly && currentLocation) {
+      setStartPoint(currentLocation);
+      setStartText("My current location");
+      newStartPointForFly = currentLocation;
+    }
+
+    // ── Senior Fix: Google Maps Style Transition ──
+    // 1. Update camera to the new starting point we just assigned
+    if (newStartPointForFly) {
+      setFlyTarget({ ...newStartPointForFly, _t: Date.now() });
+    }
+
+    // 2. Re-enable visibility after state settles and signal RouteLayer to reset progress
+    setTimeout(() => {
+      setMarkersVisible(true);
+      setResetProgressTimestamp(Date.now()); // Signal RouteLayer to reset progress
+    }, 100); // Slightly longer delay to ensure all state updates propagate
   };
 
   const handleReset = () => {
@@ -395,15 +458,10 @@ export default function App() {
 
   // ── Report modal handlers ────────────────────────────────────────────────
   const handleOpenReportModal = useCallback(() => {
-    const mapContainer = document.querySelector('.leaflet-container');
-    let defaultLocation = null;
-    
-    if (mapContainer && mapContainer._leaflet_map) {
-      const center = mapContainer._leaflet_map.getCenter();
-      defaultLocation = { lat: center.lat, lng: center.lng };
-    } else if (currentLocation) {
-      defaultLocation = { lat: currentLocation.lat, lng: currentLocation.lng };
-    }
+    // Senior Fix: No direct DOM queries. Use currentLocation or UG Center.
+    const defaultLocation = currentLocation 
+      ? { lat: currentLocation.lat, lng: currentLocation.lng, name: "My location" }
+      : { lat: 5.6502, lng: -0.1962, name: "Campus center" };
     
     setReportLocation(defaultLocation);
     setIsReportModalOpen(true);
@@ -425,7 +483,8 @@ export default function App() {
     (destPoint           || destText.trim().length > 0);
 
   // Compute map blur state
-  const isMapBlurred = isNavExpanded || legendDragProgress > 0;
+  // Senior Fix: Keep map in focus during legend interaction. Only blur for search.
+  const isMapBlurred = isNavExpanded;
 
   return (
     <FocusProvider>
@@ -440,9 +499,6 @@ export default function App() {
           onStartSelect={handleStartSelect}
           onDestSelect={handleDestSelect}
           onUseCurrentLocation={handleUseCurrentLocation}
-          onUseCustomLocation={handleUseCustomLocation}
-          hasCustomLocation={!!customStartPoint}
-          isUsingCustomLocation={useCustomLocation}
           onSwap={handleSwap}
           onShowOnMap={handleShowOnMap}
           onReset={handleReset}
@@ -451,13 +507,8 @@ export default function App() {
           isResolving={isResolving || isRouting}
           markersVisible={markersVisible}
           accuracy={accuracy}
-          locationError={locationError}
-          darkMode={darkMode}
-          onToggleDarkMode={() => setDarkMode((d) => !d)}
           activeProfile={activeProfile}
-          onProfileChange={setActiveProfile}
-          vehicleMode={vehicleMode}
-          onVehicleModeChange={setVehicleMode}
+          locationError={locationError}
           isExpanded={isNavExpanded}
           onExpandRequest={handleNavExpandRequest}
         />
@@ -468,7 +519,7 @@ export default function App() {
             accuracy={accuracy}
             customStartPoint={customStartPoint}
             startPoint={effectiveStartPoint}
-            destPoint={destPoint}
+            destPoint={finalDestPoint} // Ensure MapLibre3DView uses finalDestPoint
             startText={effectiveStartText}
             destText={destText}
             markersVisible={markersVisible}
@@ -502,6 +553,7 @@ export default function App() {
             onOpenReportModal={handleOpenReportModal}
             isNavExpanded={isNavExpanded}
             onNavPanelClose={handleNavPanelClose}
+            isNewDestination={isNewDestination}
             isPanelTransitioning={isPanelTransitioning}
             isMapBlurred={isMapBlurred}
             legendDragProgress={legendDragProgress}

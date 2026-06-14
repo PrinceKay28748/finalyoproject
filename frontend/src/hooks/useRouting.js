@@ -192,6 +192,7 @@ export function useRouting(startPoint, destPoint, triggered, profileKey = "stand
   const [isRouting, setIsRouting] = useState(false);
 
   const workerRef = useRef(null);
+  const prevPointsRef = useRef(""); // Correctly placed at top level
 
   // ── Spawn persistent worker once on mount ─────────────────────────────────
   useEffect(() => {
@@ -243,22 +244,26 @@ export function useRouting(startPoint, destPoint, triggered, profileKey = "stand
 
   // ── Send route request to worker ──────────────────────────────────────────
   useEffect(() => {
-    if (!triggered) {
-      setRoute(null);
-      setWarnings([]);
-      setError(null);
-      return;
-    }
+    if (!triggered) return;
 
     if (!startPoint || !destPoint) return;
 
     if (!isGraphReady) {
-      setError("Road network loading — please wait a moment");
       return;
     }
 
-    setIsRouting(true);
+    // Stable key using 6-decimal precision (~11cm) to prevent unnecessary loading states
+    const currentPointsKey = `${Number(startPoint.lat).toFixed(6)},${Number(startPoint.lng).toFixed(6)}-${Number(destPoint.lat).toFixed(6)},${Number(destPoint.lng).toFixed(6)}`;
+    const destinationChanged = prevPointsRef.current !== currentPointsKey;
+    prevPointsRef.current = currentPointsKey;
+
     setError(null);
+
+    // Only show the loading state if the destination changed.
+    // If only the profileKey changed, we keep the old route visible until the new one is calculated.
+    if (destinationChanged || !route) {
+      setIsRouting(true);
+    }
 
     workerRef.current?.postMessage({
       type: "CALCULATE_ROUTE",

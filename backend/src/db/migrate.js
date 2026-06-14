@@ -1,74 +1,83 @@
-// src/db/migrate.js
-// SQLite Database migration script - creates schema on startup
+// SQLite database migration — local development only.
+// Production uses migrate-pg.js against Supabase (DATABASE_URL required).
 
-import { query, closePool } from '../config/db.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-async function runMigrations() {
+function parseSchemaStatements(schema) {
+  return schema
+    .split(';')
+    .map((stmt) => {
+      const lines = stmt.split('\n');
+      return lines
+        .filter((line) => !line.trim().startsWith('--'))
+        .join('\n')
+        .trim();
+    })
+    .filter((stmt) => stmt.length > 0);
+}
+
+export async function runMigrations({ query, closePool, exitOnComplete = false } = {}) {
+  let ownsConnection = false;
+
   try {
-    console.log('[Migration] Starting database migrations...');
-    
-    // Wait a moment for DB connection
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Read schema.sql
+    if (!query) {
+      ownsConnection = true;
+      const dbModule = await import('../config/db.js');
+      query = dbModule.query;
+      closePool = dbModule.closePool;
+    }
+
+    console.log('[Migration] Starting SQLite migrations...');
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
     const schemaPath = path.join(__dirname, 'schema.sql');
     const schema = fs.readFileSync(schemaPath, 'utf8');
-    
-    // Split into individual statements
-    const allSplitStatements = schema.split(';');
-    
-    const rawStatements = allSplitStatements
-      .map(stmt => {
-        // Remove SQL comments (lines starting with --)
-        const lines = stmt.split('\n');
-        const cleanedLines = lines
-          .filter(line => !line.trim().startsWith('--'))
-          .join('\n')
-          .trim();
-        return cleanedLines;
-      })
-      .filter(stmt => stmt.length > 0);
-    
-    console.log(`[Migration] Found ${rawStatements.length} statements to execute`);
-    
-    for (let i = 0; i < rawStatements.length; i++) {
-      const statement = rawStatements[i];
-      
-      // Skip PRAGMA statements
+    const statements = parseSchemaStatements(schema);
+
+    console.log(`[Migration] Found ${statements.length} statements to execute`);
+
+    for (let i = 0; i < statements.length; i++) {
+      const statement = statements[i];
+
       if (statement.toUpperCase().startsWith('PRAGMA')) {
-        console.log(`[Migration] Skipping PRAGMA statement`);
         continue;
       }
-      
+
       try {
-        console.log(`[Migration] Executing statement ${i + 1}/${rawStatements.length}...`);
         await query(statement);
-        console.log(`[Migration] ✓ Statement ${i + 1} executed`);
+        console.log(`[Migration] ✓ Statement ${i + 1}/${statements.length}`);
       } catch (err) {
-        // Ignore "already exists" errors
         if (err.message?.includes('already exists')) {
-          console.log(`[Migration] ℹ Table already exists, skipping`);
+          console.log(`[Migration] ℹ Already exists, skipping statement ${i + 1}`);
         } else {
           throw err;
         }
       }
     }
-    
-    console.log('[Migration] ✓ Database schema created successfully');
-    await closePool();
-    process.exit(0);
+
+    console.log('[Migration] ✓ SQLite schema ready');
+    return true;
   } catch (error) {
     console.error('[Migration] ✗ Migration failed:', error.message);
-    console.error('[Migration] Error details:', error);
-    await closePool();
-    process.exit(1);
+    throw error;
+  } finally {
+    if (exitOnComplete && ownsConnection && closePool) {
+      await closePool();
+      process.exit(0);
+    }
   }
 }
 
-// Run migrations
-runMigrations();
+const isDirectRun = process.argv[1] &&
+  path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
+
+if (isDirectRun) {
+  runMigrations({ exitOnComplete: true }).catch(async (error) => {
+    console.error('[Migration] Error details:', error);
+    process.exit(1);
+  });
+}

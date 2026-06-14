@@ -1,38 +1,47 @@
 // components/Panel/NavPanel.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuthContext } from "../../context/AuthContext";
 import { useFocus } from "../../context/FocusContext";
 import SearchBox from "../Search/SearchBox";
 import PortalSearchBox from "../Search/PortalSearchBox";
-import LogoutConfirmationModal from "../Profile/LogoutConfirmationModal";
 import { useNavigate } from "react-router-dom";
+import logo from "./icon-192.svg";
 import {
-  IconSun,
-  IconMoonNav,
   IconSwap,
   IconSearch,
   IconDirections,
-  IconLogout,
 } from "../ui/icon";
 import "./NavPanel.css";
 
-// Avatar component using Navii (styled like glass buttons)
-function Avatar({ username, size = 44, onClick }) {
+// Integrated Avatar component (Google Maps style)
+function Avatar({ username, size = 36, onClick, accuracy }) {
   const seed = username || "guest";
   const avatarUrl = `https://api.navii.dev/avatar/${encodeURIComponent(seed)}?size=${size}&motion=true`;
 
+  const getAccuracyColor = () => {
+    if (!accuracy) return "transparent";
+    if (accuracy < 20) return "#22c55e"; // Good
+    if (accuracy < 50) return "#f59e0b"; // OK
+    return "#ef4444"; // Poor
+  };
+
   return (
     <button
-      className="nav-glass-btn nav-avatar-btn"
-      onClick={onClick}
+      className="nav-pill-avatar"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
       aria-label="Profile settings"
-      title={`${username || "User"} · Click to edit profile`}
-      style={{ width: size, height: size, padding: 0, overflow: "hidden" }}
+      title={`Account: ${username || "User"}${accuracy ? ` (GPS ±${accuracy}m)` : ""}`}
+      style={{ 
+        borderColor: getAccuracyColor(),
+        zIndex: 10,
+      }}
     >
       <img
         src={avatarUrl}
-        alt={username || "Avatar"}
-        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+        alt="Profile"
       />
     </button>
   );
@@ -80,6 +89,14 @@ function IconTo() {
   );
 }
 
+function IconBack() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 12H5M12 19l-7-7 7-7" />
+    </svg>
+  );
+}
+
 function IconArrowRight() {
   return (
     <svg
@@ -100,90 +117,11 @@ function IconArrowRight() {
   );
 }
 
-function IconSunInline() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-    >
-      <circle cx="12" cy="12" r="4.5" stroke="currentColor" strokeWidth="1.8" />
-      <path
-        d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function IconMoonInline() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-    >
-      <path
-        d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function IconLogoutInline() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-    >
-      <path
-        d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <polyline
-        points="16 17 21 12 16 7"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <line
-        x1="21"
-        y1="12"
-        x2="9"
-        y2="12"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 // ──────────────────────────────────────────────────────────────────────────
 
 export default function NavPanel({
   startText,
   destText,
-  onStartTextChange,
-  onDestTextChange,
   onStartSelect,
   onDestSelect,
   onUseCurrentLocation,
@@ -194,23 +132,25 @@ export default function NavPanel({
   canShow,
   isResolving,
   markersVisible,
+  activeProfile,
   accuracy,
   locationError,
-  darkMode,
-  onToggleDarkMode,
   isExpanded: externalIsExpanded,
   onExpandRequest,
   onClose,
+  onStartTextChange,
+  onDestTextChange,
 }) {
   const [internalIsExpanded, setInternalIsExpanded] = useState(false);
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [hasRoute, setHasRoute] = useState(false);
-  const { logout, user } = useAuthContext();
+  const [swapRotation, setSwapRotation] = useState(0);
+  // Senior Dev Fix: Initialize derived state BEFORE hooks that depend on it
+  const isExpanded =
+    externalIsExpanded !== undefined ? externalIsExpanded : internalIsExpanded;
+
+  const { user } = useAuthContext();
   const focus = useFocus();
   const navigate = useNavigate();
 
-  const isExpanded =
-    externalIsExpanded !== undefined ? externalIsExpanded : internalIsExpanded;
   const setIsExpanded = (value) => {
     if (onExpandRequest) {
       onExpandRequest(value);
@@ -219,31 +159,25 @@ export default function NavPanel({
     }
   };
 
-  const handleLogoutClick = () => {
-    setShowLogoutModal(true);
-  };
-
-  const handleLogoutConfirm = async () => {
-    setShowLogoutModal(false);
-    await logout();
-  };
+  const handleSwapClick = useCallback(() => {
+    // Increment rotation by 180 degrees each click for a continuous spinning effect
+    setSwapRotation(prev => prev + 180);
+    onSwap();
+  }, [onSwap]);
 
   const handleDirectionsClick = () => {
     if (canShow && !isResolving) {
       onShowOnMap();
-      setHasRoute(true);
       setIsExpanded(false);
     }
   };
 
   const handleSearchFocus = () => {
-    setHasRoute(false);
     setIsExpanded(true);
   };
 
   const handleResetClick = () => {
     onReset();
-    setHasRoute(false);
     setIsExpanded(false);
   };
 
@@ -270,101 +204,15 @@ export default function NavPanel({
             ? "Now set your start point"
             : "Tap the map or search to set locations";
 
-  // ─── Compact view (after route is set) ──────────────────────────────────
-  if (hasRoute && startText && destText) {
-    return (
-      <div className="nav-panel nav-panel--compact">
-        <div className="nav-header">
-          <div className="nav-header-left">
-            {/* Avatar ONLY - no logo */}
-            <Avatar
-              username={user?.username}
-              size={44}
-              onClick={() => navigate("/profile")}
-            />
+  // Senior Design: Define profile colors for visual continuity with the map route
+  const profileColors = {
+    standard: "#2563eb",   // Navigation Blue
+    accessible: "#8b5cf6", // Accessibility Purple
+    night: "#f59e0b",      // Safety Amber
+    fastest: "#22c55e",    // Speed Green
+  };
 
-            <div>
-              <p className="nav-title">UG Navigator</p>
-              <p className="nav-subtitle">
-                University of Ghana · Legon
-                {accuracy && (
-                  <span
-                    className={
-                      accuracy < 20
-                        ? "nav-accuracy-good"
-                        : accuracy < 50
-                          ? "nav-accuracy-ok"
-                          : "nav-accuracy-poor"
-                    }
-                  >
-                    · GPS ±{accuracy}m
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
-
-          <div className="nav-header-buttons">
-            <button
-              className="nav-glass-btn nav-mode-btn"
-              onClick={onToggleDarkMode}
-              aria-label={
-                darkMode ? "Switch to light mode" : "Switch to dark mode"
-              }
-              title={`${user?.username || "User"} · ${darkMode ? "Light" : "Dark"} mode`}
-            >
-              <span
-                className={`nav-mode-icon ${darkMode ? "nav-mode-icon--spin" : ""}`}
-              >
-                {darkMode ? <IconSunInline /> : <IconMoonInline />}
-              </span>
-            </button>
-            <button
-              className="nav-glass-btn nav-logout-btn"
-              onClick={handleLogoutClick}
-              aria-label="Sign out"
-              title="Sign out"
-            >
-              <IconLogoutInline />
-            </button>
-          </div>
-        </div>
-
-        <div className="nav-compact-row">
-          <div
-            className="nav-compact-location"
-            onClick={handleSearchFocus}
-            role="button"
-            tabIndex={0}
-            aria-label="Edit route"
-            onKeyDown={(e) => e.key === "Enter" && handleSearchFocus()}
-          >
-            <span
-              className="nav-compact-dot nav-compact-dot--from"
-              aria-hidden="true"
-            />
-            <span className="nav-compact-start">{startText}</span>
-            <span className="nav-compact-arrow" aria-hidden="true">
-              <IconArrowRight />
-            </span>
-            <span
-              className="nav-compact-dot nav-compact-dot--to"
-              aria-hidden="true"
-            />
-            <span className="nav-compact-dest">{destText}</span>
-          </div>
-          <button
-            className="nav-glass-btn nav-compact-swap"
-            onClick={onSwap}
-            title="Swap"
-            aria-label="Swap start and destination"
-          >
-            <IconSwap className="w-4 h-4" aria-hidden="true" />
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const activeColor = profileColors[activeProfile] || profileColors.standard;
 
   // ─── Expanded / collapsed view ───────────────────────────────────────────
   return (
@@ -378,75 +226,93 @@ export default function NavPanel({
       )}
 
       <div
-        className={`nav-panel ${isExpanded ? "nav-panel--expanded" : "nav-panel--collapsed"}`}
+        className={`nav-panel ${isExpanded ? "nav-panel--expanded" : "nav-panel--pill"}`}
       >
-        <div className="nav-header">
-          <div className="nav-header-left">
-            {/* Avatar ONLY - no logo */}
-            <Avatar
-              username={user?.username}
-              size={44}
-              onClick={() => navigate("/profile")}
-            />
-
-            <div>
-              <p className="nav-title">UG Navigator</p>
-              <p className="nav-subtitle">
-                University of Ghana · Legon
-                {accuracy && (
-                  <span
-                    className={
-                      accuracy < 20
-                        ? "nav-accuracy-good"
-                        : accuracy < 50
-                          ? "nav-accuracy-ok"
-                          : "nav-accuracy-poor"
-                    }
-                  >
-                    · GPS ±{accuracy}m
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
-
-          <div className="nav-header-buttons">
-            <button
-              className="nav-glass-btn nav-mode-btn"
-              onClick={onToggleDarkMode}
-              aria-label={
-                darkMode ? "Switch to light mode" : "Switch to dark mode"
-              }
-              title={`${user?.username || "User"} · ${darkMode ? "Light" : "Dark"} mode`}
-            >
-              <span
-                className={`nav-mode-icon ${darkMode ? "nav-mode-icon--spin" : ""}`}
+        {!isExpanded ? (
+          markersVisible && startText && destText ? (
+            /* 1. Compact Route Summary (Active Route State) */
+            <div className="nav-compact-row">
+              <div 
+                className="nav-pill-logo-wrap nav-pill-logo-wrap--active" 
+                style={{ "--profile-glow": activeColor }}
               >
-                {darkMode ? <IconSunInline /> : <IconMoonInline />}
-              </span>
-            </button>
-            <button
-              className="nav-glass-btn nav-logout-btn"
-              onClick={handleLogoutClick}
-              aria-label="Sign out"
-              title="Sign out"
-            >
-              <IconLogoutInline />
-            </button>
-          </div>
-        </div>
-
-        {!isExpanded && (
-          <button
-            className="nav-where-to"
-            onClick={() => setIsExpanded(true)}
-            aria-label="Search for destination"
-          >
-            <div className="nav-where-to-icon" aria-hidden="true">
-              <IconSearch className="w-4 h-4" />
+                <img src={logo} alt="" className="nav-pill-logo" />
+              </div>
+              <div
+                className="nav-pill-content"
+                onClick={handleSearchFocus}
+                role="button"
+                tabIndex={0}
+                aria-label={`Route from ${startText} to ${destText}. Click to edit.`}
+                title={`${startText} → ${destText}`}
+                onKeyDown={(e) => e.key === "Enter" && handleSearchFocus()}
+              >
+                <span
+                  className="nav-compact-dot nav-compact-dot--from"
+                  aria-hidden="true"
+                />
+                <span className="nav-compact-start">{startText}</span>
+                <span className="nav-compact-arrow" aria-hidden="true">
+                  <IconArrowRight />
+                </span>
+                <span
+                  className="nav-compact-dot nav-compact-dot--to"
+                  aria-hidden="true"
+                />
+                <span className="nav-compact-dest">{destText}</span>
+              </div>
+              <button
+                className="nav-glass-btn nav-compact-swap"
+                onClick={handleSwapClick}
+                title="Swap"
+                aria-label="Swap start and destination"
+                style={{ transform: `rotate(${swapRotation}deg)` }}
+              >
+                <IconSwap className="w-4 h-4" aria-hidden="true" />
+              </button>
             </div>
-            <span className="nav-where-to-text">Where to?</span>
-          </button>
+          ) : (
+            /* 2. Standard Search Pill (Idle State) */
+            <div className="nav-pill-row">
+              <button
+                className="nav-where-to-pill"
+                onClick={() => setIsExpanded(true)}
+                aria-label="Search for destination"
+              >
+                <div 
+                  className="nav-pill-logo-wrap nav-pill-logo-wrap--active"
+                  style={{ "--profile-glow": activeColor }}
+                >
+                  <img src={logo} alt="UG Navigator" className="nav-pill-logo" />
+                </div>
+                <span className="nav-search-text-hint">Search here...</span>
+              </button>
+              <Avatar
+                username={user?.username}
+                size={32}
+                onClick={() => navigate("/profile")}
+                accuracy={accuracy}
+              />
+            </div>
+          )
+        ) : (
+          /* 3. Expanded Header (Editing State) */
+          <div className="nav-header">
+            <button 
+              className="nav-back-btn" 
+              onClick={handleClose}
+              aria-label="Back to map"
+            >
+              <IconBack />
+            </button>
+            <span className="nav-title">Plan Route</span>
+            <Avatar 
+              username={user?.username}
+              size={32}
+              onClick={() => navigate("/profile")}
+              accuracy={accuracy}
+            />
+          </div>
         )}
 
         {isExpanded && (
@@ -507,7 +373,8 @@ export default function NavPanel({
               <button
                 className="nav-reset-btn"
                 onClick={handleResetClick}
-                aria-label="Reset route"
+                aria-label="Reset current route and search"
+                title="Clear your current search and route"
               >
                 <svg
                   width="12"
@@ -538,7 +405,8 @@ export default function NavPanel({
                 className={`nav-directions-btn ${canShow ? "ready" : "disabled"}`}
                 onClick={handleDirectionsClick}
                 disabled={!canShow || isResolving}
-                aria-label="Get directions"
+                aria-label={canShow ? "Get directions to destination" : "Enter start and destination to get directions"}
+                title={canShow ? "Calculate and show the best route" : "Complete your search to see directions"}
               >
                 {isResolving ? (
                   <>
@@ -604,13 +472,6 @@ export default function NavPanel({
           </div>
         )}
       </div>
-
-      {/* Logout Confirmation Modal */}
-      <LogoutConfirmationModal
-        isOpen={showLogoutModal}
-        onClose={() => setShowLogoutModal(false)}
-        onConfirm={handleLogoutConfirm}
-      />
     </>
   );
 }

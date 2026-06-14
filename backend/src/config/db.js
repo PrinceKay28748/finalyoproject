@@ -2,8 +2,10 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+import { adaptSqlForSqlite } from '../db/sqliteCompat.js';
+
 const isProduction = process.env.NODE_ENV === 'production';
-let query, closePool;
+let query, closePool, runDevMigrations;
 
 if (isProduction) {
   // ── PostgreSQL (Supabase on Render) ────────────────────────────────────────
@@ -26,10 +28,6 @@ if (isProduction) {
 
   console.log('✅ Connected to Supabase PostgreSQL (Production)');
 
-  // Convert ? placeholders to $1, $2, $3 … for PostgreSQL.
-  // Uses a counter so each ? maps to a unique $N — the previous
-  // implementation used String.replace('?', ...) which only ever
-  // replaced the FIRST occurrence, producing $1, $1, $1 for multi-param queries.
   function convertPlaceholders(sql) {
     let i = 0;
     return sql.replace(/\?/g, () => `$${++i}`);
@@ -53,16 +51,21 @@ if (isProduction) {
     await pool.end();
   };
 
+  runDevMigrations = async () => {};
+
 } else {
   // ── SQLite (Development) ───────────────────────────────────────────────────
   const sqlite3 = await import('sqlite3');
   const { open } = await import('sqlite');
   const { default: path } = await import('path');
   const { fileURLToPath } = await import('url');
+  const { default: fs } = await import('fs');
 
   const __filename = fileURLToPath(import.meta.url);
   const __dirname  = path.dirname(__filename);
   const dbPath     = path.join(__dirname, '../../ug_campus_nav.db');
+
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
   console.log(`[DB] Using SQLite at: ${dbPath}`);
 
@@ -74,15 +77,24 @@ if (isProduction) {
   console.log('✅ Connected to SQLite (Development)');
 
   query = async (sql, params = []) => {
+    const adaptedSql = adaptSqlForSqlite(sql);
+
     try {
-      if (sql.trim().toUpperCase().startsWith('SELECT')) {
-        return { rows: await db.all(sql, params) };
+      const trimmed = adaptedSql.trim().toUpperCase();
+      const returnsRows =
+        trimmed.startsWith('SELECT') ||
+        trimmed.startsWith('WITH') ||
+        /\bRETURNING\b/i.test(adaptedSql);
+
+      if (returnsRows) {
+        return { rows: await db.all(adaptedSql, params) };
       }
-      const result = await db.run(sql, params);
+
+      const result = await db.run(adaptedSql, params);
       return { rows: [], lastID: result.lastID, changes: result.changes };
     } catch (error) {
       console.error('[DB] Query error:', error.message);
-      console.error('[DB] SQL:', sql);
+      console.error('[DB] SQL:', adaptedSql);
       throw error;
     }
   };
@@ -90,6 +102,11 @@ if (isProduction) {
   closePool = async () => {
     if (db) await db.close();
   };
+
+  runDevMigrations = async () => {
+    const { runMigrations } = await import('../db/migrate.js');
+    await runMigrations({ query, closePool });
+  };
 }
 
-export { query, closePool };
+export { query, closePool, runDevMigrations, isProduction };

@@ -7,25 +7,43 @@
 
 /* Glow effect - ambient light */
 .route-glow {
-  filter: blur(1px) drop-shadow(0 0 4px rgba(0, 0, 0, 0.1));
+  filter: blur(4px) brightness(1.2);
+  transition: stroke 0.6s ease-in-out, opacity 0.4s ease;
 }
 
 /* Main route line - dynamic animations */
 .route-main {
-  transition: opacity 0.3s ease;
-  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.2));
+  transition: stroke 0.6s ease-in-out, opacity 0.3s ease;
 }
 
 /* Drawing animation - dashed during animation */
 .route-animating {
-  stroke-dasharray: 8, 4;
-  animation: routeDraw 1.2s linear;
+  stroke-dasharray: none;
+  /* Faster, subtle animation for updates to prevent "vanishing" look */
+  animation: routeUpdateFade 0.4s ease-out;
 }
 
 /* Completed animation - solid line with subtle pulse */
 .route-complete {
   stroke-dasharray: none;
-  animation: routePulse 2s ease-in-out;
+  /* Smoothly interpolate coordinates and opacity changes */
+  transition: stroke-dashoffset 0.8s ease-in-out, opacity 0.4s ease, stroke 0.6s ease-in-out;
+}
+
+/* The Flowing Directional Indicator */
+.route-flow-indicator {
+  stroke-dasharray: 10, 30;
+  animation: routeFlow 3s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes routeFlow {
+  from {
+    stroke-dashoffset: 80;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 
 /* Route drawing effect - dashes flow along the line */
@@ -39,7 +57,17 @@
   }
   100% {
     stroke-dashoffset: 12;
-    opacity: 0.95;
+    opacity: 1;
+  }
+}
+
+/* Smooth cross-fade for profile switching */
+@keyframes routeUpdateFade {
+  from {
+    opacity: 0.6;
+  }
+  to {
+    opacity: 1;
   }
 }
 
@@ -96,15 +124,45 @@
   transition: all 0.3s ease;
 }
 
-/* Remaining route styling (ahead of user) - THICKER (9px) with glow */
+/* Remaining route styling - Deep Google-style Glow */
 .route-remaining {
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
-  transition: all 0.3s ease;
+  filter: drop-shadow(0 0 3px var(--profile-color));
+  stroke-width: 9px !important;
+  transition: stroke 0.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
 }
 
 .route-remaining-glow {
-  filter: blur(4px);
-  animation: pulse-glow 2s ease-in-out infinite;
+  filter: blur(8px) brightness(1.4);
+  animation: pulse-glow 3s ease-in-out infinite;
+  stroke-width: 18px !important;
+  transition: stroke 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Alternate routes - Beaded/Dotted style */
+.route-alternative {
+  stroke-dasharray: 1, 12;
+  stroke-linecap: round;
+  stroke-width: 6px !important;
+  opacity: 0.5;
+  transition: all 0.4s ease;
+  animation: altFlow 10s linear infinite;
+}
+
+@keyframes altFlow {
+  from { stroke-dashoffset: 100; }
+  to { stroke-dashoffset: 0; }
+}
+
+.route-alternative:hover {
+  opacity: 0.8;
+  stroke-width: 8px !important;
+}
+
+.route-remaining-glow {
+  filter: blur(6px) brightness(1.5);
+  animation: pulse-glow 3s ease-in-out infinite;
+  stroke-width: 16px !important;
+  transition: stroke 0.6s ease-in-out;
 }
 
 @keyframes pulse-glow {
@@ -152,4 +210,110 @@
   50% {
     transform: translateX(-50%) rotate(var(--rotation, 0deg)) translateY(-2px);
   }
+}
+
+/* Recalculating State - Subtle Pulse */
+.route--recalculating {
+  animation: routeRecalculatingPulse 1.5s ease-in-out infinite;
+  pointer-events: none; /* Disable interaction while recalculating */
+}
+
+@keyframes routeRecalculatingPulse {
+  0%, 100% {
+    opacity: 0.6;
+    filter: blur(0px) grayscale(20%);
+  }
+  50% {
+    opacity: 0.3;
+    filter: blur(2px) grayscale(50%);
+  }
+}
+
+/* Destination Halo Glow Effect */
+.dest-halo-container {
+  pointer-events: none;
+  z-index: -1;
+}
+
+.dest-halo {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background: var(--profile-color);
+  border-radius: 50%;
+  box-shadow: 0 0 15px 5px var(--profile-color);
+  opacity: 0.6;
+  transform: translate(-50%, -50%);
+  /* Duration is controlled dynamically via JS variable */
+  animation: destHaloPulse var(--halo-duration, 2.2s) ease-out infinite;
+}
+
+@keyframes destHaloPulse {
+  0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.7; }
+  100% { transform: translate(-50%, -50%) scale(3.5); opacity: 0; }
+}
+
+/* User Location Ripple - Applied to the blue dot marker */
+.user-ripple-container {
+  pointer-events: none;
+  z-index: -1;
+}
+
+.user-ripple {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: #3b82f6; /* Standard GPS Blue */
+  border-radius: 50%;
+  box-shadow: 0 0 10px 2px #3b82f6;
+  opacity: 0.4;
+  transform: translate(-50%, -50%);
+  /* Only animate when the 'moving' class is added via JS */
+  animation: userMovingRipple 1.8s ease-out infinite;
+}
+
+/* Arrival Summary Modal Overlay Styles */
+.arrival-summary-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeInRoute 0.4s ease-out;
+}
+
+.arrival-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 32px;
+  width: 100%;
+  max-width: 340px;
+  text-align: center;
+  box-shadow: var(--shadow-card);
+  transform: translateY(0);
+  animation: ugslide 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.arrival-icon-wrap {
+  width: 64px;
+  height: 64px;
+  background: var(--profile-color);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  box-shadow: 0 8px 16px -4px var(--profile-color);
+  color: white;
+  font-size: 24px;
+}
+
+@keyframes userMovingRipple {
+  0% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
+  100% { transform: translate(-50%, -50%) scale(4); opacity: 0; }
 }

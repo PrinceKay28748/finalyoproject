@@ -45,7 +45,11 @@ export default function FitBounds({ startPoint, destPoint, visible }) {
       
       // Use requestAnimationFrame to avoid blocking
       requestAnimationFrame(() => {
-        map.fitBounds(bounds, { padding: getPadding });
+        map.flyToBounds(bounds, { 
+          padding: getPadding,
+          duration: 1.5,      // Slightly longer for that cinematic feel
+          easeLinearity: 0.25 // Smooths out the start and end of the zoom
+        });
       });
     } 
     // If only start point exists (like after reset)
