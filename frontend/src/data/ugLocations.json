@@ -252,8 +252,8 @@
       "school of engineering",
       "engineering school"
     ],
-    "lat": 5.6555768,
-    "lng": -0.1828086,
+    "lat": 5.655448,
+    "lng": -0.183034,
     "type": "academic"
   },
   {
@@ -421,8 +421,8 @@
       "food stalls",
       "night food"
     ],
-    "lat": 5.6421513,
-    "lng": -0.1856043,
+    "lat": 5.642410,
+    "lng": -0.186274,
     "type": "food"
   },
   {
@@ -656,5 +656,20 @@
       "legon annex d",
       "legon d"
     ]
+  },
+  {
+    "name": "Diamond Jubilee Hall",
+    "lat": 5.635066,
+    "lng": -0.189459,
+    "type": "hall",
+    "aliases": [
+      "diamond jubilee hall",
+        "diamond jubilee",
+        "jubilee hall",
+        "jubilee",
+        
+      "djh"
+    ]
+      
   }
 ]
