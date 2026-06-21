@@ -678,6 +678,129 @@
 .legend-traffic-bar-fill.moderate { background: #f59e0b; }
 .legend-traffic-bar-fill.low      { background: #22c55e; }
 
+/* ── Heatmap section (in Legend) ─────────────────────────────────────────── */
+.legend-heatmap {
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.38);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border-radius: 16px;
+  margin: 8px 0 0;
+  border: 0.5px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  animation: item-in 0.34s 0.08s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.ug-root.dark .legend-heatmap {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.09);
+}
+
+.legend-heatmap-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.legend-heatmap-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text, #111827);
+}
+
+.ug-root.dark .legend-heatmap-title {
+  color: #f3f4f6;
+}
+
+.legend-heatmap-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 8px;
+}
+
+.legend-heatmap-pill {
+  font-size: 11px;
+  font-family: "Outfit", sans-serif;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 20px;
+  border: 1.5px solid rgba(0, 0, 0, 0.1);
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.ug-root.dark .legend-heatmap-pill {
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #9ca3af;
+}
+
+.legend-heatmap-pill:hover {
+  border-color: #f59e0b;
+  color: #f59e0b;
+}
+
+.legend-heatmap-pill--active {
+  background: #f59e0b;
+  border-color: #f59e0b;
+  color: #ffffff;
+}
+
+.legend-heatmap-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-bottom: 8px;
+}
+
+.legend-heatmap-stats span {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.ug-root.dark .legend-heatmap-stats span {
+  color: #9ca3af;
+}
+
+.legend-heatmap-stats .heatmap-empty {
+  font-style: italic;
+}
+
+.legend-heatmap-stats .heatmap-refresh-time {
+  opacity: 0.6;
+}
+
+.legend-heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-heatmap-legend .heatmap-legend-label {
+  font-size: 10px;
+  color: #9ca3af;
+  white-space: nowrap;
+}
+
+.legend-heatmap-legend .heatmap-legend-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right,
+    #313695,
+    #4575b4,
+    #74add1,
+    #fee090,
+    #f46d43,
+    #d73027,
+    #a50026
+  );
+}
+
 /* ── Directions panel ────────────────────────────────────────────────────── */
 .legend-directions-section {
   margin: 12px 0 8px;
@@ -1182,7 +1305,8 @@ body.dragging-legend .leaflet-container {
 .ug-root.dark .profile-label,
 .ug-root.dark .directions-title,
 .ug-root.dark .direction-instruction,
-.ug-root.dark .legend-traffic-value { color: #f3f4f6; }
+.ug-root.dark .legend-traffic-value,
+.ug-root.dark .legend-heatmap-title { color: #f3f4f6; }
 
 .ug-root.dark .peek-arrow,
 .ug-root.dark .peek-time-label,
@@ -1227,6 +1351,10 @@ body.dragging-legend .leaflet-container {
   .legend-traffic { padding: 8px 10px; }
   .legend-traffic-icon { font-size: 16px; width: 28px; }
   .legend-traffic-value { font-size: 12px; }
+
+  .legend-heatmap { padding: 10px 10px; }
+  .legend-heatmap-title { font-size: 12px; }
+  .legend-heatmap-pill { font-size: 10px; padding: 2px 7px; }
 
   .legend-share-btn { padding: 8px 12px; font-size: 12px; }
 

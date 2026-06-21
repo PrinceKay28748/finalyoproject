@@ -23,6 +23,7 @@ import { useVoiceGuidance } from "../../hooks/useVoiceGuidance";
 import { useFocus } from "../../context/FocusContext";
 import { generateDirections } from "../../services/directions";
 import WeatherBanner from "./WeatherBanner";
+import { fetchHeatmapData } from "../../services/heatmapAnalytics";
 import "./Legend.css";
 import "./LegendProfile.css";
 
@@ -298,12 +299,18 @@ const Legend = forwardRef(function Legend(
     disableDrag = false,
     onNavPanelClose,
     onDragProgress,
+    showHeatmap = false,
+    selectedHour,
+    onSelectedHourChange,
+    heatmapBounds,
   },
   ref,
 ) {
   const [expanded, setExpanded] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [directions, setDirections] = useState([]);
+  const [heatmapPointCount, setHeatmapPointCount] = useState(0);
+  const [heatmapLastRefresh, setHeatmapLastRefresh] = useState(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(-1);
   const [wasExpandedBeforeCollapse, setWasExpandedBeforeCollapse] =
     useState(true);
@@ -537,6 +544,32 @@ const Legend = forwardRef(function Legend(
 
     return () => ro.disconnect();
   }, [route]);
+
+  const TIME_SLOTS = [
+    { label: "All day", hour: undefined },
+    { label: "Morning", hour: 8 },
+    { label: "Midday", hour: 12 },
+    { label: "Afternoon", hour: 16 },
+    { label: "Evening", hour: 19 },
+    { label: "Night", hour: 22 },
+  ];
+
+  useEffect(() => {
+    if (!showHeatmap || !expanded || !heatmapBounds) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const points = await fetchHeatmapData(heatmapBounds, { hour: selectedHour });
+        if (!cancelled) {
+          setHeatmapPointCount(points.length);
+          setHeatmapLastRefresh(new Date());
+        }
+      } catch {
+        // silently fail
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [showHeatmap, expanded, heatmapBounds, selectedHour]);
 
   useEffect(() => {
     if (currentStepIndex >= 0 && directionsRef.current) {
@@ -962,6 +995,53 @@ const Legend = forwardRef(function Legend(
                   />
                 </div>
               </div>
+            </>
+          )}
+
+          {showHeatmap && (
+            <>
+              <div className="legend-heatmap">
+                <div className="legend-heatmap-header">
+                  <span className="legend-heatmap-title">
+                    Popular Routes
+                  </span>
+                </div>
+
+                <div className="legend-heatmap-pills">
+                  {TIME_SLOTS.map((slot) => (
+                    <button
+                      key={slot.label}
+                      className={`legend-heatmap-pill ${selectedHour === slot.hour ? "legend-heatmap-pill--active" : ""}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectedHourChange?.(slot.hour);
+                      }}
+                    >
+                      {slot.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="legend-heatmap-stats">
+                  {heatmapPointCount > 0 ? (
+                    <span>{heatmapPointCount.toLocaleString()} data point{heatmapPointCount !== 1 ? 's' : ''}</span>
+                  ) : (
+                    <span className="heatmap-empty">No data yet</span>
+                  )}
+                  {heatmapLastRefresh && (
+                    <span className="heatmap-refresh-time">
+                      Updated {heatmapLastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  )}
+                </div>
+
+                <div className="legend-heatmap-legend">
+                  <span className="heatmap-legend-label">Low</span>
+                  <div className="heatmap-legend-bar" />
+                  <span className="heatmap-legend-label">High</span>
+                </div>
+              </div>
+              <div className="legend-divider" />
             </>
           )}
 

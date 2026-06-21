@@ -11,7 +11,6 @@ import { GpsLocationMarker, CustomLocationMarker } from "./LocationMarker";
 import RouteMarkers from "./RouteMarkers";
 import RouteLayer from "./RouteLayer";
 import HeatmapLayer from "./HeatmapLayer";
-import HeatmapControls from "./HeatmapControls";
 import Legend from "../Legend/Legend";
 import WeatherOverlay from "./WeatherOverlay";
 import FloatingButtonGroup from "./FloatingButtonGroup";
@@ -433,14 +432,6 @@ export default function MapView({
 
 
 
-      <HeatmapControls
-        visible={showHeatmap && !is3DMode}
-        onToggle={onToggleHeatmap}
-        mapBounds={mapBounds}
-        selectedHour={selectedHour}
-        onSelectedHourChange={onSelectedHourChange}
-      />
-
       {isRerouting && (
         <div className="rerouting-indicator">
           <div className="rerouting-spinner-small" />
@@ -460,7 +451,7 @@ export default function MapView({
         ref={legendRef}
         startText={displayStartPoint?.name || startText || "Start"}
         destText={destText}
-        visible={markersVisible}
+        visible={markersVisible || showHeatmap}
         route={primaryRoute}
         allRoutes={allRoutes}
         activeProfile={activeProfile}
@@ -473,6 +464,10 @@ export default function MapView({
         autoCollapse={isNavExpanded}
         disableDrag={isPanelTransitioning}
         onNavPanelClose={onNavPanelClose}
+        showHeatmap={showHeatmap}
+        selectedHour={selectedHour}
+        onSelectedHourChange={onSelectedHourChange}
+        heatmapBounds={mapBounds}
       />
 
       {waitingForStart && (
