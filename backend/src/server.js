@@ -383,9 +383,7 @@ app.use((err, req, res, next) => {
 
 // ─── Server Startup ───────────────────────────────────────────────────────────
 async function startServer() {
-  if (process.env.NODE_ENV !== 'production') {
-    await runDevMigrations();
-  }
+  await runDevMigrations();
 
   return app.listen(PORT, '0.0.0.0', () => {
   console.log(`
