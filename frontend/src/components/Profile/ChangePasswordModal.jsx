@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useAuthContext } from "../../context/AuthContext";
 import { supabase } from "../../lib/supabase";
+import { API_URL } from "../../config";
 import "./EditProfileModal.css"; // Reuse same styles
 
 export default function ChangePasswordModal({ isOpen, onClose, onSuccess }) {
@@ -10,7 +11,7 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const { user } = useAuthContext();
+  const { getAuthHeader } = useAuthContext();
 
   const checkPasswordStrength = (pwd) => {
     let strength = 0;
@@ -47,7 +48,22 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }) {
     }
 
     try {
-      // Update password via Supabase
+      // Step 1: Verify current password via backend
+      const verifyResponse = await fetch(`${API_URL}/auth/change-password`, {
+        method: 'POST',
+        headers: {
+          ...getAuthHeader(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      if (!verifyResponse.ok) {
+        const data = await verifyResponse.json();
+        throw new Error(data.error || 'Current password is incorrect');
+      }
+
+      // Step 2: Update password via Supabase
       const { error: updateError } = await supabase.auth.updateUser({
         password: newPassword
       });
@@ -72,11 +88,17 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>Change Password</h3>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <div className="modal-icon" style={{ background: 'rgba(37, 99, 235, 0.1)', color: '#2563eb' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </div>
+          <h2>Change Password</h2>
+          <p>Update your account password. Choose a strong password you don't use elsewhere.</p>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} style={{ padding: '0 0' }}>
           <div className="modal-form-group">
             <label htmlFor="current-password">Current Password</label>
             <input

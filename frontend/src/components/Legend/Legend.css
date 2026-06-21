@@ -740,13 +740,13 @@
 }
 
 .legend-heatmap-pill:hover {
-  border-color: #f59e0b;
-  color: #f59e0b;
+  border-color: #2563eb;
+  color: #2563eb;
 }
 
 .legend-heatmap-pill--active {
-  background: #f59e0b;
-  border-color: #f59e0b;
+  background: #2563eb;
+  border-color: #2563eb;
   color: #ffffff;
 }
 

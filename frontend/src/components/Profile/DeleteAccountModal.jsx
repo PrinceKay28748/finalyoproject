@@ -1,7 +1,6 @@
 // frontend/src/components/Profile/DeleteAccountModal.jsx
 import { useState } from "react";
 import { useAuthContext } from "../../context/AuthContext";
-import { supabase } from "../../lib/supabase";
 import { API_URL } from "../../config";
 import "./EditProfileModal.css"; // Reuse same styles
 
@@ -23,7 +22,6 @@ export default function DeleteAccountModal({ isOpen, onClose, onConfirm }) {
     }
 
     try {
-      // Delete account from your backend
       const response = await fetch(`${API_URL}/auth/me`, {
         method: "DELETE",
         headers: {
@@ -37,16 +35,6 @@ export default function DeleteAccountModal({ isOpen, onClose, onConfirm }) {
         throw new Error(data.error || "Failed to delete account");
       }
 
-      // Delete from Supabase Auth
-      const { error: supabaseError } = await supabase.auth.admin.deleteUser(
-        (await supabase.auth.getUser()).data.user?.id
-      );
-
-      if (supabaseError) {
-        console.warn("[DeleteAccountModal] Supabase deletion warning:", supabaseError);
-      }
-
-      // Logout user
       await logout();
       
       if (onConfirm) onConfirm();
@@ -65,17 +53,18 @@ export default function DeleteAccountModal({ isOpen, onClose, onConfirm }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3 style={{ color: "#ef4444" }}>Delete Account</h3>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <div className="modal-icon" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6" />
+            </svg>
+          </div>
+          <h2 style={{ color: '#ef4444' }}>Delete Account</h2>
+          <p>This action is permanent and cannot be undone. All your data will be erased.</p>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} style={{ padding: '0 0' }}>
           <div className="modal-form-group">
-            <p style={{ marginBottom: "16px", color: "var(--text)" }}>
-              <strong>Warning:</strong> This action is permanent and cannot be undone.
-              All your data will be deleted.
-            </p>
-            <label htmlFor="confirm-delete">
+            <label htmlFor="confirm-delete" style={{ marginBottom: 8, display: 'block' }}>
               Type <strong style={{ color: "#ef4444" }}>DELETE</strong> to confirm
             </label>
             <input

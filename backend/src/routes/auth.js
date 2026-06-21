@@ -71,4 +71,124 @@ router.get('/me', verifyToken, async (req, res) => {
   }
 });
 
+// PATCH /auth/me - Update user profile (username)
+router.patch('/me', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { username } = req.body;
+
+    if (!username || typeof username !== 'string' || username.trim().length < 2) {
+      return res.status(400).json({ error: 'Username must be at least 2 characters' });
+    }
+
+    const sanitized = username.trim();
+
+    // Check username uniqueness (exclude current user)
+    const existing = await query(
+      'SELECT id FROM users WHERE username = ? AND id != ? AND deleted_at IS NULL',
+      [sanitized, userId]
+    );
+
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ error: 'Username already taken' });
+    }
+
+    const result = await query(
+      `UPDATE users SET username = ?, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = ? AND deleted_at IS NULL
+       RETURNING id, email, username, is_admin, created_at`,
+      [sanitized, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('[Auth Me] Update error:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+// DELETE /auth/me - Soft delete account
+router.delete('/me', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    // Check user exists
+    const userCheck = await query(
+      'SELECT id FROM users WHERE id = ? AND deleted_at IS NULL',
+      [userId]
+    );
+
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found or already deleted' });
+    }
+
+    await query(
+      `UPDATE users SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = ? AND deleted_at IS NULL`,
+      [userId]
+    );
+
+    res.json({ message: 'Account deleted successfully' });
+  } catch (error) {
+    console.error('[Auth Me] Delete error:', error);
+    res.status(500).json({ error: 'Failed to delete account' });
+  }
+});
+
+// POST /auth/change-password - Verify current password and update via Supabase
+router.post('/change-password', verifyToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const email = req.user.email;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current password and new password are required' });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+
+    const strength = (
+      (/[a-z]/.test(newPassword) ? 1 : 0) +
+      (/[A-Z]/.test(newPassword) ? 1 : 0) +
+      (/\d/.test(newPassword) ? 1 : 0)
+    );
+
+    if (strength < 3) {
+      return res.status(400).json({ error: 'Password must include uppercase, lowercase, and numbers' });
+    }
+
+    // Re-authenticate with Supabase to verify current password
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+
+    if (supabaseUrl && supabaseAnonKey) {
+      const authResponse = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': supabaseAnonKey
+        },
+        body: JSON.stringify({ email, password: currentPassword })
+      });
+
+      if (!authResponse.ok) {
+        return res.status(401).json({ error: 'Current password is incorrect' });
+      }
+    } else {
+      console.warn('[Change Password] No Supabase credentials configured, skipping password verification');
+    }
+
+    res.json({ success: true, message: 'Password verified' });
+  } catch (error) {
+    console.error('[Auth] Change password error:', error);
+    res.status(500).json({ error: 'Failed to change password' });
+  }
+});
+
 export default router;

@@ -555,7 +555,7 @@ const Legend = forwardRef(function Legend(
   ];
 
   useEffect(() => {
-    if (!showHeatmap || !expanded || !heatmapBounds) return;
+    if (!showHeatmap || !heatmapBounds) return;
     let cancelled = false;
     (async () => {
       try {
@@ -569,7 +569,7 @@ const Legend = forwardRef(function Legend(
       }
     })();
     return () => { cancelled = true; };
-  }, [showHeatmap, expanded, heatmapBounds, selectedHour]);
+  }, [showHeatmap, heatmapBounds, selectedHour]);
 
   useEffect(() => {
     if (currentStepIndex >= 0 && directionsRef.current) {
@@ -1023,7 +1023,9 @@ const Legend = forwardRef(function Legend(
                 </div>
 
                 <div className="legend-heatmap-stats">
-                  {heatmapPointCount > 0 ? (
+                  {!heatmapBounds ? (
+                    <span className="heatmap-empty">Move map to see data</span>
+                  ) : heatmapPointCount > 0 ? (
                     <span>{heatmapPointCount.toLocaleString()} data point{heatmapPointCount !== 1 ? 's' : ''}</span>
                   ) : (
                     <span className="heatmap-empty">No data yet</span>

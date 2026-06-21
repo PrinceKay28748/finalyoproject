@@ -1,9 +1,56 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuthContext } from '../../context/AuthContext';
+import { API_URL } from '../../config';
 
 export default function EditProfileModal({ isOpen, onClose, currentUsername, onUpdate }) {
   const [username, setUsername] = useState(currentUsername || '');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const { getAuthHeader } = useAuthContext();
+
+  useEffect(() => {
+    if (isOpen) {
+      setUsername(currentUsername || '');
+      setError('');
+    }
+  }, [isOpen, currentUsername]);
 
   if (!isOpen) return null;
+
+  const handleSave = async () => {
+    const trimmed = username.trim();
+    if (trimmed.length < 2) {
+      setError('Username must be at least 2 characters');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch(`${API_URL}/auth/me`, {
+        method: 'PATCH',
+        headers: {
+          ...getAuthHeader(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username: trimmed }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to update username');
+      }
+
+      const updated = await response.json();
+      onUpdate(updated.username);
+      onClose();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -25,10 +72,13 @@ export default function EditProfileModal({ isOpen, onClose, currentUsername, onU
             placeholder="Enter new username"
             autoFocus
           />
+          {error && <p className="modal-hint" style={{ color: '#ef4444', marginTop: 8 }}>{error}</p>}
         </div>
         <div className="modal-actions">
-          <button className="modal-btn modal-btn-secondary" onClick={onClose}>Cancel</button>
-          <button className="modal-btn modal-btn-primary" onClick={() => { onUpdate(username); onClose(); }}>Save Changes</button>
+          <button className="modal-btn modal-btn-secondary" onClick={onClose} disabled={isLoading}>Cancel</button>
+          <button className="modal-btn modal-btn-primary" onClick={handleSave} disabled={isLoading}>
+            {isLoading ? 'Saving...' : 'Save Changes'}
+          </button>
         </div>
       </div>
     </div>

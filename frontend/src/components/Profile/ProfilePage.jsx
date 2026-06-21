@@ -10,6 +10,7 @@ import ChangePasswordModal from "./ChangePasswordModal";
 import DeleteAccountModal from "./DeleteAccountModal";
 import LogoutConfirmationModal from "./LogoutConfirmationModal";
 import HelpGuideModal from "./HelpGuideModal";
+import PrivacyPolicyModal from "./PrivacyPolicyModal";
 import "./ProfilePage.css";
 
 // Modern SVG Icons
@@ -117,6 +118,7 @@ export default function ProfilePage() {
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
+  const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   // Load dark mode from IndexedDB
@@ -350,6 +352,22 @@ export default function ProfilePage() {
             </div>
             <span className="profile-setting-arrow"><IconArrowRight /></span>
           </button>
+
+          <button 
+            className="profile-setting-btn"
+            onClick={() => setIsPrivacyModalOpen(true)}
+          >
+            <span className="profile-setting-icon" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
+            </span>
+            <div className="profile-setting-info">
+              <strong>Privacy Policy</strong>
+              <span>How we handle your data & cookies</span>
+            </div>
+            <span className="profile-setting-arrow"><IconArrowRight /></span>
+          </button>
         </div>
       </div>
 
@@ -413,6 +431,11 @@ export default function ProfilePage() {
       <HelpGuideModal
         isOpen={isHelpModalOpen}
         onClose={() => setIsHelpModalOpen(false)}
+      />
+
+      <PrivacyPolicyModal
+        isOpen={isPrivacyModalOpen}
+        onClose={() => setIsPrivacyModalOpen(false)}
       />
 
       <LogoutConfirmationModal
