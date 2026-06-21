@@ -56,6 +56,7 @@ export default function App() {
 
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [selectedHour, setSelectedHour] = useState(undefined);
+  const [mapLayer, setMapLayer] = useState("standard");
 
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportLocation, setReportLocation] = useState(null);
@@ -140,6 +141,7 @@ export default function App() {
         if (prefs.darkMode !== undefined) setDarkMode(prefs.darkMode);
         if (prefs.vehicleMode)          setVehicleMode(prefs.vehicleMode);
         if (prefs.showHeatmap !== undefined) setShowHeatmap(prefs.showHeatmap);
+        if (prefs.mapLayer)             setMapLayer(prefs.mapLayer);
         console.log("[App] Preferences loaded:", prefs);
       })
       .catch((err) => console.warn("[App] Failed to load preferences:", err));
@@ -156,11 +158,11 @@ export default function App() {
     }
   }, [user, permissionState, requestLocation]);
 
-  // ── Save preferences (includes heatmap toggle) ───────────────────────────
+  // ── Save preferences ───────────────────────────────────────────
   useEffect(() => {
-    savePreferences({ activeProfile, darkMode, vehicleMode, showHeatmap })
+    savePreferences({ activeProfile, darkMode, vehicleMode, showHeatmap, mapLayer })
       .catch((err) => console.warn("[App] Failed to save preferences:", err));
-  }, [activeProfile, darkMode, vehicleMode, showHeatmap]);
+  }, [activeProfile, darkMode, vehicleMode, showHeatmap, mapLayer]);
 
   const effectiveStartPoint = useCustomLocation && customStartPoint ? customStartPoint : startPoint;
   const effectiveStartText  = useCustomLocation && customStartPoint
@@ -537,6 +539,8 @@ export default function App() {
             markersVisible={markersVisible}
             flyTarget={flyTarget}
             darkMode={darkMode}
+            mapLayer={mapLayer}
+            onMapLayerChange={setMapLayer}
             waitingForStart={waitingForStart}
             primaryRoute={primaryRoute}
             alternativeRoutes={alternativeRoutes}

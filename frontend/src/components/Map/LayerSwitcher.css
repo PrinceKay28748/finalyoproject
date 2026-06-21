@@ -1,0 +1,294 @@
+/* LayerSwitcher.css — matches FloatingButtonGroup glass style */
+
+.layer-switcher {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 999;
+}
+
+.layer-switcher-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  border: none;
+  outline: none;
+  color: rgba(0, 0, 0, 0.75);
+
+  background: rgba(255, 255, 255, 0.52);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+
+  border-radius: 22px;
+  border: 0.5px solid rgba(255, 255, 255, 0.8);
+
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.10),
+    0 1px 4px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.04);
+
+  transition:
+    background 0.2s ease,
+    transform 0.35s cubic-bezier(0.34, 1.5, 0.64, 1);
+
+  animation: layer-btn-in 0.4s cubic-bezier(0.34, 1.4, 0.64, 1) 0.06s both;
+}
+
+.layer-switcher-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.layer-switcher-btn:active {
+  transform: scale(0.88);
+  transition:
+    transform 0.08s cubic-bezier(0.2, 0, 0, 1),
+    background 0.1s ease;
+  background: rgba(0, 0, 0, 0.09);
+}
+
+.layer-switcher-btn svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.8;
+}
+
+/* ── Popover ──────────────────────────────────────────── */
+.layer-switcher-popover {
+  position: absolute;
+  right: calc(100% + 14px);
+  top: 50%;
+  transform: translateY(-50%);
+
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+
+  background: rgba(255, 255, 255, 0.52);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+
+  border-radius: 22px;
+  border: 0.5px solid rgba(255, 255, 255, 0.8);
+
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.15),
+    0 1px 4px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.04);
+
+  animation: layer-popover-in 0.2s cubic-bezier(0.2, 0, 0, 1) both;
+  white-space: nowrap;
+  min-width: 160px;
+}
+
+.layer-switcher-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 510;
+  font-family: -apple-system, 'SF Pro Text', BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  color: rgba(0, 0, 0, 0.75);
+  transition:
+    background 0.15s ease,
+    transform 0.25s cubic-bezier(0.34, 1.3, 0.64, 1);
+
+  width: 100%;
+  text-align: left;
+}
+
+.layer-switcher-option:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.layer-switcher-option:active {
+  transform: scale(0.96);
+  background: rgba(0, 0, 0, 0.09);
+}
+
+.layer-switcher-option svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.8;
+  flex-shrink: 0;
+}
+
+.layer-switcher-option span {
+  flex: 1;
+}
+
+.layer-switcher-option--active {
+  color: #007AFF;
+  background: rgba(0, 122, 255, 0.08);
+}
+
+.layer-switcher-option--active:hover {
+  background: rgba(0, 122, 255, 0.12);
+}
+
+.layer-switcher-check {
+  width: 16px;
+  height: 16px;
+  color: #007AFF;
+  flex-shrink: 0;
+}
+
+/* Hairline divider between options */
+.layer-switcher-option + .layer-switcher-option {
+  position: relative;
+}
+
+.layer-switcher-option + .layer-switcher-option::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 14px;
+  width: calc(100% - 28px);
+  height: 0.5px;
+  background: rgba(0, 0, 0, 0.08);
+  pointer-events: none;
+}
+
+/* ── Dark mode ─────────────────────────────────────────── */
+.ug-root.dark .layer-switcher-btn {
+  background: rgba(30, 30, 32, 0.60);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.35),
+    0 1px 4px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.ug-root.dark .layer-switcher-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ug-root.dark .layer-switcher-btn:active {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.ug-root.dark .layer-switcher-popover {
+  background: rgba(30, 30, 32, 0.60);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.35),
+    0 1px 4px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+}
+
+.ug-root.dark .layer-switcher-option {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.ug-root.dark .layer-switcher-option:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ug-root.dark .layer-switcher-option:active {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.ug-root.dark .layer-switcher-option--active {
+  color: #0A84FF;
+  background: rgba(10, 132, 255, 0.12);
+}
+
+.ug-root.dark .layer-switcher-option--active:hover {
+  background: rgba(10, 132, 255, 0.18);
+}
+
+.ug-root.dark .layer-switcher-check {
+  color: #0A84FF;
+}
+
+.ug-root.dark .layer-switcher-option + .layer-switcher-option::before {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+/* ── Animations ────────────────────────────────────────── */
+@keyframes layer-btn-in {
+  from {
+    opacity: 0;
+    transform: scale(0.88);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes layer-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.92) translateX(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) scale(1) translateX(0);
+  }
+}
+
+/* ── Responsive ─────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .layer-switcher {
+    right: 12px;
+  }
+
+  .layer-switcher-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 20px;
+  }
+
+  .layer-switcher-btn svg {
+    width: 19px;
+    height: 19px;
+  }
+
+  .layer-switcher-popover {
+    right: calc(100% + 10px);
+    min-width: 140px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .layer-switcher {
+    right: 24px;
+  }
+
+  .layer-switcher-btn {
+    width: 50px;
+    height: 50px;
+    border-radius: 24px;
+  }
+
+  .layer-switcher-btn svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .layer-switcher-option {
+    font-size: 13.5px;
+    padding: 10px 14px;
+  }
+}

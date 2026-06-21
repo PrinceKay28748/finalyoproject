@@ -14,6 +14,7 @@ import HeatmapLayer from "./HeatmapLayer";
 import Legend from "../Legend/Legend";
 import WeatherOverlay from "./WeatherOverlay";
 import FloatingButtonGroup from "./FloatingButtonGroup";
+import LayerSwitcher from "./LayerSwitcher";
 import { useWeather } from "../../hooks/useWeather";
 import "../Legend/Legend.css";
 
@@ -157,6 +158,8 @@ export default function MapView({
   onNavPanelClose,
   isPanelTransitioning = false,
   isMapBlurred = false,
+  mapLayer = "standard",
+  onMapLayerChange,
 }) {
   const showDestinationMarker = !!destPoint;
   const displayStartPoint =
@@ -257,7 +260,7 @@ export default function MapView({
           preferCanvas={true}
           style={{ height: "100%", width: "100%" }}
         >
-          <TileLayerSwitcher darkMode={darkMode} />
+          <TileLayerSwitcher layer={mapLayer} />
           <SmoothFly target={flyTarget} />
           <InitialFly location={currentLocation} />
           <SmartFitBounds
@@ -428,6 +431,12 @@ export default function MapView({
             active: false,
           },
         ]}
+      />
+
+      {/* ── Layer Switcher (right side) ──────────────────────────── */}
+      <LayerSwitcher
+        mapLayer={mapLayer}
+        onMapLayerChange={onMapLayerChange}
       />
 
 
