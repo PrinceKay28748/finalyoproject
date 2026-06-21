@@ -155,26 +155,26 @@ html, body, #root {
 
 /* ─── CSS variables — dark mode ──────────────────────────────────────────────*/
 .ug-root.dark {
-  --bg:              #060d1a;
-  --panel:           rgba(10, 18, 35, 0.97);
-  --card:            rgba(15, 25, 48, 0.85);
-  --text:            #e2e8f0;
-  --sub:             #64748b;
-  --border:          #1e3a5f;
-  --input-bg:        rgba(15, 23, 42, 0.7);
-  --drop-bg:         #0f172a;
-  --hover-row:       #1e293b;
-  --cl-option:       rgba(37, 99, 235, 0.08);
-  --cl-hover:        rgba(37, 99, 235, 0.15);
-  --swap-bg:         #1e3a5f;
+  --bg:              #0d0d0d;
+  --panel:           rgba(22, 22, 22, 0.97);
+  --card:            rgba(28, 28, 28, 0.85);
+  --text:            #e5e7eb;
+  --sub:             #6b7280;
+  --border:          #2a2a2a;
+  --input-bg:        rgba(18, 18, 18, 0.7);
+  --drop-bg:         #141414;
+  --hover-row:       #1e1e1e;
+  --cl-option:       rgba(255, 255, 255, 0.04);
+  --cl-hover:        rgba(255, 255, 255, 0.08);
+  --swap-bg:         #2a2a2a;
   --swap-color:      #93c5fd;
-  --dark-btn:        #1e3a5f;
+  --dark-btn:        #2a2a2a;
   --dark-btn-color:  #93c5fd;
   --shadow-panel:    0 4px 24px rgba(0, 0, 0, 0.5);
   --shadow-card:     0 8px 32px rgba(0, 0, 0, 0.5);
   --shadow-zoom:     0 4px 16px rgba(0, 0, 0, 0.5);
-  --disabled-bg:     #1e293b;
-  --disabled-color:  #64748b;
+  --disabled-bg:     #1e1e1e;
+  --disabled-color:  #6b7280;
 }
 
 /* ─── Current location dot ───────────────────────────────────────────────────*/
