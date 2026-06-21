@@ -1,5 +1,5 @@
 import { Marker } from "react-leaflet";
-import { startIcon, destIcon, sharedLocationIcon } from "../../function/utils/icons";
+import { startIcon, sharedLocationIcon, getDestIcon } from "../../function/utils/icons";
 
 // Renders the START and DEST markers on the map
 // Only shown after the user presses "Show on Map"
@@ -13,9 +13,14 @@ export default function RouteMarkers({ startPoint, destPoint, visible, isShared 
         <Marker position={[startPoint.lat, startPoint.lng]} icon={startIcon} />
       )}
       {destPoint && (
-        <Marker 
-          position={[destPoint.lat, destPoint.lng]} 
-          icon={isShared ? sharedLocationIcon : destIcon} 
+        <Marker
+          key={`dest-${destPoint.type || "default"}`}
+          position={[destPoint.lat, destPoint.lng]}
+          icon={
+            isShared
+              ? sharedLocationIcon
+              : getDestIcon(destPoint.type)
+          }
         />
       )}
     </>
