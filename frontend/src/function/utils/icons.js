@@ -63,17 +63,17 @@ export const destIcon = makeHeroPin("#22c55e", heroiconPaths.checkCircle, "DEST"
 // ── Type-specific destination icons (Apple Maps style) ────────────────
 const TYPE_SVG = {
   hall:          '<path d="M3 21h18M6 21V7a2 2 0 012-2h8a2 2 0 012 2v14M10 21v-4h4v4"/>',
-  academic:      '<path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>',
-  library:       '<path d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h12v2H4v-2z"/>',
+  academic:      '<path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/><path d="M7 8l5 3 5-3"/>',
+  library:       '<path d="M4 4h4a2 2 0 012 2v14a2 2 0 01-2 2H4V4zm12 0h4v18h-4a2 2 0 01-2-2V6a2 2 0 012-2z"/>',
   gate:          '<path d="M3 21V3h18v18H3z"/><path d="M9 21V9h6v12"/><path d="M3 9h18"/>',
   health:        '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15v-4H6v-2h4V7h2v4h4v2h-4v4h-2z"/>',
-  admin:         '<path d="M5 21h14M7 21V5a2 2 0 012 2h6a2 2 0 012 2v12"/>',
-  service:       '<path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 4v4h4v2h-4v4h-2v-4H7v-2h4V6h2z"/>',
+  admin:         '<path d="M5 21h14M7 21V5a2 2 0 012 2h6a2 2 0 012 2v12"/><path d="M9 21V9h6v12"/>',
+  service:       '<path d="M12 2l2.4 7.2H22l-6 4.8 2.4 7.2L12 16l-6.4 5.2L8 14l-6-4.8h7.6L12 2z"/>',
   food:          '<path d="M12 2C8 2 4 5 4 9c0 2.5 1.5 4.5 3 6l1 5h8l1-5c1.5-1.5 3-3.5 3-6 0-4-4-7-8-7z"/><path d="M9 16h6"/>',
   sport:         '<path d="M18 8a3 3 0 100-6 3 3 0 000 6z"/><path d="M12 12c-2 0-4 1-5 3l-2 5h4l2-4 2 4h4l-2-5c-1-2-3-3-5-3z"/>',
   worship:       '<path d="M12 2L8 10h8L12 2z"/><path d="M5 22l7-8 7 8H5z"/>',
   research:      '<path fill-rule="evenodd" d="M10.5 3.75a6.75 6.75 0 100 13.5 6.75 6.75 0 000-13.5zM2.25 10.5a8.25 8.25 0 1114.59 5.28l4.69 4.69a.75.75 0 11-1.06 1.06l-4.69-4.69A8.25 8.25 0 012.25 10.5z"/>',
-  landmark:      '<path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>',
+  landmark:      '<path d="M12 2L3 8v13h18V8L12 2zM8 21v-7h8v7"/>',
   road:          '<path d="M12 2v20"/><path d="M2 12h20"/><path d="M4 4l16 16"/><path d="M20 4L4 16"/>',
   commercial:    '<path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4H6z"/><path d="M16 10a4 4 0 01-8 0"/>',
   accommodation: '<path d="M3 7v11a2 2 0 002 2h14a2 2 0 002-2V7M3 7l9 5 9-5M3 7l9-5 9 5"/>',
@@ -118,27 +118,27 @@ const TYPE_LABELS = {
   place:         "PLACE",
 };
 
-// Apple Maps-style category pin — no label, just colored pin + white icon
+// Apple Maps-style category pin — no label, just big colored pin + white icon
 export const makeAnimatedHeroPin = (color, icon) =>
   L.divIcon({
     className: "",
     html: `
       <div class="pin-wrap">
-        <div class="pin-body" style="background:${color};border:3px solid #fff;border-radius:50% 50% 50% 0;
-          width:36px;height:36px;display:flex;align-items:center;justify-content:center;
-          transform:rotate(-45deg);box-shadow:0 2px 8px rgba(0,0,0,0.18);">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff" style="transform:rotate(45deg);filter:drop-shadow(0 1px 1px rgba(0,0,0,0.08));">
+        <div class="pin-body" style="background:${color};border:4px solid #fff;border-radius:50% 50% 50% 0;
+          width:48px;height:48px;display:flex;align-items:center;justify-content:center;
+          transform:rotate(-45deg);box-shadow:0 3px 10px rgba(0,0,0,0.22);">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="#fff" style="transform:rotate(45deg);filter:drop-shadow(0 1px 1px rgba(0,0,0,0.1));">
             ${icon}
           </svg>
         </div>
       </div>
       <style>
-        @keyframes pinPop { 0% { transform:rotate(-45deg) scale(0); opacity:0; } 60% { transform:rotate(-45deg) scale(1.18); opacity:1; } 100% { transform:rotate(-45deg) scale(1); opacity:1; } }
+        @keyframes pinPop { 0% { transform:rotate(-45deg) scale(0); opacity:0; } 60% { transform:rotate(-45deg) scale(1.2); opacity:1; } 100% { transform:rotate(-45deg) scale(1); opacity:1; } }
         .pin-body { animation:pinPop 0.35s cubic-bezier(0.34,1.56,0.64,1) both; }
       </style>`,
-    iconSize: [44, 44],
-    iconAnchor: [22, 44],
-    popupAnchor: [0, -44],
+    iconSize: [56, 56],
+    iconAnchor: [28, 56],
+    popupAnchor: [0, -56],
   });
 
 // Pre-built icons for every destination type (Apple Maps style, animated)
