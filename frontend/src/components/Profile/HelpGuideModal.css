@@ -171,13 +171,12 @@
   background: #f8fafc;
   border-radius: 12px;
   margin-bottom: 8px;
-  border-right: 3px solid #2563eb;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .helpguide-card:hover {
-  transform: translateX(3px);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
 }
 
 .ug-root.dark .helpguide-card {
@@ -296,13 +295,12 @@
   padding: 14px 16px;
   background: #f8fafc;
   border-radius: 12px;
-  border-right: 3px solid;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .helpguide-profile-card:hover {
-  transform: translateX(3px);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
 }
 
 .ug-root.dark .helpguide-profile-card {

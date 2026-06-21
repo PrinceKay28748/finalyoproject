@@ -219,7 +219,7 @@ function SectionHeader({ icon, title }) {
 
 function Card({ icon, accentColor, iconBg, title, children }) {
   return (
-    <div className="ppolicy-card" style={{ borderRightColor: accentColor }}>
+    <div className="ppolicy-card">
       <div className="ppolicy-card-icon" style={{ background: iconBg || `${accentColor}18`, color: accentColor }}>
         {icon}
       </div>
@@ -233,7 +233,7 @@ function Card({ icon, accentColor, iconBg, title, children }) {
 
 function HighlightCard({ icon, accentColor, title, children }) {
   return (
-    <div className="ppolicy-highlight" style={{ borderRightColor: accentColor }}>
+    <div className="ppolicy-highlight">
       <div className="ppolicy-highlight-icon" style={{ background: `${accentColor}18`, color: accentColor }}>
         {icon}
       </div>

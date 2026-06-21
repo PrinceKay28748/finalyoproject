@@ -323,8 +323,34 @@
 }
 
 .report-issue-icon {
-  font-size: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
   flex-shrink: 0;
+  color: #6b7280;
+  transition: color 0.15s ease;
+}
+
+.report-issue-btn:hover .report-issue-icon {
+  color: #2563eb;
+}
+
+.report-issue-btn.active .report-issue-icon {
+  color: #2563eb;
+}
+
+.ug-root.dark .report-issue-icon {
+  color: #9ca3af;
+}
+
+.ug-root.dark .report-issue-btn:hover .report-issue-icon {
+  color: #60a5fa;
+}
+
+.ug-root.dark .report-issue-btn.active .report-issue-icon {
+  color: #60a5fa;
 }
 
 .report-issue-label {

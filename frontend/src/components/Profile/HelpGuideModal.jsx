@@ -237,7 +237,7 @@ function SectionHeader({ icon, title }) {
 
 function Card({ icon, accentColor, title, children }) {
   return (
-    <div className="helpguide-card" style={{ borderRightColor: accentColor }}>
+    <div className="helpguide-card">
       <div className="helpguide-card-icon" style={{ background: `${accentColor}18`, color: accentColor }}>
         {icon}
       </div>
@@ -251,7 +251,7 @@ function Card({ icon, accentColor, title, children }) {
 
 function ProfileCard({ icon, accentColor, bgColor, title, children }) {
   return (
-    <div className="helpguide-profile-card" style={{ borderRightColor: accentColor }}>
+    <div className="helpguide-profile-card">
       <div className="helpguide-profile-card-icon" style={{ background: bgColor, color: accentColor }}>
         {icon}
       </div>
@@ -453,7 +453,7 @@ export default function HelpGuideModal({ isOpen, onClose }) {
             <Card icon={<IconAlertTriangle />} accentColor="#14b8a6" title="Report Obstacles">
               Found a blocked ramp, broken sidewalk, or poor lighting? Use the Report feature to alert the campus community.
             </Card>
-            <div className="helpguide-card" style={{ borderRightColor: '#14b8a6', background: 'rgba(20,184,166,0.04)' }}>
+            <div className="helpguide-card" style={{ background: 'rgba(20,184,166,0.04)' }}>
               <div className="helpguide-card-icon" style={{ background: 'rgba(20,184,166,0.1)', color: '#14b8a6' }}>
                 <IconInfo />
               </div>

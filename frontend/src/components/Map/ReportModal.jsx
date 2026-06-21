@@ -5,13 +5,54 @@ import { useState, useEffect, useRef } from 'react';
 import { submitReport } from '../../services/reportService';
 import './ReportModal.css';
 
+const ISSUE_ICONS = {
+  blocked_ramp: () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+      <line x1="12" y1="9" x2="12" y2="13"/>
+      <line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>
+  ),
+  missing_curb: () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2"/>
+      <path d="M12 3v6H3"/>
+    </svg>
+  ),
+  broken_surface: () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 12l3-3 3 6 3-9 3 6 3-3 3 3"/>
+      <line x1="12" y1="3" x2="12" y2="21"/>
+    </svg>
+  ),
+  poor_lighting: () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 18h6M10 22h4M15.09 15c.18-.36.54-.72.85-1.07 1.07-1.18 1.48-2.75 1.06-4.24-.52-1.85-2.16-3.19-4.07-3.19-1.91 0-3.55 1.34-4.07 3.19-.42 1.49-.01 3.06 1.06 4.24.31.35.67.71.85 1.07"/>
+    </svg>
+  ),
+  construction: () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2L7 20M12 2l5 18M12 2v18"/>
+      <line x1="5" y1="20" x2="19" y2="20"/>
+    </svg>
+  ),
+  other: () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <path d="M14 2v6h6"/>
+      <line x1="8" y1="13" x2="16" y2="13"/>
+      <line x1="8" y1="17" x2="12" y2="17"/>
+    </svg>
+  ),
+};
+
 const ISSUE_TYPES = [
-  { value: 'blocked_ramp',    label: 'Blocked ramp',            icon: '🚧' },
-  { value: 'missing_curb',    label: 'Missing curb cut',        icon: '📐' },
-  { value: 'broken_surface',  label: 'Broken / uneven surface', icon: '🕳️' },
-  { value: 'poor_lighting',   label: 'Poor lighting',           icon: '💡' },
-  { value: 'construction',    label: 'Construction / closed',   icon: '🏗️' },
-  { value: 'other',           label: 'Other issue',             icon: '📝' },
+  { value: 'blocked_ramp',    label: 'Blocked ramp',            icon: 'blocked_ramp' },
+  { value: 'missing_curb',    label: 'Missing curb cut',        icon: 'missing_curb' },
+  { value: 'broken_surface',  label: 'Broken / uneven surface', icon: 'broken_surface' },
+  { value: 'poor_lighting',   label: 'Poor lighting',           icon: 'poor_lighting' },
+  { value: 'construction',    label: 'Construction / closed',   icon: 'construction' },
+  { value: 'other',           label: 'Other issue',             icon: 'other' },
 ];
 
 const SEVERITY_OPTIONS = [
@@ -247,7 +288,7 @@ export default function ReportModal({ isOpen, onClose, onSubmit, defaultLocation
                     aria-pressed={selectedIssue === issue.value}
                     ref={i === 0 ? firstFocusRef : undefined}
                   >
-                    <span className="report-issue-icon" aria-hidden="true">{issue.icon}</span>
+                    <span className="report-issue-icon" aria-hidden="true">{ISSUE_ICONS[issue.icon]()}</span>
                     <span className="report-issue-label">{issue.label}</span>
                   </button>
                 ))}
