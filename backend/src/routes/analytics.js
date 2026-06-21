@@ -187,7 +187,7 @@ heatmapRouter.post('/', heatmapRateLimit, async (req, res) => {
  */
 heatmapRouter.post('/search', heatmapRateLimit, async (req, res) => {
   try {
-    const { query, destination_name, lat, lng } = req.body;
+    const { destination_name, lat, lng } = req.body;
 
     if (lat === undefined || lng === undefined) {
       return res.status(400).json({ error: 'lat and lng required' });
