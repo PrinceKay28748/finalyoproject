@@ -247,14 +247,20 @@ export default function PortalSearchBox({
                 <button className="search-clear-btn" onClick={handleClearAll}>Clear all</button>
               </div>
               {visibleRecent.map((item, i) => (
-                <div
-                  key={i}
-                  className="search-dropdown-item"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    handleSelect({ name: item.name, lat: item.lat, lng: item.lng });
-                  }}
-                >
+                  <div
+                      key={i}
+                      className="search-dropdown-item"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleSelect({
+                          name: item.name,
+                          lat: item.lat,
+                          lng: item.lng,
+                          type: item.type,
+                          source: item.source,
+                        });
+                      }}
+                    >
                   <span className="search-dropdown-type-icon">🕐</span>
                   <span className="search-dropdown-name">{item.name}</span>
                 </div>

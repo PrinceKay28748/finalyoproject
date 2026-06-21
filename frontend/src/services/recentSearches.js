@@ -21,6 +21,8 @@ export function saveRecentSearch(location) {
     name: location.name,
     lat: location.lat,
     lng: location.lng,
+    type: location.type,
+    source: location.source,
     timestamp: Date.now(),
   });
 

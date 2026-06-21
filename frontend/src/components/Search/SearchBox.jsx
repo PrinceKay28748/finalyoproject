@@ -237,19 +237,25 @@ export default function SearchBox({
                 </button>
               </div>
               {visibleRecent.map((item, i) => (
-                <button
-                  key={i}
-                  className="searchbox-row"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    handleSelect({ name: item.name, lat: item.lat, lng: item.lng });
-                  }}
-                >
-                  <span className="searchbox-row-icon">
-                    <PinIcon color="#6b7280" />
-                  </span>
-                  <span className="searchbox-row-name">{item.name}</span>
-                </button>
+                  <button
+                      key={i}
+                      className="searchbox-row"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleSelect({
+                          name: item.name,
+                          lat: item.lat,
+                          lng: item.lng,
+                          type: item.type,
+                          source: item.source,
+                        });
+                      }}
+                    >
+                      <span className="searchbox-row-icon">
+                        <PinIcon color="#6b7280" />
+                      </span>
+                      <span className="searchbox-row-name">{item.name}</span>
+                    </button>
               ))}
               {hasMoreRecent && (
                 <button
