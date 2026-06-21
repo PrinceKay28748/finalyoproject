@@ -1,504 +1,511 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import './HelpGuideModal.css';
 
-const tabs = [
-  { id: 'overview', label: 'Overview', icon: '🗺️' },
-  { id: 'routes', label: 'Routes', icon: '🧭' },
-  { id: 'profiles', label: 'Profiles', icon: '⚙️' },
-  { id: '3d', label: '3D & Weather', icon: '🌦️' },
-  { id: 'accessibility', label: 'Accessibility', icon: '♿' },
-  { id: 'heatmap', label: 'Heatmap', icon: '🔥' },
-  { id: 'account', label: 'Account', icon: '👤' },
-];
+const IconClose = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+    <path d="M12 4L4 12M4 4l8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+  </svg>
+);
+
+const IconCompass = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <path d="M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z"/>
+  </svg>
+);
+
+const IconRoute = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+  </svg>
+);
+
+const IconSliders = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="4" y1="21" x2="4" y2="14"/>
+    <line x1="4" y1="10" x2="4" y2="3"/>
+    <line x1="12" y1="21" x2="12" y2="12"/>
+    <line x1="12" y1="8" x2="12" y2="3"/>
+    <line x1="20" y1="21" x2="20" y2="16"/>
+    <line x1="20" y1="12" x2="20" y2="3"/>
+    <line x1="1" y1="14" x2="7" y2="14"/>
+    <line x1="9" y1="8" x2="15" y2="8"/>
+    <line x1="17" y1="16" x2="23" y2="16"/>
+  </svg>
+);
+
+const IconCube = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+  </svg>
+);
+
+const IconAccessibility = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <circle cx="12" cy="6" r="1.5"/>
+    <path d="M12 10v4l-2 5M12 14l2 5M8 12h8"/>
+  </svg>
+);
+
+const IconFlame = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2C12 2 8 6 8 10c0 2.2 1.8 4 4 4s4-1.8 4-4c0-4-4-8-4-8z"/>
+    <path d="M12 14c-2.2 0-4 1.8-4 4 0 2.2 1.8 4 4 4s4-1.8 4-4c0-2.2-1.8-4-4-4z"/>
+  </svg>
+);
+
+const IconUser = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+    <circle cx="12" cy="7" r="4"/>
+  </svg>
+);
+
+const IconMapPin = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+    <circle cx="12" cy="10" r="3"/>
+  </svg>
+);
+
+const IconGlobe = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+  </svg>
+);
+
+const IconSun = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="5"/>
+    <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42 1.42"/>
+  </svg>
+);
+
+const IconBarChart = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 20V10M12 20V4M6 20v-6"/>
+  </svg>
+);
+
+const IconFlag = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 15V3h12l-2 6 2 6H4z"/>
+    <path d="M4 21v-6"/>
+  </svg>
+);
+
+const IconArrowRight = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="5" y1="12" x2="19" y2="12"/>
+    <polyline points="12 5 19 12 12 19"/>
+  </svg>
+);
+
+const IconScale = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2v20M4 6l8-4 8 4M4 18l8 4 8-4"/>
+    <path d="M4 6v12M20 6v12"/>
+  </svg>
+);
+
+const IconMoon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"/>
+  </svg>
+);
+
+const IconZap = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+  </svg>
+);
+
+const IconAccessibilitySmall = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="6" r="2"/>
+    <path d="M12 10v5l-3 6M12 15l3 6M8 13h8"/>
+  </svg>
+);
+
+const IconSatellite = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <path d="M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20z"/>
+    <path d="M2 12h20"/>
+  </svg>
+);
+
+const IconCloudRain = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9z"/>
+    <path d="M9 20v2M13 20v3M17 20v2"/>
+  </svg>
+);
+
+const IconMap = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
+    <line x1="8" y1="2" x2="8" y2="18"/>
+    <line x1="16" y1="6" x2="16" y2="22"/>
+  </svg>
+);
+
+const IconCalendar = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+    <line x1="16" y1="2" x2="16" y2="6"/>
+    <line x1="8" y1="2" x2="8" y2="6"/>
+    <line x1="3" y1="10" x2="21" y2="10"/>
+  </svg>
+);
+
+const IconVolume = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+    <path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14"/>
+  </svg>
+);
+
+const IconAlertTriangle = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+    <line x1="12" y1="9" x2="12" y2="13"/>
+    <line x1="12" y1="17" x2="12.01" y2="17"/>
+  </svg>
+);
+
+const IconInfo = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <line x1="12" y1="16" x2="12" y2="12"/>
+    <line x1="12" y1="8" x2="12.01" y2="8"/>
+  </svg>
+);
+
+const IconClock = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <polyline points="12 6 12 12 16 14"/>
+  </svg>
+);
+
+const IconDatabase = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <ellipse cx="12" cy="5" rx="9" ry="3"/>
+    <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+    <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+  </svg>
+);
+
+const IconEdit = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+  </svg>
+);
+
+const IconMoonSmall = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"/>
+  </svg>
+);
+
+const IconLock = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+  </svg>
+);
+
+const IconSmartphone = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+    <line x1="12" y1="18" x2="12.01" y2="18"/>
+  </svg>
+);
+
+function SectionHeader({ icon, title }) {
+  return (
+    <div className="helpguide-section-header">
+      {icon}
+      <h3 className="helpguide-section-title">{title}</h3>
+    </div>
+  );
+}
+
+function Card({ icon, accentColor, title, children }) {
+  return (
+    <div className="helpguide-card" style={{ borderRightColor: accentColor }}>
+      <div className="helpguide-card-icon" style={{ background: `${accentColor}18`, color: accentColor }}>
+        {icon}
+      </div>
+      <div className="helpguide-card-body">
+        <strong>{title}</strong>
+        <p>{children}</p>
+      </div>
+    </div>
+  );
+}
+
+function ProfileCard({ icon, accentColor, bgColor, title, children }) {
+  return (
+    <div className="helpguide-profile-card" style={{ borderRightColor: accentColor }}>
+      <div className="helpguide-profile-card-icon" style={{ background: bgColor, color: accentColor }}>
+        {icon}
+      </div>
+      <div className="helpguide-profile-card-body">
+        <strong>{title}</strong>
+        <p>{children}</p>
+      </div>
+    </div>
+  );
+}
+
+function Step({ num, title, children }) {
+  return (
+    <div className="helpguide-step">
+      <div className="helpguide-step-num">{num}</div>
+      <div className="helpguide-step-body">
+        <strong>{title}</strong>
+        <p>{children}</p>
+      </div>
+    </div>
+  );
+}
 
 export default function HelpGuideModal({ isOpen, onClose }) {
-  const [activeTab, setActiveTab] = useState('overview');
+  const [mounted, setMounted] = useState(false);
+  const [visible, setVisible] = useState(false);
+  const firstFocusRef = useRef(null);
+  const overlayRef = useRef(null);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (isOpen) {
+      setMounted(true);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => setVisible(true));
+      });
+    } else {
+      setVisible(false);
+      const t = setTimeout(() => setMounted(false), 350);
+      return () => clearTimeout(t);
+    }
+  }, [isOpen]);
 
-  const content = {
-    overview: (
-      <div className="help-pane">
-        <h4>Welcome to UG Navigator</h4>
-        <p className="help-lead">Your intelligent campus navigation companion for the University of Ghana, Legon.</p>
-        <div className="help-card">
-          <span className="help-card-icon">📍</span>
-          <div>
-            <strong>Smart Routing</strong>
-            <p>Search any campus landmark and get turn-by-turn directions optimized for your chosen profile.</p>
-          </div>
-        </div>
-        <div className="help-card">
-          <span className="help-card-icon">🌐</span>
-          <div>
-            <strong>2D & 3D Views</strong>
-            <p>Switch between standard 2D map and immersive 3D satellite view with terrain elevation.</p>
-          </div>
-        </div>
-        <div className="help-card">
-          <span className="help-card-icon">🌤️</span>
-          <div>
-            <strong>Live Weather</strong>
-            <p>Real-time weather overlay with rain particle effects in 3D mode and 5-day forecasts.</p>
-          </div>
-        </div>
-        <div className="help-card">
-          <span className="help-card-icon">📊</span>
-          <div>
-            <strong>Crowd Analytics</strong>
-            <p>Heatmap shows popular routes and congestion patterns around campus throughout the day.</p>
-          </div>
-        </div>
-      </div>
-    ),
-    routes: (
-      <div className="help-pane">
-        <h4>Getting Around Campus</h4>
-        <p className="help-lead">Plan your journey from anywhere to anywhere on the Legon campus.</p>
-        <div className="help-step">
-          <span className="help-step-num">1</span>
-          <div>
-            <strong>Set Your Start</strong>
-            <p>Tap "Where to?" or use your current location as the starting point. You can also search for any landmark.</p>
-          </div>
-        </div>
-        <div className="help-step">
-          <span className="help-step-num">2</span>
-          <div>
-            <strong>Choose Destination</strong>
-            <p>Search for your destination by name (e.g., "Balme Library", "Business School").</p>
-          </div>
-        </div>
-        <div className="help-step">
-          <span className="help-step-num">3</span>
-          <div>
-            <strong>Select Profile</strong>
-            <p>Choose between Standard, Night Safety, Fastest, or Accessible to tailor the route to your needs.</p>
-          </div>
-        </div>
-        <div className="help-step">
-          <span className="help-step-num">4</span>
-          <div>
-            <strong>Navigate</strong>
-            <p>Follow the turn-by-turn directions. Enable voice guidance for hands-free navigation.</p>
-          </div>
-        </div>
-      </div>
-    ),
-    profiles: (
-      <div className="help-pane">
-        <h4>Route Profiles</h4>
-        <p className="help-lead">Each profile optimizes your route differently. Switch between them anytime.</p>
-        <div className="help-profile-card" style={{ borderLeftColor: '#2563eb' }}>
-          <div className="help-profile-header">
-            <span className="help-profile-icon" style={{ background: 'rgba(37,99,235,0.1)', color: '#2563eb' }}>⚖️</span>
-            <div>
-              <strong>Standard</strong>
-              <p>Balanced route — the best mix of distance, safety, and walking conditions.</p>
-            </div>
-          </div>
-        </div>
-        <div className="help-profile-card" style={{ borderLeftColor: '#f59e0b' }}>
-          <div className="help-profile-header">
-            <span className="help-profile-icon" style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b' }}>🌙</span>
-            <div>
-              <strong>Night Safety</strong>
-              <p>Prioritizes well-lit main roads and high-traffic paths for safer navigation after dark.</p>
-            </div>
-          </div>
-        </div>
-        <div className="help-profile-card" style={{ borderLeftColor: '#22c55e' }}>
-          <div className="help-profile-header">
-            <span className="help-profile-icon" style={{ background: 'rgba(34,197,94,0.1)', color: '#22c55e' }}>⚡</span>
-            <div>
-              <strong>Fastest</strong>
-              <p>The shortest possible route — gets you there as quickly as possible.</p>
-            </div>
-          </div>
-        </div>
-        <div className="help-profile-card" style={{ borderLeftColor: '#8b5cf6' }}>
-          <div className="help-profile-header">
-            <span className="help-profile-icon" style={{ background: 'rgba(139,92,246,0.1)', color: '#8b5cf6' }}>♿</span>
-            <div>
-              <strong>Accessible</strong>
-              <p>Avoids steep inclines, stairs, and rough terrain. Ideal for wheelchair users and those with mobility concerns.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    ),
-    '3d': (
-      <div className="help-pane">
-        <h4>3D Mode & Weather</h4>
-        <p className="help-lead">Toggle 3D mode for an immersive satellite view with real-time weather effects.</p>
-        <div className="help-card">
-          <span className="help-card-icon">🛰️</span>
-          <div>
-            <strong>Satellite View</strong>
-            <p>High-resolution satellite imagery with 3D terrain from MapTiler. Tilt and rotate to explore campus from any angle.</p>
-          </div>
-        </div>
-        <div className="help-card">
-          <span className="help-card-icon">🌧️</span>
-          <div>
-            <strong>Rainfall Visualization</strong>
-            <p>Live rain particle effects render on the 3D map when weather data detects precipitation. Intensity matches real rainfall.</p>
-          </div>
-        </div>
-        <div className="help-card">
-          <span className="help-card-icon">🚦</span>
-          <div>
-            <strong>Congestion Heatmap</strong>
-            <p>In 3D mode, a color-coded heatmap overlay shows popular routes and congestion areas based on aggregated user data.</p>
-          </div>
-        </div>
-        <div className="help-card">
-          <span className="help-card-icon">📅</span>
-          <div>
-            <strong>5-Day Forecast</strong>
-            <p>Tap the weather banner in the route sheet to see the extended forecast with highs, lows, and precipitation probability.</p>
-          </div>
-        </div>
-      </div>
-    ),
-    accessibility: (
-      <div className="help-pane">
-        <h4>Accessibility Features</h4>
-        <p className="help-lead">UG Navigator is built with inclusive design at its core.</p>
-        <div className="help-card">
-          <span className="help-card-icon">♿</span>
-          <div>
-            <strong>Accessible Routing</strong>
-            <p>The Accessible profile avoids steep slopes, stairs, and uneven terrain — optimized for wheelchair users.</p>
-          </div>
-        </div>
-        <div className="help-card">
-          <span className="help-card-icon">📢</span>
-          <div>
-            <strong>Voice Guidance</strong>
-            <p>Enable voice guidance in the route sheet for spoken turn-by-turn directions. Perfect for hands-free navigation.</p>
-          </div>
-        </div>
-        <div className="help-card">
-          <span className="help-card-icon">⚠️</span>
-          <div>
-            <strong>Report Obstacles</strong>
-            <p>Found a blocked ramp, broken sidewalk, or poor lighting? Use the Report feature to alert the campus community.</p>
-          </div>
-        </div>
-        <div className="help-note">
-          <span>💡</span>
-          <span>Reports are reviewed by administrators and help improve routes for everyone.</span>
-        </div>
-      </div>
-    ),
-    heatmap: (
-      <div className="help-pane">
-        <h4>Heatmap & Analytics</h4>
-        <p className="help-lead">Visualize where people are walking on campus with aggregated, anonymous data.</p>
-        <div className="help-card">
-          <span className="help-card-icon">🔥</span>
-          <div>
-            <strong>Popular Routes</strong>
-            <p>Areas with more foot traffic appear warmer (red) while quieter areas appear cooler (blue).</p>
-          </div>
-        </div>
-        <div className="help-card">
-          <span className="help-card-icon">🕐</span>
-          <div>
-            <strong>Time Filters</strong>
-            <p>Filter heatmap data by time of day: Morning, Midday, Afternoon, Evening, or Night to see how patterns shift.</p>
-          </div>
-        </div>
-        <div className="help-card">
-          <span className="help-card-icon">📈</span>
-          <div>
-            <strong>Data Points</strong>
-            <p>The legend shows how many data points are being displayed. Heatmap data is sampled and anonymized for privacy.</p>
-          </div>
-        </div>
-        <div className="help-note">
-          <span>🔒</span>
-          <span>All heatmap data is aggregated and anonymous. Individual routes are never tracked.</span>
-        </div>
-      </div>
-    ),
-    account: (
-      <div className="help-pane">
-        <h4>Account & Settings</h4>
-        <p className="help-lead">Manage your profile, preferences, and account settings.</p>
-        <div className="help-card">
-          <span className="help-card-icon">✏️</span>
-          <div>
-            <strong>Edit Profile</strong>
-            <p>Change your display name and username. Your profile is synced across devices.</p>
-          </div>
-        </div>
-        <div className="help-card">
-          <span className="help-card-icon">🌙</span>
-          <div>
-            <strong>Dark Mode</strong>
-            <p>Toggle dark mode for comfortable nighttime use. Preference is saved locally.</p>
-          </div>
-        </div>
-        <div className="help-card">
-          <span className="help-card-icon">🔐</span>
-          <div>
-            <strong>Security</strong>
-            <p>Change your password anytime. Account deletion is permanent — all data will be erased.</p>
-          </div>
-        </div>
-        <div className="help-card">
-          <span className="help-card-icon">📱</span>
-          <div>
-            <strong>Cross-Platform</strong>
-            <p>UG Navigator works in any browser. Your preferences sync via your account across sessions.</p>
-          </div>
-        </div>
-      </div>
-    ),
-  };
+  useEffect(() => {
+    if (visible && firstFocusRef.current) {
+      firstFocusRef.current.focus();
+    }
+  }, [visible]);
+
+  useEffect(() => {
+    if (!visible) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') { onClose(); return; }
+      if (e.key !== 'Tab') return;
+      const modal = overlayRef.current?.querySelector('.helpguide-modal');
+      if (!modal) return;
+      const focusable = modal.querySelectorAll('button:not([disabled]), [tabindex]:not([tabindex="-1"])');
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey ? document.activeElement === first : document.activeElement === last) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [visible, onClose]);
+
+  if (!mounted) return null;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content help-modal" onClick={e => e.stopPropagation()}>
-        <div className="help-modal-header">
-          <div className="help-modal-title-row">
-            <div className="modal-icon" style={{ background: 'rgba(37, 99, 235, 0.1)', color: '#2563eb', width: 48, height: 48, borderRadius: 14, fontSize: 22 }}>
-              📖
-            </div>
-            <div>
-              <h2 style={{ margin: '0 0 4px 0' }}>UG Navigator Guide</h2>
-              <p style={{ margin: 0, fontSize: 13, color: 'var(--sub)' }}>Everything you need to navigate campus</p>
+    <div
+      ref={overlayRef}
+      className={`helpguide-overlay ${visible ? 'helpguide-overlay--visible' : ''}`}
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="User guide"
+    >
+      <div
+        className={`helpguide-modal ${visible ? 'helpguide-modal--visible' : ''}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="helpguide-header">
+          <h2>UG Navigator Guide</h2>
+          <button className="helpguide-close" onClick={onClose} ref={firstFocusRef} aria-label="Close guide">
+            <IconClose />
+          </button>
+        </div>
+
+        <div className="helpguide-body">
+          {/* ── Overview ── */}
+          <div className="helpguide-section">
+            <SectionHeader icon={<IconCompass />} title="Overview" />
+            <p className="helpguide-section-desc">
+              Your intelligent campus navigation companion for the University of Ghana, Legon.
+            </p>
+            <Card icon={<IconMapPin />} accentColor="#2563eb" title="Smart Routing">
+              Search any campus landmark and get turn-by-turn directions optimized for your chosen profile.
+            </Card>
+            <Card icon={<IconGlobe />} accentColor="#2563eb" title="2D &amp; 3D Views">
+              Switch between standard 2D map and immersive 3D satellite view with terrain elevation.
+            </Card>
+            <Card icon={<IconSun />} accentColor="#2563eb" title="Live Weather">
+              Real-time weather overlay with rain particle effects in 3D mode and 5-day forecasts.
+            </Card>
+            <Card icon={<IconBarChart />} accentColor="#2563eb" title="Crowd Analytics">
+              Heatmap shows popular routes and congestion patterns around campus throughout the day.
+            </Card>
+          </div>
+
+          {/* ── Getting Around ── */}
+          <div className="helpguide-section">
+            <SectionHeader icon={<IconRoute />} title="Getting Around" />
+            <p className="helpguide-section-desc">
+              Plan your journey from anywhere to anywhere on the Legon campus.
+            </p>
+            <div className="helpguide-steps">
+              <Step num={1} title="Set Your Start">
+                Tap "Where to?" or use your current location as the starting point. You can also search for any landmark.
+              </Step>
+              <Step num={2} title="Choose Destination">
+                Search for your destination by name (e.g., "Balme Library", "Business School").
+              </Step>
+              <Step num={3} title="Select Profile">
+                Choose between Standard, Night Safety, Fastest, or Accessible to tailor the route to your needs.
+              </Step>
+              <Step num={4} title="Navigate">
+                Follow the turn-by-turn directions. Enable voice guidance for hands-free navigation.
+              </Step>
             </div>
           </div>
-          <button className="help-close-btn" onClick={onClose}>✕</button>
+
+          {/* ── Route Profiles ── */}
+          <div className="helpguide-section">
+            <SectionHeader icon={<IconSliders />} title="Route Profiles" />
+            <p className="helpguide-section-desc">
+              Each profile optimizes your route differently. Switch between them anytime.
+            </p>
+            <div className="helpguide-profiles">
+              <ProfileCard
+                icon={<IconScale />} accentColor="#2563eb" bgColor="rgba(37,99,235,0.1)"
+                title="Standard"
+              >
+                Balanced route — the best mix of distance, safety, and walking conditions.
+              </ProfileCard>
+              <ProfileCard
+                icon={<IconMoon />} accentColor="#f59e0b" bgColor="rgba(245,158,11,0.1)"
+                title="Night Safety"
+              >
+                Prioritizes well-lit main roads and high-traffic paths for safer navigation after dark.
+              </ProfileCard>
+              <ProfileCard
+                icon={<IconZap />} accentColor="#22c55e" bgColor="rgba(34,197,94,0.1)"
+                title="Fastest"
+              >
+                The shortest possible route — gets you there as quickly as possible.
+              </ProfileCard>
+              <ProfileCard
+                icon={<IconAccessibilitySmall />} accentColor="#8b5cf6" bgColor="rgba(139,92,246,0.1)"
+                title="Accessible"
+              >
+                Avoids steep inclines, stairs, and rough terrain. Ideal for wheelchair users and those with mobility concerns.
+              </ProfileCard>
+            </div>
+          </div>
+
+          {/* ── 3D & Weather ── */}
+          <div className="helpguide-section">
+            <SectionHeader icon={<IconCube />} title="3D Mode &amp; Weather" />
+            <p className="helpguide-section-desc">
+              Toggle 3D mode for an immersive satellite view with real-time weather effects.
+            </p>
+            <Card icon={<IconSatellite />} accentColor="#6366f1" title="Satellite View">
+              High-resolution satellite imagery with 3D terrain from MapTiler. Tilt and rotate to explore campus from any angle.
+            </Card>
+            <Card icon={<IconCloudRain />} accentColor="#6366f1" title="Rainfall Visualization">
+              Live rain particle effects render on the 3D map when weather data detects precipitation.
+            </Card>
+            <Card icon={<IconMap />} accentColor="#6366f1" title="Congestion Heatmap">
+              In 3D mode, a color-coded overlay shows popular routes and congestion areas based on aggregated data.
+            </Card>
+            <Card icon={<IconCalendar />} accentColor="#6366f1" title="5-Day Forecast">
+              Tap the weather banner to see the extended forecast with highs, lows, and precipitation probability.
+            </Card>
+          </div>
+
+          {/* ── Accessibility ── */}
+          <div className="helpguide-section">
+            <SectionHeader icon={<IconAccessibility />} title="Accessibility" />
+            <p className="helpguide-section-desc">
+              UG Navigator is built with inclusive design at its core.
+            </p>
+            <Card icon={<IconAccessibilitySmall />} accentColor="#14b8a6" title="Accessible Routing">
+              The Accessible profile avoids steep slopes, stairs, and uneven terrain — optimized for wheelchair users.
+            </Card>
+            <Card icon={<IconVolume />} accentColor="#14b8a6" title="Voice Guidance">
+              Enable voice guidance for spoken turn-by-turn directions. Perfect for hands-free navigation.
+            </Card>
+            <Card icon={<IconAlertTriangle />} accentColor="#14b8a6" title="Report Obstacles">
+              Found a blocked ramp, broken sidewalk, or poor lighting? Use the Report feature to alert the campus community.
+            </Card>
+            <div className="helpguide-card" style={{ borderRightColor: '#14b8a6', background: 'rgba(20,184,166,0.04)' }}>
+              <div className="helpguide-card-icon" style={{ background: 'rgba(20,184,166,0.1)', color: '#14b8a6' }}>
+                <IconInfo />
+              </div>
+              <div className="helpguide-card-body">
+                <strong>Note</strong>
+                <p>Reports are reviewed by administrators and help improve routes for everyone.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Heatmap ── */}
+          <div className="helpguide-section">
+            <SectionHeader icon={<IconFlame />} title="Heatmap &amp; Analytics" />
+            <p className="helpguide-section-desc">
+              Visualize where people are walking on campus with aggregated, anonymous data.
+            </p>
+            <Card icon={<IconMap />} accentColor="#f97316" title="Popular Routes">
+              Areas with more foot traffic appear warmer (red) while quieter areas appear cooler (blue).
+            </Card>
+            <Card icon={<IconClock />} accentColor="#f97316" title="Time Filters">
+              Filter heatmap data by time of day: Morning, Midday, Afternoon, Evening, or Night.
+            </Card>
+            <Card icon={<IconDatabase />} accentColor="#f97316" title="Data Points">
+              The legend shows how many data points are being displayed. Heatmap data is sampled and anonymized for privacy.
+            </Card>
+          </div>
+
+          {/* ── Account ── */}
+          <div className="helpguide-section">
+            <SectionHeader icon={<IconUser />} title="Account &amp; Settings" />
+            <p className="helpguide-section-desc">
+              Manage your profile, preferences, and account settings.
+            </p>
+            <Card icon={<IconEdit />} accentColor="#6b7280" title="Edit Profile">
+              Change your display name and username. Your profile is synced across devices.
+            </Card>
+            <Card icon={<IconMoonSmall />} accentColor="#6b7280" title="Dark Mode">
+              Toggle dark mode for comfortable nighttime use. Preference is saved locally.
+            </Card>
+            <Card icon={<IconLock />} accentColor="#6b7280" title="Security">
+              Change your password anytime. Account deletion is permanent — all data will be erased.
+            </Card>
+            <Card icon={<IconSmartphone />} accentColor="#6b7280" title="Cross-Platform">
+              UG Navigator works in any browser. Your preferences sync via your account across sessions.
+            </Card>
+          </div>
         </div>
 
-        <div className="help-tabs">
-          {tabs.map(tab => (
-            <button
-              key={tab.id}
-              className={`help-tab-btn ${activeTab === tab.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              <span className="help-tab-icon">{tab.icon}</span>
-              <span>{tab.label}</span>
-            </button>
-          ))}
-        </div>
-
-        <div className="help-body">
-          {content[activeTab]}
-        </div>
-
-        <div className="help-footer">
-          <span className="help-footer-text">UG Navigator v1.0 — University of Ghana, Legon</span>
+        <div className="helpguide-footer">
+          <span className="helpguide-footer-text">UG Navigator v1.0 — University of Ghana, Legon</span>
         </div>
       </div>
-      <style>{`
-        .help-modal {
-          max-width: 560px;
-          max-height: 90vh;
-          height: 90vh;
-          display: flex;
-          flex-direction: column;
-          padding: 0;
-          overflow: hidden;
-        }
-        .help-modal-header {
-          display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          padding: 24px 28px 16px;
-          flex-shrink: 0;
-        }
-        .help-modal-title-row {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-        }
-        .help-close-btn {
-          width: 32px;
-          height: 32px;
-          border-radius: 40px;
-          border: none;
-          background: rgba(0,0,0,0.06);
-          color: var(--text);
-          font-size: 16px;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.2s;
-          flex-shrink: 0;
-        }
-        .help-close-btn:hover { background: rgba(239,68,68,0.1); color: #ef4444; }
-        .ug-root.dark .help-close-btn { background: rgba(255,255,255,0.08); color: #d1d5db; }
-        .ug-root.dark .help-close-btn:hover { background: rgba(239,68,68,0.2); color: #ef4444; }
-        .help-tabs {
-          display: flex;
-          gap: 4px;
-          padding: 0 28px;
-          overflow-x: auto;
-          flex-shrink: 0;
-          scrollbar-width: none;
-          -ms-overflow-style: none;
-        }
-        .help-tabs::-webkit-scrollbar { display: none; }
-        .help-tab-btn {
-          display: flex;
-          align-items: center;
-          gap: 5px;
-          padding: 7px 13px;
-          border: none;
-          background: transparent;
-          color: var(--sub);
-          font-size: 12px;
-          font-weight: 500;
-          font-family: 'Outfit', sans-serif;
-          border-radius: 20px;
-          cursor: pointer;
-          white-space: nowrap;
-          transition: all 0.2s;
-          flex-shrink: 0;
-        }
-        .help-tab-btn:hover { background: rgba(37,99,235,0.06); color: var(--text); }
-        .help-tab-btn.active { background: rgba(37,99,235,0.1); color: #2563eb; font-weight: 600; }
-        .help-tab-icon { font-size: 15px; }
-        .help-body {
-          flex: 1;
-          overflow-y: auto;
-          padding: 16px 28px 20px;
-          scrollbar-width: thin;
-        }
-        .help-pane h4 {
-          font-size: 18px;
-          font-weight: 700;
-          font-family: 'Outfit', sans-serif;
-          color: var(--text);
-          margin: 0 0 6px 0;
-        }
-        .help-lead {
-          font-size: 13px;
-          color: var(--sub);
-          margin: 0 0 16px 0;
-          line-height: 1.5;
-        }
-        .help-card {
-          display: flex;
-          gap: 12px;
-          padding: 12px 14px;
-          background: var(--hover-row);
-          border-radius: 14px;
-          margin-bottom: 8px;
-          transition: transform 0.15s;
-        }
-        .help-card:hover { transform: translateX(3px); }
-        .help-card-icon { font-size: 22px; flex-shrink: 0; margin-top: 1px; }
-        .help-card strong {
-          display: block;
-          font-size: 14px;
-          color: var(--text);
-          margin-bottom: 3px;
-        }
-        .help-card p {
-          font-size: 12px;
-          color: var(--sub);
-          margin: 0;
-          line-height: 1.5;
-        }
-        .help-step {
-          display: flex;
-          gap: 14px;
-          padding: 12px 0;
-          border-bottom: 0.5px solid var(--border);
-        }
-        .help-step:last-child { border-bottom: none; }
-        .help-step-num {
-          width: 30px;
-          height: 30px;
-          border-radius: 10px;
-          background: rgba(37,99,235,0.1);
-          color: #2563eb;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 14px;
-          font-weight: 700;
-          flex-shrink: 0;
-          font-family: 'Outfit', sans-serif;
-        }
-        .help-step strong {
-          display: block;
-          font-size: 14px;
-          color: var(--text);
-          margin-bottom: 3px;
-        }
-        .help-step p {
-          font-size: 12px;
-          color: var(--sub);
-          margin: 0;
-          line-height: 1.5;
-        }
-        .help-profile-card {
-          padding: 12px 14px;
-          margin-bottom: 8px;
-          background: var(--hover-row);
-          border-radius: 14px;
-          border-left: 3px solid;
-          transition: transform 0.15s;
-        }
-        .help-profile-card:hover { transform: translateX(3px); }
-        .help-profile-header {
-          display: flex;
-          gap: 10px;
-          align-items: flex-start;
-        }
-        .help-profile-icon {
-          width: 36px;
-          height: 36px;
-          border-radius: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 18px;
-          flex-shrink: 0;
-        }
-        .help-profile-header strong {
-          display: block;
-          font-size: 14px;
-          color: var(--text);
-          margin-bottom: 2px;
-        }
-        .help-profile-header p {
-          font-size: 12px;
-          color: var(--sub);
-          margin: 0;
-          line-height: 1.5;
-        }
-        .help-note {
-          display: flex;
-          align-items: flex-start;
-          gap: 8px;
-          padding: 10px 14px;
-          margin-top: 8px;
-          background: rgba(37,99,235,0.06);
-          border-radius: 12px;
-          font-size: 12px;
-          color: var(--sub);
-          line-height: 1.5;
-        }
-        .help-footer {
-          padding: 12px 28px;
-          border-top: 0.5px solid var(--border);
-          flex-shrink: 0;
-        }
-        .help-footer-text {
-          font-size: 11px;
-          color: var(--sub);
-          opacity: 0.6;
-        }
-      `}</style>
     </div>
   );
 }
