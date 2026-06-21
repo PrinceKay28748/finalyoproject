@@ -77,6 +77,7 @@ const TYPE_SVG = {
   road:          '<path d="M12 2v20"/><path d="M2 12h20"/><path d="M4 4l16 16"/><path d="M20 4L4 16"/>',
   commercial:    '<path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4H6z"/><path d="M16 10a4 4 0 01-8 0"/>',
   accommodation: '<path d="M3 7v11a2 2 0 002 2h14a2 2 0 002-2V7M3 7l9 5 9-5M3 7l9-5 9 5"/>',
+  place:         '<path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>',
 };
 
 const TYPE_COLORS = {
@@ -95,6 +96,7 @@ const TYPE_COLORS = {
   road:          "#a1a1aa",
   commercial:    "#d97706",
   accommodation: "#0891b2",
+  place:         "#6b7280",
 };
 
 const TYPE_LABELS = {
@@ -113,43 +115,37 @@ const TYPE_LABELS = {
   road:          "ROAD",
   commercial:    "SHOP",
   accommodation: "LODGE",
+  place:         "PLACE",
 };
 
-// Animated version that plays a pop-in entrance on every setIcon() call
-export const makeAnimatedHeroPin = (color, icon, label) =>
+// Apple Maps-style category pin — no label, just colored pin + white icon
+export const makeAnimatedHeroPin = (color, icon) =>
   L.divIcon({
     className: "",
     html: `
-      <div style="display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.2));">
-        <div class="pin-label" style="background:${color};color:#fff;font-size:11px;font-weight:700;
-          font-family:'Outfit',sans-serif;padding:4px 8px;border-radius:6px;
-          margin-bottom:2px;white-space:nowrap;letter-spacing:0.5px;">
-          ${label}
-        </div>
+      <div class="pin-wrap">
         <div class="pin-body" style="background:${color};border:3px solid #fff;border-radius:50% 50% 50% 0;
-          width:32px;height:32px;display:flex;align-items:center;justify-content:center;
-          transform:rotate(-45deg);box-shadow:0 2px 8px rgba(0,0,0,0.15);">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff" style="transform:rotate(45deg);filter:drop-shadow(0 1px 1px rgba(0,0,0,0.1));">
+          width:36px;height:36px;display:flex;align-items:center;justify-content:center;
+          transform:rotate(-45deg);box-shadow:0 2px 8px rgba(0,0,0,0.18);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff" style="transform:rotate(45deg);filter:drop-shadow(0 1px 1px rgba(0,0,0,0.08));">
             ${icon}
           </svg>
         </div>
       </div>
       <style>
-        @keyframes pinPop { 0% { transform:rotate(-45deg) scale(0.3); opacity:0; } 60% { transform:rotate(-45deg) scale(1.15); opacity:1; } 100% { transform:rotate(-45deg) scale(1); opacity:1; } }
-        @keyframes labelSlide { 0% { opacity:0; transform:translateY(-6px); } 100% { opacity:1; transform:translateY(0); } }
-        .pin-label { animation:labelSlide 0.25s ease-out 0.08s both; }
-        .pin-body { animation:pinPop 0.4s cubic-bezier(0.34,1.56,0.64,1) both; }
+        @keyframes pinPop { 0% { transform:rotate(-45deg) scale(0); opacity:0; } 60% { transform:rotate(-45deg) scale(1.18); opacity:1; } 100% { transform:rotate(-45deg) scale(1); opacity:1; } }
+        .pin-body { animation:pinPop 0.35s cubic-bezier(0.34,1.56,0.64,1) both; }
       </style>`,
-    iconSize: [48, 56],
-    iconAnchor: [24, 56],
-    popupAnchor: [0, -56],
+    iconSize: [44, 44],
+    iconAnchor: [22, 44],
+    popupAnchor: [0, -44],
   });
 
-// Pre-built icons for every destination type (animated)
+// Pre-built icons for every destination type (Apple Maps style, animated)
 export const typeIconMap = Object.fromEntries(
   Object.keys(TYPE_SVG).map((key) => [
     key,
-    makeAnimatedHeroPin(TYPE_COLORS[key], TYPE_SVG[key], TYPE_LABELS[key]),
+    makeAnimatedHeroPin(TYPE_COLORS[key], TYPE_SVG[key]),
   ])
 );
 
