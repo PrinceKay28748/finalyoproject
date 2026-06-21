@@ -66,7 +66,7 @@ export default function App() {
 
   const legendCollapseRef = useRef(null);
 
-  const { location: currentLocation, accuracy, error: locationError } = useGeolocation();
+  const { location: currentLocation, accuracy, error: locationError, permissionState, requestLocation } = useGeolocation();
 
   const [hasAutoFilled, setHasAutoFilled] = useState(false);
   const [resetProgressTimestamp, setResetProgressTimestamp] = useState(0); // New state for resetting progress
@@ -145,10 +145,16 @@ export default function App() {
       .catch((err) => console.warn("[App] Failed to load preferences:", err));
   }, []);
 
-  // ── Log login ────────────────────────────────────────────────────────────
+  // ── Log login + trigger location request ────────────────────────────────
   useEffect(() => {
     if (user && logLogin) logLogin();
   }, [user, logLogin]);
+
+  useEffect(() => {
+    if (user && permissionState === "prompt") {
+      requestLocation();
+    }
+  }, [user, permissionState, requestLocation]);
 
   // ── Save preferences (includes heatmap toggle) ───────────────────────────
   useEffect(() => {
@@ -220,7 +226,6 @@ export default function App() {
 
   // ── Auto-fill FROM with GPS ───────────────────────────────────────────────
   useEffect(() => {
-    // Only auto-fill if we don't already have a start point (from restoration or user selection)
     if (currentLocation && !hasAutoFilled && !useCustomLocation && !startPoint) {
       setStartPoint(currentLocation);
       setStartText("My current location");
@@ -263,12 +268,19 @@ export default function App() {
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const handleUseCurrentLocation = () => {
-    if (!currentLocation) return;
-    setStartPoint(currentLocation);
-    setStartText("My current location");
-    setWaitingForStart(false);
-    setUseCustomLocation(false);
-    setCustomStartPoint(null);
+    if (currentLocation) {
+      setStartPoint(currentLocation);
+      setStartText("My current location");
+      setWaitingForStart(false);
+      setUseCustomLocation(false);
+      setCustomStartPoint(null);
+    } else if (permissionState !== "denied" && permissionState !== "unsupported") {
+      setStartPoint(null);
+      setStartText("");
+      setHasAutoFilled(false);
+      setWaitingForStart(false);
+      requestLocation();
+    }
   };
 
   const handleUseCustomLocation = () => {
@@ -502,7 +514,7 @@ export default function App() {
           onSwap={handleSwap}
           onShowOnMap={handleShowOnMap}
           onReset={handleReset}
-          hasCurrentLocation={!!currentLocation}
+          hasCurrentLocation={!!currentLocation || (permissionState !== "denied" && permissionState !== "unsupported")}
           canShow={canShow}
           isResolving={isResolving || isRouting}
           markersVisible={markersVisible}
