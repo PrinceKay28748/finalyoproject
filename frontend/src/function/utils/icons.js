@@ -54,12 +54,19 @@ export const customLocationIcon = makeHeroPin("#22c55e", heroiconPaths.checkCirc
 // Modern purple marker with share icon for shared locations
 export const sharedLocationIcon = makeHeroPin("#a855f7", heroiconPaths.share, "SHARED");
 
-// Simple blue dot for start location (no label, no icon)
+// Start location pin — dark rounded square with white circle + black dot (distinct from GPS blue dot)
 export const startDotIcon = L.divIcon({
   className: "",
-  html: `<div style="width:16px;height:16px;background:#2563eb;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 6px rgba(37,99,235,0.4);"></div>`,
-  iconSize: [22, 22],
-  iconAnchor: [11, 11],
+  html: `<div style="display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.25));">
+    <div style="background:#1e293b;border-radius:10px;padding:6px;display:flex;align-items:center;justify-content:center;border:2px solid #fff;">
+      <div style="width:18px;height:18px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;">
+        <div style="width:8px;height:8px;background:#000;border-radius:50%;"></div>
+      </div>
+    </div>
+    <div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid #1e293b;"></div>
+  </div>`,
+  iconSize: [36, 48],
+  iconAnchor: [18, 48],
 });
 
 // Modern blue START marker with flag icon (legacy)
