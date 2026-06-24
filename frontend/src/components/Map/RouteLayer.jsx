@@ -272,24 +272,22 @@ export default function RouteLayer({
     const start = route.coordinates[0];
     const end = route.coordinates[route.coordinates.length - 1];
     
-    // Senior Fix: The signature now includes the specific order of start/end.
-    // A swap will now correctly trigger a re-draw animation because the signature changes.
-    const routeSignature = `S:${start.lat.toFixed(5)},${start.lng.toFixed(5)}-E:${end.lat.toFixed(5)},${end.lng.toFixed(5)}`;
+    // Senior Fix: The signature now includes the specific order of start/end AND profile.
+    // A swap or profile switch will now correctly trigger a re-draw animation.
+    const routeSignature = `S:${start.lat.toFixed(5)},${start.lng.toFixed(5)}-E:${end.lat.toFixed(5)},${end.lng.toFixed(5)}-P:${profile}`;
     
-    // If this is a profile switch (same destination), don't re-animate the "drawing"
+    // If same signature, skip re-animation
     if (animationRef.current_sig === routeSignature) {
       const coords = route.coordinates.map((c) => [c.lat, c.lng]);
-      // Immediately update segments to prevent the "old" profile from lingering
       const idx = Math.max(0, lastCompletedIndexRef.current);
       setCompletedCoords(coords.slice(0, idx + 1));
       setRemainingCoords(coords.slice(idx));
       setDisplayedCoords(coords);
       setIsAnimationComplete(true);
-      
       return;
     }
 
-    // New signature detected (Swap happened) -> Full Reset
+    // New signature detected (swap or profile switch) -> Full Reset
     setIsAnimationComplete(false);
     lastCompletedIndexRef.current = -1;
     
@@ -327,7 +325,7 @@ export default function RouteLayer({
 
     animationRef.current = requestAnimationFrame(animate);
     return () => { if (animationRef.current) { cancelAnimationFrame(animationRef.current); animationRef.current = null; } };
-  }, [route?.coordinates, visible]);
+  }, [route?.coordinates, visible, profile]);
 
   // Directional beam — bearing from start along initial route segment
   const startBearing = useMemo(() => {
@@ -420,7 +418,7 @@ export default function RouteLayer({
                 position={[route.coordinates[0].lat, route.coordinates[0].lng]}
                 icon={L.divIcon({
                   className: "",
-                  html: `<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:28px solid ${mainColor};opacity:0.4;transform:rotate(${startBearing}deg);filter:drop-shadow(0 2px 4px rgba(0,0,0,0.12));"></div>`,
+                  html: `<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:28px solid ${mainColor};opacity:0.4;transform:rotate(${routeDirection}deg);filter:drop-shadow(0 2px 4px rgba(0,0,0,0.12));"></div>`,
                   iconSize: [16, 28],
                   iconAnchor: [8, 28],
                 })}
@@ -463,7 +461,7 @@ export default function RouteLayer({
           position={[route.coordinates[0].lat, route.coordinates[0].lng]}
           icon={L.divIcon({
             className: "",
-            html: `<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:28px solid ${mainColor};opacity:0.4;transform:rotate(${startBearing}deg);filter:drop-shadow(0 2px 4px rgba(0,0,0,0.12));"></div>`,
+            html: `<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:28px solid ${mainColor};opacity:0.4;transform:rotate(${routeDirection}deg);filter:drop-shadow(0 2px 4px rgba(0,0,0,0.12));"></div>`,
             iconSize: [16, 28],
             iconAnchor: [8, 28],
           })}
