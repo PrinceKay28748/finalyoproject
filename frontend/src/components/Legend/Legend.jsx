@@ -951,10 +951,10 @@ const Legend = forwardRef(function Legend(
               </button>
             );
           })}
-          <div className="mode-track" style={{ '--mode-color': vehicleConfig.color }}>
+          <div className="mode-track">
             <div
               className="mode-indicator"
-              style={{ left: `${indicatorLeft}px`, width: `${indicatorWidth}px` }}
+              style={{ left: `${indicatorLeft}px`, width: `${indicatorWidth}px`, '--mode-color': vehicleConfig.color }}
             />
           </div>
         </div>
