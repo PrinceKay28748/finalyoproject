@@ -960,8 +960,7 @@ const Legend = forwardRef(function Legend(
         </div>
       </div>
 
-      {/* Spacer so expanded body content doesn't hide behind fixed profile bar */}
-      {hasRoute && <div className="legend-bar-spacer" />}
+
 
       {/* ── Expanded body with tabs ──────────────────────────────────────── */}
       {expanded && (

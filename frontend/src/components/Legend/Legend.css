@@ -247,10 +247,7 @@
   color: #fbbf24;
 }
 
-/* ── Spacer matching fixed profile bar height ────────────────────────────── */
-.legend-bar-spacer {
-  height: 0;
-}
+
 
 /* ── Fixed profile bar (always at bottom of viewport, like Google Maps) ── */
 .legend-profiles-bar {
@@ -1647,7 +1644,6 @@ body.dragging-legend .leaflet-container {
     right: auto;
     border-radius: 0 0 28px 28px;
   }
-  .legend-bar-spacer { height: 0; }
   .legend-profile-btn { padding: 8px 4px; font-size: 11px; }
 
   .stat-card-icon svg { width: 16px; height: 16px; }
