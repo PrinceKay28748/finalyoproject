@@ -1206,21 +1206,26 @@ body.dragging-legend .leaflet-container {
 .legend-mode-strip {
   position: relative;
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  flex-wrap: nowrap;
+  gap: 4px;
   padding: 6px 12px 0;
   flex-shrink: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
+
+.legend-mode-strip::-webkit-scrollbar { display: none; }
 
 .legend-sheet--with-bar .legend-mode-strip {
   flex: 1;
   align-content: center;
   padding: 12px;
-  gap: 8px;
+  gap: 6px;
 }
 
 .legend-sheet--with-bar .legend-mode-btn {
-  padding: 6px 4px 14px;
+  padding: 6px 10px 14px;
   min-width: 44px;
 }
 
@@ -1234,6 +1239,13 @@ body.dragging-legend .leaflet-container {
   background: rgba(0, 0, 0, 0.06);
   border-radius: 3px;
   pointer-events: none;
+}
+
+.mode-btn-time {
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: inherit;
 }
 
 .mode-indicator {
@@ -1250,13 +1262,11 @@ body.dragging-legend .leaflet-container {
 }
 
 .legend-mode-btn {
-  flex: 1;
-  min-width: 56px;
+  flex-shrink: 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding: 8px 4px 14px;
+  gap: 5px;
+  padding: 8px 10px 14px;
   border: none;
   background: transparent;
   color: #9ca3af;
@@ -1574,11 +1584,12 @@ body.dragging-legend .leaflet-container {
   .legend-peek-hint--insights,
   .insights-mode-name { font-size: 16px; }
 
-  /* Mode strip mobile — compact floating pills */
+  /* Mode strip mobile — compact horizontal scroll */
   .legend-sheet--with-bar .legend-mode-strip,
-  .legend-mode-strip { padding: 4px 8px; gap: 4px; }
-  .legend-mode-btn { padding: 6px 2px 8px; min-width: 40px; }
+  .legend-mode-strip { padding: 4px 8px; gap: 3px; }
+  .legend-mode-btn { padding: 6px 6px 8px; gap: 4px; }
   .legend-mode-btn svg { width: 22px; height: 22px; }
+  .mode-btn-time { font-size: 10px; }
 
   /* Voice button mobile — compact height */
   .legend-voice-btn { padding: 8px 14px; font-size: 11px; }
@@ -1620,9 +1631,10 @@ body.dragging-legend .leaflet-container {
     to   { transform: translateX(-50%) translateY(0);    opacity: 1; }
   }
 
-  .legend-sheet--with-bar .legend-mode-strip { padding: 16px; gap: 10px; }
-  .legend-mode-btn { padding: 6px 2px 8px; }
+  .legend-sheet--with-bar .legend-mode-strip { padding: 16px; gap: 8px; }
+  .legend-mode-btn { padding: 8px 12px 14px; gap: 6px; }
   .legend-mode-btn svg { width: 22px; height: 22px; }
+  .mode-btn-time { font-size: 12px; }
 
 
   .legend-profiles-bar {

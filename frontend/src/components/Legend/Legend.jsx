@@ -877,6 +877,7 @@ const Legend = forwardRef(function Legend(
   const cycleTime = hasRoute ? formatTravelTime(distMeters, "bicycle") : null;
   const jogTime = hasRoute ? formatTravelTime(distMeters, "jogging") : null;
   const traffic = getTrafficInfo();
+  const modeTimes = { walk: walkTime, bicycle: cycleTime, jogging: jogTime, car: carTime };
 
   const getBarWidth = () => {
     if (traffic.level === "Heavy") return "100%";
@@ -948,6 +949,9 @@ const Legend = forwardRef(function Legend(
                   className="w-6 h-6"
                   color={isActive ? m.color : "#9ca3af"}
                 />
+                {hasRoute && modeTimes[m.key] && (
+                  <span className="mode-btn-time">{modeTimes[m.key]}</span>
+                )}
               </button>
             );
           })}
