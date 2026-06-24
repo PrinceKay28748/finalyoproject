@@ -1325,7 +1325,7 @@ body.dragging-legend .leaflet-container {
 }
 
 .legend-peek-hint--insights {
-  justify-content: flex-end;
+  justify-content: flex-start;
   flex: none;
   padding: 4px 16px 2px;
   font-size: 12px;
