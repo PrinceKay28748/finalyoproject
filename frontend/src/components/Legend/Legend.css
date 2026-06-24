@@ -1320,12 +1320,19 @@ body.dragging-legend .leaflet-container {
   color: #6b7280;
 }
 
+.ug-root.dark .legend-peek-hint--insights {
+  color: #e5e7eb;
+}
+
 .legend-peek-hint--insights {
-  justify-content: center;
-  padding: 2px 0 0;
-  font-size: 11px;
-  color: var(--sub);
-  opacity: 0.6;
+  justify-content: flex-end;
+  flex: none;
+  padding: 4px 16px 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  opacity: 1;
+  letter-spacing: 0.15px;
 }
 
 /* ── Empty route state "Be in the know" ──────────────────────────────────── */
