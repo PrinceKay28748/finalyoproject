@@ -1328,7 +1328,7 @@ body.dragging-legend .leaflet-container {
   justify-content: flex-start;
   flex: none;
   padding: 4px 16px 2px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text);
   opacity: 1;
