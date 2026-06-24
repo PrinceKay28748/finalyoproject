@@ -329,17 +329,6 @@ export default function RouteLayer({
     return () => { if (animationRef.current) { cancelAnimationFrame(animationRef.current); animationRef.current = null; } };
   }, [route?.coordinates, visible]);
 
-  // Render nothing if hidden or no data
-  const hasAnimationData = displayedCoords.length >= 2;
-  const hasNavData = completedCoords.length >= 2 || remainingCoords.length >= 2;
-
-  if (!visible || (!hasAnimationData && !hasNavData)) {
-    return null;
-  }
-
-  const isRouteFocused = focus.isFocused('route', route?.id);
-  const routeFocusClass = `${isRouteFocused ? 'route--focused' : (focus.hasFocus ? 'route--blurred' : '')} ${isRecalculating ? 'route--recalculating' : ''}`;
-
   // Directional beam — bearing from start along initial route segment
   const startBearing = useMemo(() => {
     if (!route?.coordinates?.length || route.coordinates.length < 2) return 0;
@@ -353,6 +342,17 @@ export default function RouteLayer({
     const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(lng2 - lng1);
     return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
   }, [route?.coordinates]);
+
+  // Render nothing if hidden or no data
+  const hasAnimationData = displayedCoords.length >= 2;
+  const hasNavData = completedCoords.length >= 2 || remainingCoords.length >= 2;
+
+  if (!visible || (!hasAnimationData && !hasNavData)) {
+    return null;
+  }
+
+  const isRouteFocused = focus.isFocused('route', route?.id);
+  const routeFocusClass = `${isRouteFocused ? 'route--focused' : (focus.hasFocus ? 'route--blurred' : '')} ${isRecalculating ? 'route--recalculating' : ''}`;
 
   if (showProgress && isAnimationComplete && (completedCoords.length > 0 || remainingCoords.length > 0)) {
     return (
