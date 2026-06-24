@@ -70,7 +70,7 @@ async function buildGraphInWorker() {
   }
 }
 
-function calculateRoute(startLat, startLng, destLat, destLng, profileKey) {
+function calculateRoute(startLat, startLng, destLat, destLng, profileKey, vehicleMode = "walk") {
   if (!graph || !isGraphReady) {
     sendToMain("ROUTE_ERROR", { error: "Graph not ready" });
     return;
@@ -85,9 +85,9 @@ function calculateRoute(startLat, startLng, destLat, destLng, profileKey) {
       return;
     }
     
-    console.log("[Worker] Finding path from", startNodeId, "to", destNodeId);
+    console.log("[Worker] Finding path from", startNodeId, "to", destNodeId, "for", vehicleMode);
   
-    const path = findShortestPath(graph, startNodeId, destNodeId, profileKey);
+    const path = findShortestPath(graph, startNodeId, destNodeId, profileKey, vehicleMode);
     
     if (!path) {
       sendToMain("ROUTE_ERROR", { error: "No path found" });
@@ -96,7 +96,7 @@ function calculateRoute(startLat, startLng, destLat, destLng, profileKey) {
     
     // Build context and get warnings using the costFunction system
     const context = buildRouteContext();
-    const warnings = getActiveWarnings(context, profileKey);
+    const warnings = getActiveWarnings(context, profileKey, vehicleMode);
     
     sendToMain("ROUTE_RESULT", { path, warnings });
     console.log("[Worker] Route found —", path.totalDistanceKm?.toFixed(2), "km");
@@ -108,10 +108,10 @@ function calculateRoute(startLat, startLng, destLat, destLng, profileKey) {
 }
 
 self.onmessage = function(e) {
-  const { type, startLat, startLng, destLat, destLng, profileKey } = e.data;
+  const { type, startLat, startLng, destLat, destLng, profileKey, vehicleMode } = e.data;
   
   if (type === "CALCULATE_ROUTE") {
-    calculateRoute(startLat, startLng, destLat, destLng, profileKey);
+    calculateRoute(startLat, startLng, destLat, destLng, profileKey, vehicleMode);
   }
 };
 

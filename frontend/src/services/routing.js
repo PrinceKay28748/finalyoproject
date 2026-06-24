@@ -328,10 +328,10 @@ export async function getAllRoutes(
   const elapsed = performance.now() - startTime;
   console.log(`[Routing] All 4 routes in ${elapsed.toFixed(0)}ms (vehicle: ${vehicleMode})`);
 
-  if (standard?.context)   standard.context.warnings   = getActiveWarnings(standard.context,   "standard");
-  if (fastest?.context)    fastest.context.warnings     = getActiveWarnings(fastest.context,    "fastest");
-  if (accessible?.context) accessible.context.warnings  = getActiveWarnings(accessible.context, "accessible");
-  if (night?.context)      night.context.warnings       = getActiveWarnings(night.context,      "night");
+  if (standard?.context)   standard.context.warnings   = getActiveWarnings(standard.context,   "standard",   vehicleMode);
+  if (fastest?.context)    fastest.context.warnings     = getActiveWarnings(fastest.context,    "fastest",    vehicleMode);
+  if (accessible?.context) accessible.context.warnings  = getActiveWarnings(accessible.context, "accessible", vehicleMode);
+  if (night?.context)      night.context.warnings       = getActiveWarnings(night.context,      "night",      vehicleMode);
 
   return { standard, fastest, accessible, night, timestamp: Date.now() };
 }

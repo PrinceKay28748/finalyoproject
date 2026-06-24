@@ -468,6 +468,7 @@ export default function MapView({
         currentLocation={currentLocation}
         warnings={warnings}
         onProfileChange={onProfileChange}
+        onVehicleModeChange={onVehicleModeChange}
         isExpanded={isLegendExpanded}
         onExpandedChange={onLegendExpandedChange}
         autoCollapse={isNavExpanded}

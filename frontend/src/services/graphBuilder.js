@@ -25,7 +25,7 @@ const getOSMQuery = (bounds) => {
   return `
     [out:json][timeout:45];
     (
-      way["highway"~"footway|path|pedestrian|steps|residential|service|track|living_street|unclassified|tertiary|secondary|primary|tertiary_link|secondary_link"](${south},${west},${north},${east});
+      way["highway"~"cycleway|footway|path|pedestrian|steps|residential|service|track|bridleway|living_street|unclassified|tertiary|secondary|primary|tertiary_link|secondary_link"](${south},${west},${north},${east});
       node(w);
     );
     out body;

@@ -18,6 +18,17 @@ import {
   IconShare,
   IconWarning,
   IconInfo,
+  IconBicycle,
+  IconJog,
+  IconFlame,
+  IconMountain,
+  IconSteps,
+  IconRoad,
+  IconChartBar,
+  IconDirections,
+  IconArrowsRightLeft,
+  IconSpeakerWave,
+  IconSearch,
 } from "../ui/icon";
 import { useVoiceGuidance } from "../../hooks/useVoiceGuidance";
 import { useFocus } from "../../context/FocusContext";
@@ -33,11 +44,14 @@ function formatDistance(meters) {
 }
 
 function formatTravelTime(meters, vehicleMode = "walk") {
-  let speedKmh;
-  if (vehicleMode === "walk") speedKmh = 5;
-  else if (vehicleMode === "car") speedKmh = 30;
-  else if (vehicleMode === "motorcycle") speedKmh = 25;
-  else speedKmh = 5;
+  const MODE_SPEEDS = {
+    walk: 5,
+    car: 30,
+    motorcycle: 25,
+    bicycle: 15,
+    jogging: 10,
+  };
+  const speedKmh = MODE_SPEEDS[vehicleMode] || 5;
 
   const minutes = Math.ceil(meters / ((speedKmh * 1000) / 60));
   if (minutes < 1) return "< 1 min";
@@ -280,10 +294,22 @@ const PROFILES = [
   { key: "fastest", icon: IconBolt, label: "Fastest", color: "#22c55e" },
 ];
 
+const MODE_CONFIG = {
+  walk: { icon: IconWalk, label: "Walk", color: "#14b8a6" },
+  bicycle: { icon: IconBicycle, label: "Cycle", color: "#ec4899" },
+  jogging: { icon: IconJog, label: "Jog", color: "#f97316" },
+  car: { icon: IconCar, label: "Drive", color: "#ef4444" },
+};
+
+const MODES = [
+  { key: "walk", icon: IconWalk, label: "Walk", color: "#14b8a6" },
+  { key: "bicycle", icon: IconBicycle, label: "Cycle", color: "#ec4899" },
+  { key: "jogging", icon: IconJog, label: "Jog", color: "#f97316" },
+  { key: "car", icon: IconCar, label: "Drive", color: "#ef4444" },
+];
+
 const Legend = forwardRef(function Legend(
   {
-    startText,
-    destText,
     visible,
     route,
     activeProfile = "standard",
@@ -295,6 +321,7 @@ const Legend = forwardRef(function Legend(
     currentLocation,
     onExpandedChange,
     onProfileChange,
+    onVehicleModeChange,
     autoCollapse = false,
     disableDrag = false,
     onNavPanelClose,
@@ -314,6 +341,7 @@ const Legend = forwardRef(function Legend(
   const [currentStepIndex, setCurrentStepIndex] = useState(-1);
   const [wasExpandedBeforeCollapse, setWasExpandedBeforeCollapse] =
     useState(true);
+  const [activeTab, setActiveTab] = useState("stats");
 
   // ── Drag state refs (never cause re-renders) ─────────────────────────────
   const dragStartY = useRef(0);
@@ -332,9 +360,7 @@ const Legend = forwardRef(function Legend(
   const headerRef = useRef(null);
   const directionsRef = useRef(null);
 
-  // Increased to 150 to accommodate the handle, peek info, and profile buttons 
-  // without clipping at the bottom of the screen.
-  const peekHeight = 150;
+  const peekHeight = window.innerWidth >= 1024 ? 210 : 150;
 
   const lastAnnouncedRouteIdRef = useRef(null);
   const pendingRouteSummaryRef = useRef(null);
@@ -812,7 +838,6 @@ const Legend = forwardRef(function Legend(
   const hasRoute = route && route.totalDistance;
   const distMeters = hasRoute ? route.totalDistance : null;
   const isFallback = route?.isFallback || false;
-  const profile = PROFILE_CONFIG[activeProfile] || PROFILE_CONFIG.standard;
   const hasWarnings = warnings.length > 0;
   const hasAlts = alternatives.length > 0;
   const estimatedTime = hasRoute
@@ -820,6 +845,8 @@ const Legend = forwardRef(function Legend(
     : null;
   const carTime = hasRoute ? formatTravelTime(distMeters, "car") : null;
   const walkTime = hasRoute ? formatTravelTime(distMeters, "walk") : null;
+  const cycleTime = hasRoute ? formatTravelTime(distMeters, "bicycle") : null;
+  const jogTime = hasRoute ? formatTravelTime(distMeters, "jogging") : null;
   const traffic = getTrafficInfo();
 
   const getBarWidth = () => {
@@ -830,19 +857,20 @@ const Legend = forwardRef(function Legend(
     return "50%";
   };
 
-  const ProfileIcon = profile.icon;
-  const currentVehicle = {
-    walk: { icon: "🚶", label: "Walk" },
-    car: { icon: "🚗", label: "Drive" },
-    motorcycle: { icon: "🏍️", label: "Ride" },
-  }[vehicleMode] || { icon: "🚶", label: "Walk" };
+  const vehicleConfig = MODE_CONFIG[vehicleMode] || MODE_CONFIG.walk;
+  const VehicleIcon = vehicleConfig.icon;
+
+  const compareMode = vehicleMode === "walk" ? "bicycle" : "walk";
+  const CompareIcon = compareMode === "bicycle" ? IconBicycle : IconWalk;
+  const compareTime = compareMode === "bicycle" ? cycleTime : walkTime;
+  const compareLabel = compareMode === "bicycle" ? "Cycle" : "Walk";
 
   return (
     <div
       ref={sheetRef}
       className={`legend-sheet ${expanded ? "legend-sheet--expanded" : "legend-sheet--peek"}`}
     >
-      {/* ── Drag zone (handle + peek row + collapsed profiles) ───────────── */}
+      {/* ── Unified top area: handle, mode strip (with ETA), peek hint, profiles ── */}
       <div
         ref={headerRef}
         className="legend-drag-header"
@@ -854,27 +882,43 @@ const Legend = forwardRef(function Legend(
           <div className="legend-handle" />
         </div>
 
-        {/* ── From → To row with ETA ──────────────────────────────────── */}
-        <div className="legend-peek">
-          <div className="legend-peek-dots">
-            <span className="peek-dot peek-dot--start" />
-            <div className="peek-dot-line" />
-            <span className="peek-dot peek-dot--dest" />
-          </div>
-          <div className="legend-peek-text">
-            <span className="peek-from">{startText || "Start"}</span>
-            <span className="peek-arrow">→</span>
-            <span className="peek-to">{destText || "Destination"}</span>
-          </div>
-          {hasRoute && (
-            <div className="legend-peek-time">
-              <span className="peek-time-value">{estimatedTime}</span>
-              <span className="peek-time-label">{currentVehicle.label}</span>
-            </div>
-          )}
+        {/* Mode strip */}
+        <div
+          className="legend-mode-strip"
+          onMouseDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+        >
+          {MODES.map((m) => {
+            const MIcon = m.icon;
+            const isActive = vehicleMode === m.key;
+            return (
+                <button
+                  key={m.key}
+                  className={`legend-mode-btn ${isActive ? "legend-mode-btn--active" : ""}`}
+                  style={{ '--mode-color': m.color }}
+                  onClick={() => onVehicleModeChange?.(m.key)}
+                  title={m.label}
+                  aria-label={`Switch to ${m.label}`}
+                >
+                <MIcon
+                  className="w-5 h-5"
+                  color={isActive ? m.color : "#9ca3af"}
+                />
+                <span className="legend-mode-label">{m.label}</span>
+              </button>
+            );
+          })}
         </div>
 
-        {/* ── Collapsed profile switcher — always visible without expanding ── */}
+        {/* Peek hint (only when no route) */}
+        {!hasRoute && (
+          <div className="legend-peek-hint">
+            <IconSearch className="w-4 h-4" color="#9ca3af" />
+            <span>Search for a destination to get directions</span>
+          </div>
+        )}
+
+        {/* Profile pills (always visible when route exists) */}
         {hasRoute && (
           <div
             className="legend-peek-profiles"
@@ -899,7 +943,7 @@ const Legend = forwardRef(function Legend(
                       color={isActive ? p.color : "currentColor"}
                     />
                   </span>
-                  <span style={{ fontSize: '10px', marginTop: '2px' }}>{p.label}</span>
+                  <span className="legend-profile-label">{p.label}</span>
                 </button>
               );
             })}
@@ -907,269 +951,278 @@ const Legend = forwardRef(function Legend(
         )}
       </div>
 
-      {/* ── Expanded body ───────────────────────────────────────────────── */}
+      {/* ── Expanded body with tabs ──────────────────────────────────────── */}
       {expanded && (
         <div className="legend-body">
-          <div className="legend-profile">
-            <span className="profile-icon">
-              <ProfileIcon className="w-4 h-4" color={profile.color} />
-            </span>
-            <span className="profile-label" style={{ color: profile.color }}>
-              {profile.label} Route
-            </span>
-            {isFallback && (
-              <span className="legend-badge legend-badge--warn">
-                Direct path
-              </span>
-            )}
-          </div>
-
-          <button
-            className={`legend-voice-btn ${isVoiceEnabled ? "legend-voice-btn--active" : ""}`}
-            onClick={handleVoiceToggle}
-            title={
-              isVoiceEnabled
-                ? "Disable voice guidance"
-                : "Enable voice guidance"
-            }
-            aria-pressed={isVoiceEnabled}
-          >
-            <span className="voice-text">
-              {isVoiceEnabled ? "Voice guidance ON" : "Voice guidance OFF"}
-            </span>
-            <span className="voice-status">{isVoiceEnabled ? "🔊" : "🔇"}</span>
-          </button>
-
-          <WeatherBanner />
-
-          <div className="legend-divider" />
-
-          {hasRoute && (
-            <>
-              <div className="legend-stats-grid">
-                <div className="legend-stat-card">
-                  <span className="stat-card-icon">
-                    <IconWalk className="w-5 h-5" color="#22c55e" />
-                  </span>
-                  <div className="stat-card-info">
-                    <span className="stat-card-value">{walkTime}</span>
-                    <span className="stat-card-label">Walk</span>
-                  </div>
-                </div>
-                <div className="legend-stat-divider" />
-                <div className="legend-stat-card">
-                  <span className="stat-card-icon">
-                    <IconCar className="w-5 h-5" color="#f59e0b" />
-                  </span>
-                  <div className="stat-card-info">
-                    <span className="stat-card-value">{carTime}</span>
-                    <span className="stat-card-label">Drive</span>
-                  </div>
-                </div>
-                <div className="legend-stat-divider" />
-                <div className="legend-stat-card">
-                  <span className="stat-card-icon">
-                    <IconRuler className="w-5 h-5" color="#3b82f6" />
-                  </span>
-                  <div className="stat-card-info">
-                    <span className="stat-card-value">
-                      {formatDistance(distMeters)}
-                    </span>
-                    <span className="stat-card-label">Distance</span>
-                  </div>
-                </div>
+          {!hasRoute ? (
+            <div className="legend-empty-route">
+              <div className="empty-route-icon">
+                <IconSearch className="w-10 h-10" color="#d1d5db" />
               </div>
-
-              <div className="legend-traffic">
-                <div className="legend-traffic-icon">
-                  <span>{traffic.icon}</span>
-                </div>
-                <div className="legend-traffic-info">
-                  <span className="legend-traffic-label">Traffic</span>
-                  <span className="legend-traffic-value">{traffic.level}</span>
-                </div>
-                <div className="legend-traffic-bar">
-                  <div
-                    className={`legend-traffic-bar-fill ${traffic.level.toLowerCase().replace(" ", "-")}`}
-                    style={{ width: getBarWidth() }}
-                  />
-                </div>
-              </div>
-            </>
-          )}
-
-          {showHeatmap && (
-            <>
-              <div className="legend-heatmap">
-                <div className="legend-heatmap-header">
-                  <span className="legend-heatmap-title">
-                    Popular Routes
-                  </span>
-                </div>
-
-                <div className="legend-heatmap-pills">
-                  {TIME_SLOTS.map((slot) => (
-                    <button
-                      key={slot.label}
-                      className={`legend-heatmap-pill ${selectedHour === slot.hour ? "legend-heatmap-pill--active" : ""}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelectedHourChange?.(slot.hour);
-                      }}
-                    >
-                      {slot.label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="legend-heatmap-stats">
-                  {!heatmapBounds ? (
-                    <span className="heatmap-empty">Move map to see data</span>
-                  ) : heatmapPointCount > 0 ? (
-                    <span>{heatmapPointCount.toLocaleString()} data point{heatmapPointCount !== 1 ? 's' : ''}</span>
-                  ) : (
-                    <span className="heatmap-empty">No data yet</span>
-                  )}
-                  {heatmapLastRefresh && (
-                    <span className="heatmap-refresh-time">
-                      Updated {heatmapLastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  )}
-                </div>
-
-                <div className="legend-heatmap-legend">
-                  <span className="heatmap-legend-label">Low</span>
-                  <div className="heatmap-legend-bar" />
-                  <span className="heatmap-legend-label">High</span>
-                </div>
-              </div>
-              <div className="legend-divider" />
-            </>
-          )}
-
-          {directions.length > 0 && (
-            <div className="legend-directions-section">
-              <div className="legend-directions-header">
-                <span className="directions-title">Directions</span>
-                <span className="directions-steps-count">
-                  {directions.length - 1} turns
-                </span>
-              </div>
-              <div className="legend-directions-list" ref={directionsRef}>
-                {directions.map((step, idx) => (
-                  <div
-                    key={idx}
-                    data-step-index={idx}
-                    className={`legend-direction-step
-                      ${currentStepIndex === idx ? "legend-direction-step--active" : ""}
-                      ${step.isDestination ? "legend-direction-step--destination" : ""}`}
-                  >
-                    <div className="direction-icon">
-                      {getDirectionIcon(
-                        step.maneuver,
-                        idx === 0,
-                        step.isDestination,
-                      )}
-                    </div>
-                    <div className="direction-content">
-                      <div className="direction-instruction">
-                        {step.instruction}
-                      </div>
-                      {!step.isDestination && step.distance > 0 && (
-                        <div className="direction-distance">
-                          {formatDistance(step.distance)}
-                        </div>
-                      )}
-                    </div>
-                    {currentStepIndex === idx && (
-                      <div className="direction-active-indicator" />
-                    )}
-                  </div>
-                ))}
-              </div>
+              <h3 className="empty-route-title">Be in the know</h3>
+              <p className="empty-route-text">
+                Tap the search bar to find places on campus and get step-by-step directions.
+              </p>
             </div>
-          )}
-
-          <button className="legend-share-btn" onClick={handleShareLocation}>
-            <span className="share-icon">
-              <IconShare className="w-4 h-4" color="#3b82f6" />
-            </span>
-            <span>Share my location</span>
-          </button>
-
-          {hasAlts && (
+          ) : (
             <>
-              <div className="legend-divider" />
-              <p className="legend-alts-label">Alternative routes</p>
-              <div className="legend-alts">
-                <div
-                  className={`legend-alt ${activeAlternativeIndex === 0 ? "legend-alt--active" : ""} ${focus.isFocused("legendItem", "alt-0") ? "item--focused" : ""}`}
-                  onClick={() => {
-                    focus.setFocus("legendItem", "alt-0", "legend");
-                    onSelectAlternative?.(0);
-                  }}
+              {/* Tab bar — 2 tabs */}
+              <div className="legend-tab-bar">
+                <button
+                  className={`legend-tab ${activeTab === "stats" ? "legend-tab--active" : ""}`}
+                  onClick={(e) => { e.stopPropagation(); setActiveTab("stats"); }}
                 >
-                  <span className="alt-line alt-line--primary" />
-                  <div className="alt-info">
-                    <span className="alt-name">Recommended</span>
-                    <span className="alt-time">{estimatedTime}</span>
+                  <IconChartBar className="w-4 h-4" />
+                  <span>Stats</span>
+                </button>
+                <button
+                  className={`legend-tab ${activeTab === "directions" ? "legend-tab--active" : ""}`}
+                  onClick={(e) => { e.stopPropagation(); setActiveTab("directions"); }}
+                >
+                  <IconDirections className="w-4 h-4" />
+                  <span>Directions</span>
+                </button>
+              </div>
+
+              {/* Tab: Stats — dynamic comparisons, no mode self-reference */}
+              {activeTab === "stats" && (
+                <div className="legend-tab-content">
+                  <div className="legend-stats-grid">
+                    <div className="legend-stat-card">
+                      <span className="stat-card-icon">
+                        <VehicleIcon className="w-5 h-5" color={vehicleConfig.color} />
+                      </span>
+                      <div className="stat-card-info">
+                        <span className="stat-card-value">{estimatedTime}</span>
+                        <span className="stat-card-label">{vehicleConfig.label}</span>
+                      </div>
+                    </div>
+                    <div className="legend-stat-divider" />
+                    <div className="legend-stat-card">
+                      <span className="stat-card-icon">
+                        <CompareIcon className="w-5 h-5" color={compareMode === "bicycle" ? "#3b82f6" : "#22c55e"} />
+                      </span>
+                      <div className="stat-card-info">
+                        <span className="stat-card-value">{compareTime}</span>
+                        <span className="stat-card-label">{compareLabel}</span>
+                      </div>
+                    </div>
+                    <div className="legend-stat-divider" />
+                    <div className="legend-stat-card">
+                      <span className="stat-card-icon">
+                        <IconRuler className="w-5 h-5" color="#3b82f6" />
+                      </span>
+                      <div className="stat-card-info">
+                        <span className="stat-card-value">{formatDistance(distMeters)}</span>
+                        <span className="stat-card-label">Distance</span>
+                      </div>
+                    </div>
                   </div>
-                  <span className="alt-dist">{formatDistance(distMeters)}</span>
+
+                  <div className="legend-stats-row">
+                    <div className="legend-stat-mini">
+                      <IconFlame className="w-4 h-4" color="#ef4444" />
+                      <span className="stat-mini-label">Calories</span>
+                      <span className="stat-mini-value">—</span>
+                    </div>
+                    <div className="legend-stat-mini">
+                      <IconMountain className="w-4 h-4" color="#8b5cf6" />
+                      <span className="stat-mini-label">Elevation</span>
+                      <span className="stat-mini-value">—</span>
+                    </div>
+                    <div className="legend-stat-mini">
+                      <IconSteps className="w-4 h-4" color="#f59e0b" />
+                      <span className="stat-mini-label">Steps</span>
+                      <span className="stat-mini-value">—</span>
+                    </div>
+                    <div className="legend-stat-mini">
+                      <IconRoad className="w-4 h-4" color="#6b7280" />
+                      <span className="stat-mini-label">Surface</span>
+                      <span className="stat-mini-value">Mixed</span>
+                    </div>
+                  </div>
+
+                  <div className="legend-traffic">
+                    <div className="legend-traffic-info">
+                      <span className="legend-traffic-label">Traffic</span>
+                      <span className="legend-traffic-value">{traffic.level}</span>
+                    </div>
+                    <div className="legend-traffic-bar">
+                      <div
+                        className={`legend-traffic-bar-fill ${traffic.level.toLowerCase().replace(" ", "-")}`}
+                        style={{ width: getBarWidth() }}
+                      />
+                    </div>
+                  </div>
+
+                  <WeatherBanner />
                 </div>
-                {alternatives.map((alt, i) => (
-                  <div
-                    key={i}
-                    className={`legend-alt ${activeAlternativeIndex === i + 1 ? "legend-alt--active" : ""} ${focus.isFocused("legendItem", `alt-${i + 1}`) ? "item--focused" : ""}`}
-                    onClick={() => {
-                      focus.setFocus("legendItem", `alt-${i + 1}`, "legend");
-                      onSelectAlternative?.(i + 1);
-                    }}
-                  >
-                    <span className="alt-line alt-line--secondary" />
-                    <div className="alt-info">
-                      <span className="alt-name">Alternative {i + 1}</span>
-                      <span className="alt-time">
-                        {formatTravelTime(alt.totalDistance, vehicleMode)}
-                      </span>
-                    </div>
-                    <span className="alt-dist">
-                      {formatDistance(alt.totalDistance)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
+              )}
 
-          {hasWarnings && (
-            <>
-              <div className="legend-divider" />
-              <div className="legend-warnings">
-                {warnings.map((w, i) => {
-                  const WarningIcon =
-                    w.type === "danger" ? IconWarning : IconInfo;
-                  const warningColor =
-                    w.type === "danger" ? "#ef4444" : "#3b82f6";
-                  return (
-                    <div
-                      key={i}
-                      className={`legend-warning legend-warning--${w.type || "info"}`}
+              {/* Tab: Directions — voice + share + directions + alternatives */}
+              {activeTab === "directions" && (
+                <div className="legend-tab-content">
+                  <div className="legend-voice-row">
+                    <button
+                      className={`legend-voice-btn ${isVoiceEnabled ? "legend-voice-btn--active" : ""}`}
+                      onClick={handleVoiceToggle}
+                      title={isVoiceEnabled ? "Disable voice guidance" : "Enable voice guidance"}
+                      aria-pressed={isVoiceEnabled}
                     >
-                      <span className="warning-icon">
-                        <WarningIcon className="w-4 h-4" color={warningColor} />
-                      </span>
-                      <span className="warning-text">{w.message}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
+                      <IconSpeakerWave className="w-4 h-4" color={isVoiceEnabled ? "#3b82f6" : "#9ca3af"} />
+                      <span>{isVoiceEnabled ? "Voice guidance ON" : "Voice guidance OFF"}</span>
+                    </button>
+                  </div>
 
-          {isFallback && (
-            <div className="legend-fallback-note">
-              ⚡ Direct connection used — small gap in road data
-            </div>
+                  {directions.length > 0 ? (
+                    <div className="legend-directions-section">
+                      <div className="legend-directions-header">
+                        <span className="directions-title">Directions</span>
+                        <span className="directions-steps-count">
+                          {directions.length - 1} turns
+                        </span>
+                      </div>
+                      <div className="legend-directions-list" ref={directionsRef}>
+                        {directions.map((step, idx) => (
+                          <div
+                            key={idx}
+                            data-step-index={idx}
+                            className={`legend-direction-step
+                              ${currentStepIndex === idx ? "legend-direction-step--active" : ""}
+                              ${step.isDestination ? "legend-direction-step--destination" : ""}`}
+                          >
+                            <div className="direction-icon">
+                              {getDirectionIcon(step.maneuver, idx === 0, step.isDestination)}
+                            </div>
+                            <div className="direction-content">
+                              <div className="direction-instruction">{step.instruction}</div>
+                              {!step.isDestination && step.distance > 0 && (
+                                <div className="direction-distance">{formatDistance(step.distance)}</div>
+                              )}
+                            </div>
+                            {currentStepIndex === idx && (
+                              <div className="direction-active-indicator" />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="legend-empty-state">No directions available</div>
+                  )}
+
+                  {hasAlts && (
+                    <>
+                      <div className="legend-divider" />
+                      <p className="legend-alts-label">Alternative routes</p>
+                      <div className="legend-alts">
+                        <div
+                          className={`legend-alt ${activeAlternativeIndex === 0 ? "legend-alt--active" : ""} ${focus.isFocused("legendItem", "alt-0") ? "item--focused" : ""}`}
+                          onClick={() => { focus.setFocus("legendItem", "alt-0", "legend"); onSelectAlternative?.(0); }}
+                        >
+                          <span className="alt-line alt-line--primary" />
+                          <div className="alt-info">
+                            <span className="alt-name">Recommended</span>
+                            <span className="alt-time">{estimatedTime}</span>
+                          </div>
+                          <span className="alt-dist">{formatDistance(distMeters)}</span>
+                        </div>
+                        {alternatives.map((alt, i) => (
+                          <div
+                            key={i}
+                            className={`legend-alt ${activeAlternativeIndex === i + 1 ? "legend-alt--active" : ""} ${focus.isFocused("legendItem", `alt-${i + 1}`) ? "item--focused" : ""}`}
+                            onClick={() => { focus.setFocus("legendItem", `alt-${i + 1}`, "legend"); onSelectAlternative?.(i + 1); }}
+                          >
+                            <span className="alt-line alt-line--secondary" />
+                            <div className="alt-info">
+                              <span className="alt-name">Alternative {i + 1}</span>
+                              <span className="alt-time">{formatTravelTime(alt.totalDistance, vehicleMode)}</span>
+                            </div>
+                            <span className="alt-dist">{formatDistance(alt.totalDistance)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  <button className="legend-share-btn" onClick={handleShareLocation}>
+                    <span className="share-icon">
+                      <IconShare className="w-4 h-4" color="#3b82f6" />
+                    </span>
+                    <span>Share my location</span>
+                  </button>
+
+                  {isFallback && (
+                    <div className="legend-fallback-note">
+                      ⚡ Direct connection used — small gap in road data
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Warnings (always visible regardless of tab) ── */}
+              {hasWarnings && (
+                <>
+                  <div className="legend-divider" />
+                  <div className="legend-warnings">
+                    {warnings.map((w, i) => {
+                      const WarningIcon = w.type === "danger" ? IconWarning : IconInfo;
+                      const warningColor = w.type === "danger" ? "#ef4444" : "#3b82f6";
+                      return (
+                        <div key={i} className={`legend-warning legend-warning--${w.type || "info"}`}>
+                          <span className="warning-icon">
+                            <WarningIcon className="w-4 h-4" color={warningColor} />
+                          </span>
+                          <span className="warning-text">{w.message}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              {/* ── Heatmap ── */}
+              {showHeatmap && (
+                <>
+                  <div className="legend-divider" />
+                  <div className="legend-heatmap">
+                    <div className="legend-heatmap-header">
+                      <span className="legend-heatmap-title">Popular Routes</span>
+                    </div>
+                    <div className="legend-heatmap-pills">
+                      {TIME_SLOTS.map((slot) => (
+                        <button
+                          key={slot.label}
+                          className={`legend-heatmap-pill ${selectedHour === slot.hour ? "legend-heatmap-pill--active" : ""}`}
+                          onClick={(e) => { e.stopPropagation(); onSelectedHourChange?.(slot.hour); }}
+                        >
+                          {slot.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="legend-heatmap-stats">
+                      {!heatmapBounds ? (
+                        <span className="heatmap-empty">Move map to see data</span>
+                      ) : heatmapPointCount > 0 ? (
+                        <span>{heatmapPointCount.toLocaleString()} data point{heatmapPointCount !== 1 ? 's' : ''}</span>
+                      ) : (
+                        <span className="heatmap-empty">No data yet</span>
+                      )}
+                      {heatmapLastRefresh && (
+                        <span className="heatmap-refresh-time">
+                          Updated {heatmapLastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
+                    <div className="legend-heatmap-legend">
+                      <span className="heatmap-legend-label">Low</span>
+                      <div className="heatmap-legend-bar" />
+                      <span className="heatmap-legend-label">High</span>
+                    </div>
+                  </div>
+                </>
+              )}
+            </>
           )}
         </div>
       )}

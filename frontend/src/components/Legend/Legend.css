@@ -121,7 +121,7 @@
 }
 
 .legend-handle {
-  width: 38px;
+  width: 48px;
   height: 5px;
   background: rgba(0, 0, 0, 0.15);
   border-radius: 10px;
@@ -131,12 +131,12 @@
 }
 
 .legend-handle-wrap:hover .legend-handle {
-  width: 44px;
+  width: 56px;
   background: rgba(0, 0, 0, 0.25);
 }
 
 .legend-handle-wrap:active .legend-handle {
-  width: 48px;
+  width: 64px;
   background: rgba(37, 99, 235, 0.4);
   transform: scaleY(1.2);
 }
@@ -151,38 +151,6 @@
 
 .ug-root.dark .legend-handle-wrap:active .legend-handle {
   background: rgba(96, 165, 250, 0.5);
-}
-
-/* ── Peek row ────────────────────────────────────────────────────────────── */
-.legend-peek {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 6px 20px 8px; 
-  cursor: pointer;
-  flex-shrink: 0;
-  border-radius: 20px;
-  margin: 0 4px;
-  transition: background 0.18s ease, transform 0.2s cubic-bezier(0.2, 0.9, 0.4, 1.1);
-}
-
-.legend-peek:hover {
-  background: rgba(255, 255, 255, 0.45);
-  transform: scale(1.005);
-}
-
-.legend-peek:active {
-  background: rgba(0, 0, 0, 0.03);
-  transform: scale(0.998);
-  transition-duration: 0.05s;
-}
-
-.ug-root.dark .legend-peek:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.ug-root.dark .legend-peek:active {
-  background: rgba(255, 255, 255, 0.04);
 }
 
 /* ── Draggable expanded header ───────────────────────────────────────────── */
@@ -201,95 +169,6 @@
 
 .ug-root.dark .legend-drag-header:active {
   background: rgba(255, 255, 255, 0.03);
-}
-
-/* ── Route dots ──────────────────────────────────────────────────────────── */
-.legend-peek-dots {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  width: 12px;
-}
-
-.peek-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  border: 2px solid #fff;
-  transition: transform 0.2s cubic-bezier(0.2, 0.9, 0.4, 1.1);
-}
-
-.legend-peek:hover .peek-dot {
-  transform: scale(1.2);
-}
-
-.peek-dot--start { 
-  background: #2563eb;
-  box-shadow: 0 0 0 2.5px rgba(37, 99, 235, 0.18);
-}
-
-.peek-dot--dest {
-  background: #22c55e;
-  box-shadow: 0 0 0 2.5px rgba(34, 197, 94, 0.18);
-}
-
-.peek-dot-line {
-  width: 2px;
-  height: 10px;
-  background: rgba(0, 0, 0, 0.12);
-  border-radius: 1px;
-}
-
-.ug-root.dark .peek-dot-line {
-  background: rgba(255, 255, 255, 0.18);
-}
-
-/* ── Peek text ───────────────────────────────────────────────────────────── */
-.legend-peek-text {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.peek-from,
-.peek-to {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 110px;
-}
-
-.peek-arrow {
-  font-size: 12px;
-  color: var(--sub);
-  flex-shrink: 0;
-  opacity: 0.6;
-}
-
-.legend-peek-time {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  flex-shrink: 0;
-}
-
-.peek-time-value {
-  font-size: 15px;
-  font-weight: 800;
-  color: #2563eb;
-  line-height: 1;
-}
-
-.peek-time-label {
-  font-size: 9px;
-  color: var(--sub);
-  margin-top: 1px;
 }
 
 /* ── Scrollable content ──────────────────────────────────────────────────── */
@@ -453,16 +332,17 @@
 .legend-voice-btn {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
+  gap: 6px;
   width: 100%;
   padding: 10px 16px;
-  margin: 8px 0 4px;
+  margin: 0 0 12px;
   background: rgba(255, 255, 255, 0.5);
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
   border: 0.5px solid rgba(255, 255, 255, 0.5);
   border-radius: 40px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--text);
   cursor: pointer;
@@ -1210,39 +1090,40 @@
   align-items: flex-start;
   gap: 10px;
   padding: 10px 14px;
-  border-radius: 14px;
+  border-radius: 12px;
   font-size: 12px;
   line-height: 1.4;
-  background: rgba(255, 255, 255, 0.35);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 0.5px solid rgba(255, 255, 255, 0.45);
+  border: none;
   animation: item-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.ug-root.dark .legend-warning {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.07);
-}
-
 .legend-warning--danger {
-  border-left: 2.5px solid #ef4444;
+  background: rgba(239, 68, 68, 0.06);
   color: #dc2626;
 }
 
 .legend-warning--warn {
-  border-left: 2.5px solid #f59e0b;
+  background: rgba(245, 158, 11, 0.06);
   color: #d97706;
 }
 
 .legend-warning--info {
-  border-left: 2.5px solid #2563eb;
+  background: rgba(37, 99, 235, 0.06);
   color: #2563eb;
 }
 
-.ug-root.dark .legend-warning--danger { color: #f87171; }
-.ug-root.dark .legend-warning--warn   { color: #fbbf24; }
-.ug-root.dark .legend-warning--info   { color: #60a5fa; }
+.ug-root.dark .legend-warning--danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+}
+.ug-root.dark .legend-warning--warn {
+  background: rgba(245, 158, 11, 0.1);
+  color: #fbbf24;
+}
+.ug-root.dark .legend-warning--info {
+  background: rgba(96, 165, 250, 0.1);
+  color: #60a5fa;
+}
 
 .warning-icon {
   display: flex;
@@ -1298,21 +1179,299 @@ body.dragging-legend .leaflet-container {
 }
 
 /* ── Dark mode text overrides ────────────────────────────────────────────── */
-.ug-root.dark .peek-from,
-.ug-root.dark .peek-to,
-.ug-root.dark .peek-time-value,
 .ug-root.dark .stat-card-value,
-.ug-root.dark .profile-label,
+.ug-root.dark .stat-mini-value,
 .ug-root.dark .directions-title,
 .ug-root.dark .direction-instruction,
 .ug-root.dark .legend-traffic-value,
 .ug-root.dark .legend-heatmap-title { color: #f3f4f6; }
 
-.ug-root.dark .peek-arrow,
-.ug-root.dark .peek-time-label,
 .ug-root.dark .stat-card-label,
+.ug-root.dark .stat-mini-label,
 .ug-root.dark .direction-distance,
 .ug-root.dark .legend-traffic-label { color: #9ca3af; }
+
+/* ── Mode strip ──────────────────────────────────────────────────────────── */
+.legend-mode-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 12px 0;
+  flex-shrink: 0;
+}
+
+.legend-mode-btn {
+  flex: 1;
+  min-width: 56px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 4px 10px;
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.legend-mode-btn::after {
+  content: '';
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--mode-color);
+  transition: width 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.legend-mode-btn:hover {
+  color: #6b7280;
+}
+
+.legend-mode-btn:active {
+  transform: scale(0.95);
+  transition-duration: 0.05s;
+}
+
+.legend-mode-btn--active {
+  color: var(--mode-color);
+}
+
+.legend-mode-btn--active::after {
+  width: 20px;
+}
+
+.legend-mode-label {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+
+.ug-root.dark .legend-mode-btn {
+  color: #6b7280;
+  background: transparent;
+}
+
+.ug-root.dark .legend-mode-btn:hover {
+  color: #9ca3af;
+}
+
+.ug-root.dark .legend-mode-btn--active {
+  color: var(--mode-color);
+}
+
+/* ── Peek affordance hint (no route set) ──────────────────────────────────── */
+.legend-peek-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  color: #9ca3af;
+  font-size: 13px;
+  font-weight: 500;
+  flex: 1;
+}
+
+.legend-peek-hint svg {
+  flex-shrink: 0;
+}
+
+.ug-root.dark .legend-peek-hint {
+  color: #6b7280;
+}
+
+/* ── Empty route state "Be in the know" ──────────────────────────────────── */
+.legend-empty-route {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 40px 24px;
+  animation: body-fade 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.empty-route-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.03);
+  margin-bottom: 16px;
+}
+
+.empty-route-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 6px;
+}
+
+.empty-route-text {
+  font-size: 13px;
+  color: var(--sub);
+  line-height: 1.5;
+  max-width: 260px;
+  margin: 0;
+}
+
+.ug-root.dark .empty-route-icon {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.ug-root.dark .empty-route-title { color: #f3f4f6; }
+.ug-root.dark .empty-route-text { color: #9ca3af; }
+
+/* ── Tab bar ────────────────────────────────────────────────────────────────── */
+.legend-tab-bar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+  padding: 0 4px;
+  flex-shrink: 0;
+}
+
+.legend-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 8px;
+  border-radius: 16px;
+  border: 1.5px solid transparent;
+  background: rgba(0, 0, 0, 0.03);
+  color: #9ca3af;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.legend-tab:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #6b7280;
+}
+
+.legend-tab:active {
+  transform: scale(0.96);
+  transition-duration: 0.05s;
+}
+
+.legend-tab--active {
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.2);
+  color: #2563eb;
+}
+
+.legend-tab--active:hover {
+  background: rgba(37, 99, 235, 0.12);
+}
+
+.ug-root.dark .legend-tab {
+  background: rgba(255, 255, 255, 0.05);
+  color: #6b7280;
+}
+
+.ug-root.dark .legend-tab:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #9ca3af;
+}
+
+.ug-root.dark .legend-tab--active {
+  background: rgba(96, 165, 250, 0.12);
+  border-color: rgba(96, 165, 250, 0.3);
+  color: #60a5fa;
+}
+
+/* ── Tab content ────────────────────────────────────────────────────────────── */
+.legend-tab-content {
+  animation: body-fade 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ── Stats row (calories, elevation, steps, surface) ────────────────────────── */
+.legend-stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 0;
+}
+
+.legend-stat-mini {
+  flex: 1;
+  min-width: 70px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 4px;
+  background: rgba(255, 255, 255, 0.35);
+  border-radius: 14px;
+  border: 0.5px solid rgba(255, 255, 255, 0.4);
+  animation: item-in 0.3s 0.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.legend-stat-mini svg {
+  width: 18px;
+  height: 18px;
+}
+
+.stat-mini-label {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--sub);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.stat-mini-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.ug-root.dark .legend-stat-mini {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* ── Voice row ──────────────────────────────────────────────────────────────── */
+.legend-voice-row {
+  margin-bottom: 12px;
+}
+
+.legend-voice-row .legend-voice-btn {
+  margin: 0;
+}
+
+/* ── Profile label ──────────────────────────────────────────────────────────── */
+.legend-profile-label {
+  font-size: 10px;
+  margin-top: 2px;
+}
+
+/* ── Empty state ────────────────────────────────────────────────────────────── */
+.legend-empty-state {
+  padding: 32px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--sub);
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 16px;
+  border: 0.5px solid rgba(255, 255, 255, 0.4);
+}
+
+.ug-root.dark .legend-empty-state {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.07);
+}
 
 /* ── Mobile ──────────────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
@@ -1320,15 +1479,6 @@ body.dragging-legend .leaflet-container {
     border-radius: 20px 20px 0 0;
     max-height: 70vh;
   }
-
-  .legend-peek { padding: 6px 14px 10px; }
-
-  .peek-from,
-  .peek-to { max-width: 90px; font-size: 12px; }
-
-  .peek-arrow { font-size: 10px; }
-
-  .peek-time-value { font-size: 13px; }
 
   .legend-body { padding: 0 14px 20px; }
 
@@ -1360,15 +1510,27 @@ body.dragging-legend .leaflet-container {
 
   .legend-warning { padding: 8px 10px; font-size: 11px; }
   .warning-icon svg { width: 12px; height: 12px; }
-}
 
-@media (max-width: 480px) {
-  .peek-from,
-  .peek-to { max-width: 70px; font-size: 11px; }
+  /* Mode strip mobile — compact floating pills */
+  .legend-mode-strip { padding: 4px 8px 0; gap: 4px; }
+  .legend-mode-btn { padding: 6px 2px 8px; min-width: 40px; }
+  .legend-mode-btn svg { width: 18px; height: 18px; }
+  .legend-mode-label { font-size: 8px; }
 
-  .legend-stats-grid { flex-wrap: wrap; gap: 8px; }
-  .legend-stat-divider { display: none; }
-  .legend-stat-card { flex: 0 0 calc(33% - 8px); }
+  /* Voice button mobile — compact height */
+  .legend-voice-btn { padding: 8px 14px; font-size: 11px; }
+  .legend-voice-btn svg { width: 14px; height: 14px; }
+
+  /* Tab bar mobile */
+  .legend-tab-bar { gap: 4px; }
+  .legend-tab { padding: 8px 6px; font-size: 11px; }
+  .legend-tab svg { width: 14px; height: 14px; }
+
+  /* Stats row mobile */
+  .legend-stats-row { gap: 4px; }
+  .legend-stat-mini { padding: 8px 2px; min-width: 56px; }
+  .legend-stat-mini svg { width: 14px; height: 14px; }
+  .stat-mini-value { font-size: 11px; }
 }
 
 /* ── Desktop ─────────────────────────────────────────────────────────────── */
@@ -1381,7 +1543,6 @@ body.dragging-legend .leaflet-container {
     border-radius: 28px 28px 0 0;
   }
 
-  /* Keep the X centering during all states */
   .legend-sheet.dragging {
     transform: translateX(-50%) !important;
   }
@@ -1394,6 +1555,38 @@ body.dragging-legend .leaflet-container {
     from { transform: translateX(-50%) translateY(110%); opacity: 0; }
     to   { transform: translateX(-50%) translateY(0);    opacity: 1; }
   }
+
+  .legend-mode-btn { padding: 6px 2px 8px; }
+  .legend-mode-btn svg { width: 16px; height: 16px; }
+  .legend-mode-label { font-size: 9px; }
+  .legend-mode-btn::after { height: 3px; }
+  .legend-mode-btn--active::after { width: 20px; }
+
+  .legend-peek-profiles { padding: 2px 16px 10px; }
+  .legend-profile-btn { padding: 8px 4px; font-size: 11px; }
+
+  .stat-card-icon svg { width: 16px; height: 16px; }
+  .stat-card-value { font-size: 13px; }
+  .stat-card-label { font-size: 10px; }
+
+  .legend-stat-mini { padding: 8px 4px; min-width: 64px; }
+  .legend-stat-mini svg { width: 14px; height: 14px; }
+  .stat-mini-value { font-size: 12px; }
+
+  .direction-icon { width: 26px; height: 26px; }
+  .direction-icon svg { width: 13px; height: 13px; }
+  .direction-instruction { font-size: 12px; }
+
+  .legend-voice-btn { padding: 10px 18px; font-size: 12px; }
+  .legend-voice-btn svg { width: 15px; height: 15px; }
+
+  .legend-tab { padding: 8px 12px; font-size: 12px; }
+  .legend-tab svg { width: 14px; height: 14px; }
+
+  .legend-warning { padding: 9px 12px; font-size: 12px; }
+  .warning-icon svg { width: 13px; height: 13px; }
+
+  .legend-share-btn { padding: 9px 14px; font-size: 12px; }
 }
 
 /* ── PWA standalone mode ─────────────────────────────────────────────────── */
@@ -1416,95 +1609,3 @@ body.dragging-legend .leaflet-container {
   }
 }
 
-/* ─── Desktop: Solid panels for readability ─────────────────────────────── */
-@media (min-width: 1024px) {
-  .legend-sheet {
-    background: rgba(255, 255, 255, 0.98) !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    box-shadow: 0 -6px 28px rgba(0, 0, 0, 0.12);
-  }
-
-  /* Dark mode desktop solid */
-  .ug-root.dark .legend-sheet {
-    background: rgba(28, 28, 30, 0.98) !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 -6px 28px rgba(0, 0, 0, 0.4);
-  }
-
-  /* Keep drag handle visible */
-  .legend-handle {
-    background: rgba(0, 0, 0, 0.2);
-  }
-
-  .ug-root.dark .legend-handle {
-    background: rgba(255, 255, 255, 0.25);
-  }
-
-  /* Profile buttons solid */
-  .legend-profile-btn {
-    backdrop-filter: none !important;
-    background: rgba(0, 0, 0, 0.04);
-  }
-
-  .ug-root.dark .legend-profile-btn {
-    background: rgba(255, 255, 255, 0.08);
-  }
-
-  .legend-profile-btn--active {
-    background: rgba(37, 99, 235, 0.12) !important;
-  }
-
-  /* Voice button solid */
-  .legend-voice-btn {
-    backdrop-filter: none !important;
-    background: rgba(0, 0, 0, 0.04);
-  }
-
-  .ug-root.dark .legend-voice-btn {
-    background: rgba(255, 255, 255, 0.08);
-  }
-
-  /* Stats grid solid */
-  .legend-stats-grid {
-    backdrop-filter: none !important;
-    background: rgba(0, 0, 0, 0.03);
-  }
-
-  .ug-root.dark .legend-stats-grid {
-    background: rgba(255, 255, 255, 0.05);
-  }
-
-  /* Directions section solid */
-  .legend-directions-section {
-    backdrop-filter: none !important;
-    background: rgba(0, 0, 0, 0.03);
-  }
-
-  .ug-root.dark .legend-directions-section {
-    background: rgba(255, 255, 255, 0.05);
-  }
-
-  /* Alternative routes solid */
-  .legend-alt {
-    backdrop-filter: none !important;
-    background: rgba(0, 0, 0, 0.03);
-  }
-
-  .ug-root.dark .legend-alt {
-    background: rgba(255, 255, 255, 0.05);
-  }
-
-  /* Share button solid */
-  .legend-share-btn {
-    backdrop-filter: none !important;
-    background: rgba(0, 0, 0, 0.04);
-  }
-
-  .ug-root.dark .legend-share-btn {
-    background: rgba(255, 255, 255, 0.08);
-  }
-}

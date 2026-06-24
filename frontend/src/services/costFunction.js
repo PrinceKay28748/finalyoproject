@@ -49,7 +49,27 @@ export const VEHICLE_MODES = {
     allowedRoads: ['residential', 'service', 'unclassified', 'tertiary', 'secondary', 'primary', 'living_street', 'track', 'cycleway'],
     blockedRoads: ['footway', 'path', 'pedestrian', 'steps', 'motorway', 'motorway_link'],
     baseSpeedMs: 6.94,
-  }
+  },
+  bicycle: {
+    key: 'bicycle',
+    label: 'Bicycle',
+    icon: '🚴',
+    speedKmh: 15,
+    description: 'Cycling routes - prefers cycleways and smooth surfaces',
+    allowedRoads: ['cycleway', 'footway', 'path', 'residential', 'service', 'track', 'living_street', 'unclassified', 'tertiary', 'tertiary_link', 'secondary_link', 'bridleway'],
+    blockedRoads: ['steps', 'pedestrian', 'motorway', 'motorway_link', 'primary', 'secondary'],
+    baseSpeedMs: 4.17,
+  },
+  jogging: {
+    key: 'jogging',
+    label: 'Jogging',
+    icon: '🏃',
+    speedKmh: 10,
+    description: 'Running routes - prefers soft surfaces and shaded paths',
+    allowedRoads: ['footway', 'path', 'pedestrian', 'cycleway', 'residential', 'service', 'track', 'living_street', 'unclassified', 'tertiary_link', 'secondary_link', 'bridleway'],
+    blockedRoads: ['steps', 'motorway', 'motorway_link', 'primary', 'secondary', 'trunk'],
+    baseSpeedMs: 2.78,
+  },
 };
 
 // ─── Default weather multipliers (no weather impact) ──────────────────────────
@@ -192,6 +212,52 @@ const HIGHWAY_BASE_COST_VEHICLE = {
   motorway:       9999,
   motorway_link:  9999,
   connection:     1.3,
+};
+
+const HIGHWAY_BASE_COST_BICYCLE = {
+  cycleway:       0.7,
+  footway:        1.1,
+  path:           1.1,
+  pedestrian:     9999,
+  steps:          9999,
+  bridleway:      1.2,
+  living_street:  1.0,
+  residential:    1.0,
+  service:        1.1,
+  track:          1.4,
+  unclassified:   1.05,
+  tertiary_link:  1.05,
+  secondary_link: 1.1,
+  tertiary:       1.15,
+  secondary:      1.4,
+  primary:        2.0,
+  trunk:          9999,
+  motorway:       9999,
+  motorway_link:  9999,
+  connection:     1.15,
+};
+
+const HIGHWAY_BASE_COST_JOGGING = {
+  footway:        0.9,
+  path:           0.9,
+  pedestrian:     0.95,
+  steps:          1.0,
+  cycleway:       1.0,
+  bridleway:      1.0,
+  living_street:  1.0,
+  residential:    1.05,
+  service:        1.1,
+  track:          1.0,
+  unclassified:   1.1,
+  tertiary_link:  1.15,
+  secondary_link: 1.2,
+  tertiary:       1.3,
+  secondary:      1.5,
+  primary:        2.0,
+  trunk:          9999,
+  motorway:       9999,
+  motorway_link:  9999,
+  connection:     1.1,
 };
 
 // ─── Campus core preference ───────────────────────────────────────────────────
@@ -338,9 +404,16 @@ export function calculateEdgeCost(
 
   const highwayType = tags.highway || edge.type || "residential";
 
-  const baseCostTable = vehicleMode === 'walk'
-    ? HIGHWAY_BASE_COST_WALK
-    : HIGHWAY_BASE_COST_VEHICLE;
+  let baseCostTable;
+  if (vehicleMode === 'walk') {
+    baseCostTable = HIGHWAY_BASE_COST_WALK;
+  } else if (vehicleMode === 'bicycle') {
+    baseCostTable = HIGHWAY_BASE_COST_BICYCLE;
+  } else if (vehicleMode === 'jogging') {
+    baseCostTable = HIGHWAY_BASE_COST_JOGGING;
+  } else {
+    baseCostTable = HIGHWAY_BASE_COST_VEHICLE;
+  }
 
   const highwayCost = baseCostTable[highwayType] ?? 1.3;
 
@@ -348,7 +421,7 @@ export function calculateEdgeCost(
 
   // ── Campus road preference ─────────────────────────────────────────────────
   let campusBonus = 1.0;
-  if (vehicleMode === 'walk') {
+  if (vehicleMode === 'walk' || vehicleMode === 'bicycle' || vehicleMode === 'jogging') {
     const roadName = tags.name || '';
     if      (isCampusCoreRoad(roadName, tags))  campusBonus = CAMPUS_CORE_BONUS;
     else if (isPerimeterRoad(roadName, tags))    campusBonus = PERIMETER_ROAD_PENALTY;
@@ -357,12 +430,31 @@ export function calculateEdgeCost(
   // ── Surface ───────────────────────────────────────────────────────────────
   const surfaceTag     = tags.surface?.toLowerCase() || "unknown";
   const surfacePenalty = SURFACE_PENALTIES[surfaceTag] ?? 1.3;
-  const surfaceCost    = 1 + (surfacePenalty - 1) * w.surface;
+  let surfaceCost    = 1 + (surfacePenalty - 1) * w.surface;
+
+  // Mode-specific surface modifiers
+  if (vehicleMode === 'bicycle') {
+    const unpavedSurfaces = ['grass', 'dirt', 'gravel', 'unpaved', 'ground', 'sand', 'mud'];
+    if (unpavedSurfaces.includes(surfaceTag)) {
+      surfaceCost *= 1.8;
+    }
+  } else if (vehicleMode === 'jogging') {
+    const softSurfaces = ['grass', 'dirt', 'compacted', 'ground', 'fine_gravel', 'track'];
+    if (softSurfaces.includes(surfaceTag)) {
+      surfaceCost *= 0.88;
+    }
+  }
 
   // ── Incline ───────────────────────────────────────────────────────────────
   const inclineCat     = getInclineCategory(tags.incline);
   const inclinePenalty = INCLINE_PENALTIES[inclineCat] ?? 1.0;
-  const inclineCost    = 1 + (inclinePenalty - 1) * w.incline;
+  let inclineCost    = 1 + (inclinePenalty - 1) * w.incline;
+
+  // Cyclists penalize steep inclines more
+  if (vehicleMode === 'bicycle') {
+    if (inclineCat === 'steep') inclineCost *= 1.5;
+    else if (inclineCat === 'very_steep') inclineCost *= 2.0;
+  }
 
   // ── Sidewalk ──────────────────────────────────────────────────────────────
   const sidewalkTag  = tags.sidewalk?.toLowerCase();
@@ -381,26 +473,39 @@ export function calculateEdgeCost(
   }
 
   // ── Traffic ───────────────────────────────────────────────────────────────
-  const trafficCost = getTrafficMultiplier(highwayType, timePeriod, currentHour, w.traffic);
+  let trafficCost = getTrafficMultiplier(highwayType, timePeriod, currentHour, w.traffic);
+
+  // Cyclists and joggers avoid busy roads more
+  if (vehicleMode === 'bicycle' || vehicleMode === 'jogging') {
+    const busyRoads = ['primary', 'secondary', 'tertiary'];
+    if (busyRoads.includes(highwayType)) {
+      trafficCost *= 1.3;
+    }
+  }
 
   // ── Gate ──────────────────────────────────────────────────────────────────
   let gateCost = 1.0;
-  if (vehicleRestricted && vehicleMode !== 'walk') {
+  const nonGateModes = ['car', 'motorcycle'];
+  if (vehicleRestricted && nonGateModes.includes(vehicleMode)) {
     const gate = isEdgeNearGate(edge);
     if (gate?.requiresEcard) gateCost = 9999;
   }
 
-  // ── WEATHER MULTIPLIERS (NEW) ─────────────────────────────────────────────
+  // ── WEATHER MULTIPLIERS ───────────────────────────────────────────────────
   let weatherSurfaceMultiplier = 1.0;
   let weatherLightingMultiplier = 1.0;
   let shadeCost = 1.0;
   let exposedCost = 1.0;
   
   if (weatherMultipliers) {
-    // Check if this edge is unpaved
     const isUnpaved = ['grass', 'dirt', 'gravel', 'unpaved', 'ground', 'sand', 'mud'].includes(surfaceTag);
+
+    // Cyclists and joggers more affected by wet unpaved surfaces
     if (isUnpaved) {
       weatherSurfaceMultiplier = weatherMultipliers.unpavedMultiplier || 1.0;
+      if ((vehicleMode === 'bicycle' || vehicleMode === 'jogging') && weatherMultipliers.unpavedMultiplier > 1.0) {
+        weatherSurfaceMultiplier += (weatherMultipliers.unpavedMultiplier - 1.0) * 0.5;
+      }
     }
     
     // Apply weather lighting multiplier
@@ -408,16 +513,20 @@ export function calculateEdgeCost(
       weatherLightingMultiplier = weatherMultipliers.lightingMultiplier || 1.0;
     }
     
-    // Apply shade bonus for hot weather
+    // Apply shade bonus for hot weather — enhanced for joggers
     const hasShade = tags?.shaded === 'yes' || tags?.trees === 'yes';
     if (hasShade && weatherMultipliers.shadeBonus && weatherMultipliers.shadeBonus < 1.0) {
       shadeCost = weatherMultipliers.shadeBonus;
+      if (vehicleMode === 'jogging') shadeCost *= 0.92;
     }
     
     // Apply exposed penalty for open areas in rain/storm
     const isExposed = tags?.sheltered === 'no' || tags?.trees === 'no';
     if (isExposed) {
       exposedCost = weatherMultipliers.exposedMultiplier || 1.0;
+      if (vehicleMode === 'bicycle' && isUnpaved && weatherMultipliers.exposedMultiplier > 1.0) {
+        exposedCost += (weatherMultipliers.exposedMultiplier - 1.0) * 0.5;
+      }
     }
   }
 
@@ -425,10 +534,19 @@ export function calculateEdgeCost(
   const surfaceCostWithWeather = surfaceCost * weatherSurfaceMultiplier;
   const lightingCostWithWeather = lightingCost * weatherLightingMultiplier;
 
+  // ── Mode-specific highway type bonus ──────────────────────────────────────
+  let modeHighwayBonus = 1.0;
+  if (vehicleMode === 'bicycle' && highwayType === 'cycleway') {
+    modeHighwayBonus = 0.82;
+  } else if (vehicleMode === 'jogging' && (highwayType === 'track' || highwayType === 'path')) {
+    modeHighwayBonus = 0.9;
+  }
+
   // ── Base weighted distance with weather ────────────────────────────────────
   const baseCost =
     distance *
     campusBonus *
+    modeHighwayBonus *
     highwayCost *
     surfaceCostWithWeather *
     inclineCost *
@@ -487,7 +605,7 @@ export function buildRouteContext() {
   };
 }
 
-export function getActiveWarnings(context, profileKey) {
+export function getActiveWarnings(context, profileKey, vehicleMode = "walk") {
   const warnings = [];
   const day       = new Date().getDay();
   const isWeekday = day >= 1 && day <= 5;
@@ -504,6 +622,13 @@ export function getActiveWarnings(context, profileKey) {
 
   if (profileKey === "accessible") {
     warnings.push({ type: "info", icon: "♿", message: "Accessibility mode — steep and unpaved paths avoided" });
+  }
+
+  // Mode-specific warnings
+  if (vehicleMode === 'bicycle') {
+    warnings.push({ type: "info", icon: "🚴", message: "Cycle mode — smooth surfaces and cycleways preferred" });
+  } else if (vehicleMode === 'jogging') {
+    warnings.push({ type: "info", icon: "🏃", message: "Jogging mode — soft surfaces and shaded paths preferred" });
   }
 
   const isPeakHour = [8, 9, 12, 13, 16, 17].includes(context.currentHour);

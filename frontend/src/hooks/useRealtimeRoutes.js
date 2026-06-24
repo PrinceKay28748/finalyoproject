@@ -24,7 +24,8 @@ function formatDistanceForVoice(meters) {
 }
 
 function formatTravelTimeForVoice(meters, vehicleMode) {
-  const speedKmh = vehicleMode === 'car' ? 30 : vehicleMode === 'motorcycle' ? 25 : 5;
+  const VOICE_SPEEDS = { walk: 5, car: 30, motorcycle: 25, bicycle: 15, jogging: 10 };
+  const speedKmh = VOICE_SPEEDS[vehicleMode] || 5;
   const minutes  = Math.ceil(meters / (speedKmh * 1000 / 60));
   if (minutes < 1)  return "less than 1 minute";
   if (minutes < 60) return `${minutes} minutes`;

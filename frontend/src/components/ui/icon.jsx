@@ -365,3 +365,197 @@ export const IconReport = ({
     />
   </svg>
 );
+
+export const IconBicycle = ({
+  className = "w-5 h-5",
+  strokeWidth = 1.5,
+  color = "currentColor",
+}) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth={strokeWidth}
+    stroke={color}
+    className={className}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M14.25 7.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Zm-4.5 9.75 1.5-3.75 2.25 1.5 2.25-3M7.5 18a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Zm9 0a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z"
+    />
+  </svg>
+);
+
+export const IconJog = ({
+  className = "w-5 h-5",
+  strokeWidth = 1.5,
+  color = "currentColor",
+}) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth={strokeWidth}
+    stroke={color}
+    className={className}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M15.75 5.25a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Zm-1.5 12.75 2.25-3 3 1.5M6.75 9l2.25 1.5 1.5-3 3 1.5v6l3 1.5M9 15.75l-2.25 1.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+    />
+  </svg>
+);
+
+export const IconFlame = ({
+  className = "w-5 h-5",
+  strokeWidth = 1.5,
+  color = "currentColor",
+}) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth={strokeWidth}
+    stroke={color}
+    className={className}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.6a8.983 8.983 0 0 1 3.361-6.867 8.21 8.21 0 0 0 3 2.48Z"
+    />
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M12 18a3.75 3.75 0 0 0 .495-7.468 5.99 5.99 0 0 0-1.925 3.547 5.975 5.975 0 0 1-2.133-1.001A3.75 3.75 0 0 0 12 18Z"
+    />
+  </svg>
+);
+
+export const IconMountain = ({
+  className = "w-5 h-5",
+  strokeWidth = 1.5,
+  color = "currentColor",
+}) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth={strokeWidth}
+    stroke={color}
+    className={className}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.519l2.38-1.024M21 12l-3.75 6H3l3-6 3.75 6 3-6 3.75 6 3-6Z"
+    />
+  </svg>
+);
+
+export const IconSteps = ({
+  className = "w-5 h-5",
+  strokeWidth = 1.5,
+  color = "currentColor",
+}) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth={strokeWidth}
+    stroke={color}
+    className={className}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M7.5 3.75 6 5.25l2.25 2.25L6 9.75l2.25 2.25L6 14.25l2.25 2.25L6 18.75M16.5 3.75l1.5 1.5-2.25 2.25 2.25 2.25-2.25 2.25 2.25 2.25-2.25 2.25 2.25 2.25"
+    />
+  </svg>
+);
+
+export const IconRoad = ({
+  className = "w-5 h-5",
+  strokeWidth = 1.5,
+  color = "currentColor",
+}) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth={strokeWidth}
+    stroke={color}
+    className={className}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M4.5 21V3m15 18V3M12 21V3M3 18h18M3 9h18"
+    />
+  </svg>
+);
+
+export const IconChartBar = ({
+  className = "w-5 h-5",
+  strokeWidth = 1.5,
+  color = "currentColor",
+}) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth={strokeWidth}
+    stroke={color}
+    className={className}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"
+    />
+  </svg>
+);
+
+export const IconArrowsRightLeft = ({
+  className = "w-5 h-5",
+  strokeWidth = 1.5,
+  color = "currentColor",
+}) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth={strokeWidth}
+    stroke={color}
+    className={className}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"
+    />
+  </svg>
+);
+
+export const IconSpeakerWave = ({
+  className = "w-5 h-5",
+  strokeWidth = 1.5,
+  color = "currentColor",
+}) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth={strokeWidth}
+    stroke={color}
+    className={className}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"
+    />
+  </svg>
+);

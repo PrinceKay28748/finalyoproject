@@ -184,7 +184,7 @@
 
 import { useState, useEffect, useRef } from "react";
 
-export function useRouting(startPoint, destPoint, triggered, profileKey = "standard") {
+export function useRouting(startPoint, destPoint, triggered, profileKey = "standard", vehicleMode = "walk") {
   const [route, setRoute] = useState(null);
   const [warnings, setWarnings] = useState([]);
   const [error, setError] = useState(null);
@@ -272,9 +272,10 @@ export function useRouting(startPoint, destPoint, triggered, profileKey = "stand
       destLat: destPoint.lat,
       destLng: destPoint.lng,
       profileKey,
+      vehicleMode,
     });
 
-  }, [startPoint, destPoint, triggered, profileKey, isGraphReady]);
+  }, [startPoint, destPoint, triggered, profileKey, vehicleMode, isGraphReady]);
 
   return { route, warnings, isGraphReady, isRouting, error };
 }
