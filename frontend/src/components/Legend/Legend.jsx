@@ -4,6 +4,7 @@ import {
   useState,
   useRef,
   useEffect,
+  useCallback,
   useImperativeHandle,
   forwardRef,
 } from "react";
@@ -362,10 +363,11 @@ const Legend = forwardRef(function Legend(
   const modeStripRef = useRef(null);
 
   const [indicatorLeft, setIndicatorLeft] = useState(0);
+  const [indicatorWidth, setIndicatorWidth] = useState(0);
 
   const peekHeight = window.innerWidth >= 1024 ? 120 : 100;
 
-  useEffect(() => {
+  const updateIndicator = useCallback(() => {
     const strip = modeStripRef.current;
     if (!strip) return;
     const buttons = strip.querySelectorAll('.legend-mode-btn');
@@ -374,10 +376,16 @@ const Legend = forwardRef(function Legend(
     const btn = buttons[idx];
     const stripRect = strip.getBoundingClientRect();
     const btnRect = btn.getBoundingClientRect();
-    requestAnimationFrame(() => {
-      setIndicatorLeft(btnRect.left + btnRect.width / 2 - stripRect.left);
-    });
+    setIndicatorLeft(btnRect.left - stripRect.left);
+    setIndicatorWidth(btnRect.width);
   }, [vehicleMode]);
+
+  useEffect(() => { updateIndicator(); }, [updateIndicator]);
+
+  useEffect(() => {
+    window.addEventListener('resize', updateIndicator);
+    return () => window.removeEventListener('resize', updateIndicator);
+  }, [updateIndicator]);
 
   const lastAnnouncedRouteIdRef = useRef(null);
   const pendingRouteSummaryRef = useRef(null);
@@ -942,7 +950,7 @@ const Legend = forwardRef(function Legend(
           <div className="mode-track">
             <div
               className="mode-indicator"
-              style={{ transform: `translateX(${indicatorLeft}px)` }}
+              style={{ left: `${indicatorLeft}px`, width: `${indicatorWidth}px` }}
             />
           </div>
         </div>
