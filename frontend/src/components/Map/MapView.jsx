@@ -291,7 +291,7 @@ export default function MapView({
               routeDirection={currentRouteDirection}
               smoothedPosition={smoothedRoutePosition}
               showProgress={true}
-              showDirectionalBeam={showStartMarker}
+              showDirectionalBeam={!showStartMarker}
             />
           )}
 
