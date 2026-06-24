@@ -891,7 +891,6 @@ const Legend = forwardRef(function Legend(
           </div>
         ) : (
           <div className="legend-peek-hint legend-peek-hint--insights">
-            <IconChartBar className="w-2.5 h-2.5" color="#9ca3af" />
             <span>More Insights</span>
           </div>
         )}
