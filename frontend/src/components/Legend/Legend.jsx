@@ -360,7 +360,7 @@ const Legend = forwardRef(function Legend(
   const headerRef = useRef(null);
   const directionsRef = useRef(null);
 
-  const peekHeight = window.innerWidth >= 1024 ? 210 : 150;
+  const peekHeight = window.innerWidth >= 1024 ? 120 : 100;
 
   const lastAnnouncedRouteIdRef = useRef(null);
   const pendingRouteSummaryRef = useRef(null);
@@ -866,11 +866,12 @@ const Legend = forwardRef(function Legend(
   const compareLabel = compareMode === "bicycle" ? "Cycle" : "Walk";
 
   return (
+    <>
     <div
       ref={sheetRef}
       className={`legend-sheet ${expanded ? "legend-sheet--expanded" : "legend-sheet--peek"}`}
     >
-      {/* ── Unified top area: handle, mode strip (with ETA), peek hint, profiles ── */}
+      {/* ── Unified top area: handle, mode strip, peek hint ── */}
       <div
         ref={headerRef}
         className="legend-drag-header"
@@ -917,39 +918,10 @@ const Legend = forwardRef(function Legend(
             <span>Search for a destination to get directions</span>
           </div>
         )}
-
-        {/* Profile pills (always visible when route exists) */}
-        {hasRoute && (
-          <div
-            className="legend-peek-profiles"
-            onMouseDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-          >
-            {PROFILES.map((p) => {
-              const IconComponent = p.icon;
-              const isActive = activeProfile === p.key;
-              return (
-                <button
-                  key={p.key}
-                  data-profile={p.key}
-                  className={`legend-profile-btn ${isActive ? "legend-profile-btn--active" : ""}`}
-                  onClick={() => onProfileChange?.(p.key)}
-                  title={p.label}
-                  aria-label={`Switch to ${p.label} profile`}
-                >
-                  <span className="legend-profile-icon">
-                    <IconComponent
-                      className="w-4 h-4"
-                      color={isActive ? p.color : "currentColor"}
-                    />
-                  </span>
-                  <span className="legend-profile-label">{p.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
       </div>
+
+      {/* Spacer so expanded body content doesn't hide behind fixed profile bar */}
+      {hasRoute && <div className="legend-bar-spacer" />}
 
       {/* ── Expanded body with tabs ──────────────────────────────────────── */}
       {expanded && (
@@ -1227,6 +1199,35 @@ const Legend = forwardRef(function Legend(
         </div>
       )}
     </div>
+
+      {/* ── Fixed profile bar (always visible at bottom of viewport) ── */}
+      {hasRoute && (
+        <div className="legend-profiles-bar">
+          {PROFILES.map((p) => {
+            const IconComponent = p.icon;
+            const isActive = activeProfile === p.key;
+            return (
+              <button
+                key={p.key}
+                data-profile={p.key}
+                className={`legend-profile-btn ${isActive ? "legend-profile-btn--active" : ""}`}
+                onClick={() => onProfileChange?.(p.key)}
+                title={p.label}
+                aria-label={`Switch to ${p.label} profile`}
+              >
+                <span className="legend-profile-icon">
+                  <IconComponent
+                    className="w-4 h-4"
+                    color={isActive ? p.color : "currentColor"}
+                  />
+                </span>
+                <span className="legend-profile-label">{p.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </>
   );
 
   function handleShareLocation() {

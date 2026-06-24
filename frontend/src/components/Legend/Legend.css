@@ -245,13 +245,34 @@
   color: #fbbf24;
 }
 
-/* ── Collapsed peek profile row ──────────────────────────────────────────── */
-.legend-peek-profiles {
+/* ── Spacer matching fixed profile bar height ────────────────────────────── */
+.legend-bar-spacer {
+  height: 72px;
+  flex-shrink: 0;
+}
+
+/* ── Fixed profile bar (always at bottom of viewport, like Google Maps) ── */
+.legend-profiles-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
   display: flex;
   flex-direction: row;
   gap: 8px;
-  padding: 4px 16px 14px; /* Cleaned up duplicate padding */
+  padding: 4px 16px calc(4px + env(safe-area-inset-bottom, 14px));
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(25px) saturate(210%);
+  -webkit-backdrop-filter: blur(25px) saturate(210%);
+  border-top: 0.5px solid rgba(0, 0, 0, 0.06);
+  pointer-events: auto;
   flex-shrink: 0;
+}
+
+.ug-root.dark .legend-profiles-bar {
+  background: rgba(15, 23, 42, 0.9);
+  border-top-color: rgba(255, 255, 255, 0.08);
 }
 
 /* ── Profile buttons ─────────────────────────────────────────────────────── */
@@ -1562,7 +1583,14 @@ body.dragging-legend .leaflet-container {
   .legend-mode-btn::after { height: 3px; }
   .legend-mode-btn--active::after { width: 20px; }
 
-  .legend-peek-profiles { padding: 2px 16px 10px; }
+  .legend-profiles-bar {
+    left: 50%;
+    transform: translateX(-50%);
+    width: 480px;
+    right: auto;
+    border-radius: 0 0 28px 28px;
+  }
+  .legend-bar-spacer { height: 68px; }
   .legend-profile-btn { padding: 8px 4px; font-size: 11px; }
 
   .stat-card-icon svg { width: 16px; height: 16px; }
