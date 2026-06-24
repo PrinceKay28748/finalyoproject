@@ -189,6 +189,11 @@ export default function MapView({
 
   const hasValidRoute = primaryRoute?.coordinates?.length > 0;
 
+  // Beam shows only when route starts at GPS location
+  const isGpsStart = currentLocation && hasValidRoute &&
+    Math.abs(primaryRoute.coordinates[0].lat - currentLocation.lat) < 0.0001 &&
+    Math.abs(primaryRoute.coordinates[0].lng - currentLocation.lng) < 0.0001;
+
   // Track map bounds for heatmap controls (2D only)
   useEffect(() => {
     if (is3DMode) return;
@@ -291,7 +296,7 @@ export default function MapView({
               routeDirection={currentRouteDirection}
               smoothedPosition={smoothedRoutePosition}
               showProgress={true}
-              showDirectionalBeam={!showStartMarker}
+              showDirectionalBeam={isGpsStart}
             />
           )}
 
@@ -325,7 +330,7 @@ export default function MapView({
           />
 
           <RouteMarkers
-            startPoint={showStartMarker ? displayStartPoint : null}
+            startPoint={isGpsStart ? null : displayStartPoint}
             destPoint={destPoint}
             visible={markersVisible}
             isShared={isSharedLocation}
