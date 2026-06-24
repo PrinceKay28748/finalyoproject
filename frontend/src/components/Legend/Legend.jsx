@@ -359,8 +359,25 @@ const Legend = forwardRef(function Legend(
   const sheetRef = useRef(null);
   const headerRef = useRef(null);
   const directionsRef = useRef(null);
+  const modeStripRef = useRef(null);
+
+  const [indicatorLeft, setIndicatorLeft] = useState(0);
 
   const peekHeight = window.innerWidth >= 1024 ? 120 : 100;
+
+  useEffect(() => {
+    const strip = modeStripRef.current;
+    if (!strip) return;
+    const buttons = strip.querySelectorAll('.legend-mode-btn');
+    const idx = MODES.findIndex(m => m.key === vehicleMode);
+    if (idx < 0 || idx >= buttons.length) return;
+    const btn = buttons[idx];
+    const stripRect = strip.getBoundingClientRect();
+    const btnRect = btn.getBoundingClientRect();
+    requestAnimationFrame(() => {
+      setIndicatorLeft(btnRect.left + btnRect.width / 2 - stripRect.left);
+    });
+  }, [vehicleMode]);
 
   const lastAnnouncedRouteIdRef = useRef(null);
   const pendingRouteSummaryRef = useRef(null);
@@ -896,8 +913,9 @@ const Legend = forwardRef(function Legend(
           </div>
         )}
 
-        {/* Mode strip (icons only) */}
+        {/* Mode strip (icons only) with sliding indicator */}
         <div
+          ref={modeStripRef}
           className="legend-mode-strip"
           onMouseDown={(e) => e.stopPropagation()}
           onTouchStart={(e) => e.stopPropagation()}
@@ -915,12 +933,18 @@ const Legend = forwardRef(function Legend(
                   aria-label={`Switch to ${m.label}`}
                 >
                 <MIcon
-                  className="w-5 h-5"
+                  className="w-6 h-6"
                   color={isActive ? m.color : "#9ca3af"}
                 />
               </button>
             );
           })}
+          <div className="mode-track">
+            <div
+              className="mode-indicator"
+              style={{ transform: `translateX(${indicatorLeft}px)` }}
+            />
+          </div>
         </div>
       </div>
 
