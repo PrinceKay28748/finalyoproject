@@ -892,10 +892,11 @@ const Legend = forwardRef(function Legend(
         ) : (
           <div className="legend-peek-hint legend-peek-hint--insights">
             <span>More Insights</span>
+            <span className="insights-mode-name" style={{ color: vehicleConfig.color }}>{vehicleConfig.label}</span>
           </div>
         )}
 
-        {/* Mode strip */}
+        {/* Mode strip (icons only) */}
         <div
           className="legend-mode-strip"
           onMouseDown={(e) => e.stopPropagation()}
@@ -917,7 +918,6 @@ const Legend = forwardRef(function Legend(
                   className="w-5 h-5"
                   color={isActive ? m.color : "#9ca3af"}
                 />
-                <span className="legend-mode-label">{m.label}</span>
               </button>
             );
           })}

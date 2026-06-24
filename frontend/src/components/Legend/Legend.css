@@ -1234,6 +1234,11 @@ body.dragging-legend .leaflet-container {
   gap: 8px;
 }
 
+.legend-sheet--with-bar .legend-mode-btn {
+  padding: 6px 4px;
+  min-width: 44px;
+}
+
 .legend-mode-btn {
   flex: 1;
   min-width: 56px;
@@ -1280,13 +1285,6 @@ body.dragging-legend .leaflet-container {
   width: 20px;
 }
 
-.legend-mode-label {
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.2px;
-  white-space: nowrap;
-}
-
 .ug-root.dark .legend-mode-btn {
   color: #6b7280;
   background: transparent;
@@ -1325,14 +1323,16 @@ body.dragging-legend .leaflet-container {
 }
 
 .legend-peek-hint--insights {
-  justify-content: flex-start;
+  display: flex;
+  justify-content: space-between;
   flex: none;
   padding: 4px 16px 2px;
   font-size: 20px;
+}
+
+.insights-mode-name {
+  font-size: 20px;
   font-weight: 600;
-  color: var(--text);
-  opacity: 1;
-  letter-spacing: 0.15px;
 }
 
 /* ── Empty route state "Be in the know" ──────────────────────────────────── */
@@ -1564,12 +1564,14 @@ body.dragging-legend .leaflet-container {
   .legend-warning { padding: 8px 10px; font-size: 11px; }
   .warning-icon svg { width: 12px; height: 12px; }
 
+  .legend-peek-hint--insights,
+  .insights-mode-name { font-size: 16px; }
+
   /* Mode strip mobile — compact floating pills */
   .legend-sheet--with-bar .legend-mode-strip,
   .legend-mode-strip { padding: 4px 8px; gap: 4px; }
   .legend-mode-btn { padding: 6px 2px 8px; min-width: 40px; }
   .legend-mode-btn svg { width: 18px; height: 18px; }
-  .legend-mode-label { font-size: 8px; }
 
   /* Voice button mobile — compact height */
   .legend-voice-btn { padding: 8px 14px; font-size: 11px; }
@@ -1613,7 +1615,6 @@ body.dragging-legend .leaflet-container {
   .legend-sheet--with-bar .legend-mode-strip { padding: 16px; gap: 10px; }
   .legend-mode-btn { padding: 6px 2px 8px; }
   .legend-mode-btn svg { width: 16px; height: 16px; }
-  .legend-mode-label { font-size: 9px; }
   .legend-mode-btn::after { height: 3px; }
   .legend-mode-btn--active::after { width: 20px; }
 
