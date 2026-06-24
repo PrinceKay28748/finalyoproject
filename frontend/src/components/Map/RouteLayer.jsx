@@ -418,9 +418,9 @@ export default function RouteLayer({
                 position={[route.coordinates[0].lat, route.coordinates[0].lng]}
                 icon={L.divIcon({
                   className: "",
-                  html: `<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:28px solid ${mainColor};opacity:0.4;transform:rotate(${routeDirection}deg);filter:drop-shadow(0 2px 4px rgba(0,0,0,0.12));"></div>`,
-                  iconSize: [16, 28],
-                  iconAnchor: [8, 28],
+                  html: `<div style="width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:45px solid ${mainColor};opacity:0.3;transform:rotate(${routeDirection}deg);"></div>`,
+                  iconSize: [24, 45],
+                  iconAnchor: [12, 45],
                 })}
                 interactive={false}
                 zIndexOffset={-50}
@@ -461,9 +461,9 @@ export default function RouteLayer({
           position={[route.coordinates[0].lat, route.coordinates[0].lng]}
           icon={L.divIcon({
             className: "",
-            html: `<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:28px solid ${mainColor};opacity:0.4;transform:rotate(${routeDirection}deg);filter:drop-shadow(0 2px 4px rgba(0,0,0,0.12));"></div>`,
-            iconSize: [16, 28],
-            iconAnchor: [8, 28],
+            html: `<div style="width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:45px solid ${mainColor};opacity:0.3;transform:rotate(${routeDirection}deg);"></div>`,
+            iconSize: [24, 45],
+            iconAnchor: [12, 45],
           })}
           interactive={false}
           zIndexOffset={-50}
