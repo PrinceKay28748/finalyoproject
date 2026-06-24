@@ -414,15 +414,15 @@ export default function RouteLayer({
               lineCap="round"
               className="route-flow-indicator"
             />
-            {/* Directional beam at start */}
+            {/* Directional beam at start — tip at dot, cone extends forward */}
             {route?.coordinates?.length >= 2 && (
               <Marker
                 position={[route.coordinates[0].lat, route.coordinates[0].lng]}
                 icon={L.divIcon({
                   className: "",
-                  html: `<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:30px solid ${mainColor};opacity:0.5;transform:rotate(${startBearing}deg);filter:drop-shadow(0 2px 4px rgba(0,0,0,0.2));"></div>`,
-                  iconSize: [16, 30],
-                  iconAnchor: [8, 30],
+                  html: `<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:28px solid ${mainColor};opacity:0.4;transform:rotate(${startBearing}deg);filter:drop-shadow(0 2px 4px rgba(0,0,0,0.12));"></div>`,
+                  iconSize: [16, 28],
+                  iconAnchor: [8, 28],
                 })}
                 interactive={false}
                 zIndexOffset={-50}
@@ -457,15 +457,15 @@ export default function RouteLayer({
         className={`${isAnimationComplete ? "route-main route-complete" : "route-main route-animating"} ${routeFocusClass}`}
         eventHandlers={!isRouteFocused ? { click: () => focus.setFocus('route', route?.id, 'tap') } : {}}
       />
-      {/* Directional beam at start */}
+      {/* Directional beam at start — tip at dot, cone extends forward */}
       {route?.coordinates?.length >= 2 && (
         <Marker
           position={[route.coordinates[0].lat, route.coordinates[0].lng]}
           icon={L.divIcon({
             className: "",
-            html: `<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:30px solid ${mainColor};opacity:0.5;transform:rotate(${startBearing}deg);filter:drop-shadow(0 2px 4px rgba(0,0,0,0.2));"></div>`,
-            iconSize: [16, 30],
-            iconAnchor: [8, 30],
+            html: `<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:28px solid ${mainColor};opacity:0.4;transform:rotate(${startBearing}deg);filter:drop-shadow(0 2px 4px rgba(0,0,0,0.12));"></div>`,
+            iconSize: [16, 28],
+            iconAnchor: [8, 28],
           })}
           interactive={false}
           zIndexOffset={-50}
