@@ -964,7 +964,11 @@ const Legend = forwardRef(function Legend(
 
       {/* ── Expanded body with tabs ──────────────────────────────────────── */}
       {expanded && (
-        <div className="legend-body">
+        <div
+          className="legend-body"
+          onTouchMove={(e) => e.stopPropagation()}
+          onWheel={(e) => e.stopPropagation()}
+        >
           {!hasRoute ? (
             <div className="legend-empty-route">
               <div className="empty-route-icon">

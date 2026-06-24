@@ -178,6 +178,7 @@
   padding: 10px 20px 68px;
   overflow-y: overlay;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   flex: 1;
   min-height: 0;
   animation: body-fade 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
