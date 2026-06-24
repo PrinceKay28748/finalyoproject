@@ -1456,46 +1456,59 @@ body.dragging-legend .leaflet-container {
 .legend-stats-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin: 10px 0 0;
+  margin: 12px 0 0;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.3);
+  border: 0.5px solid rgba(255, 255, 255, 0.35);
+  overflow: hidden;
 }
 
 .legend-stat-mini {
   flex: 1;
-  min-width: 70px;
+  min-width: 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 10px 4px;
-  background: rgba(255, 255, 255, 0.35);
-  border-radius: 14px;
-  border: 0.5px solid rgba(255, 255, 255, 0.4);
-  animation: item-in 0.3s 0.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+  justify-content: center;
+  gap: 5px;
+  padding: 10px 6px;
+  position: relative;
+}
+
+.legend-stat-mini + .legend-stat-mini::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 20%;
+  height: 60%;
+  width: 0.5px;
+  background: rgba(128, 128, 128, 0.2);
 }
 
 .legend-stat-mini svg {
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
 }
 
 .stat-mini-label {
-  font-size: 9px;
-  font-weight: 600;
+  font-size: 10px;
   color: var(--sub);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
+  white-space: nowrap;
 }
 
 .stat-mini-value {
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--text);
 }
 
-.ug-root.dark .legend-stat-mini {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.08);
+.ug-root.dark .legend-stats-row {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.07);
+}
+
+.ug-root.dark .legend-stat-mini + .legend-stat-mini::before {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 /* ── Voice row ──────────────────────────────────────────────────────────────── */
@@ -1590,9 +1603,10 @@ body.dragging-legend .leaflet-container {
   .legend-tab svg { width: 14px; height: 14px; }
 
   /* Stats row mobile */
-  .legend-stats-row { gap: 4px; }
-  .legend-stat-mini { padding: 8px 2px; min-width: 56px; }
-  .legend-stat-mini svg { width: 14px; height: 14px; }
+  .legend-stats-row { margin: 10px 0 0; }
+  .legend-stat-mini { padding: 8px 4px; gap: 4px; }
+  .legend-stat-mini svg { width: 13px; height: 13px; }
+  .stat-mini-label { font-size: 9px; }
   .stat-mini-value { font-size: 11px; }
 }
 
@@ -1638,7 +1652,7 @@ body.dragging-legend .leaflet-container {
   .stat-card-value { font-size: 13px; }
   .stat-card-label { font-size: 10px; }
 
-  .legend-stat-mini { padding: 8px 4px; min-width: 64px; }
+  .legend-stat-mini { padding: 10px 6px; }
   .legend-stat-mini svg { width: 14px; height: 14px; }
   .stat-mini-value { font-size: 12px; }
 
