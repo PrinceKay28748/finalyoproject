@@ -869,7 +869,7 @@ const Legend = forwardRef(function Legend(
     <>
     <div
       ref={sheetRef}
-      className={`legend-sheet ${expanded ? "legend-sheet--expanded" : "legend-sheet--peek"}`}
+      className={`legend-sheet ${expanded ? "legend-sheet--expanded" : "legend-sheet--peek"} ${hasRoute ? "legend-sheet--with-bar" : ""}`}
     >
       {/* ── Unified top area: handle, mode strip, peek hint ── */}
       <div
@@ -911,11 +911,16 @@ const Legend = forwardRef(function Legend(
           })}
         </div>
 
-        {/* Peek hint (only when no route) */}
-        {!hasRoute && (
+        {/* Peek hint */}
+        {!hasRoute ? (
           <div className="legend-peek-hint">
             <IconSearch className="w-4 h-4" color="#9ca3af" />
             <span>Search for a destination to get directions</span>
+          </div>
+        ) : (
+          <div className="legend-peek-hint legend-peek-hint--insights">
+            <IconChartBar className="w-4 h-4" color="#9ca3af" />
+            <span>More Insights</span>
           </div>
         )}
       </div>

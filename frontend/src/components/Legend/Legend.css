@@ -155,6 +155,8 @@
 
 /* ── Draggable expanded header ───────────────────────────────────────────── */
 .legend-drag-header {
+  display: flex;
+  flex-direction: column;
   cursor: grab;
   touch-action: none;
   user-select: none;
@@ -1213,12 +1215,23 @@ body.dragging-legend .leaflet-container {
 .ug-root.dark .legend-traffic-label { color: #9ca3af; }
 
 /* ── Mode strip ──────────────────────────────────────────────────────────── */
+.legend-sheet--with-bar {
+  bottom: calc(60px + env(safe-area-inset-bottom, 14px));
+}
+
 .legend-mode-strip {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   padding: 6px 12px 0;
   flex-shrink: 0;
+}
+
+.legend-sheet--with-bar .legend-mode-strip {
+  flex: 1;
+  align-content: center;
+  padding: 12px;
+  gap: 8px;
 }
 
 .legend-mode-btn {
@@ -1305,6 +1318,14 @@ body.dragging-legend .leaflet-container {
 
 .ug-root.dark .legend-peek-hint {
   color: #6b7280;
+}
+
+.legend-peek-hint--insights {
+  justify-content: center;
+  padding: 8px 0 4px;
+  font-size: 12px;
+  color: var(--sub);
+  opacity: 0.7;
 }
 
 /* ── Empty route state "Be in the know" ──────────────────────────────────── */
@@ -1501,6 +1522,10 @@ body.dragging-legend .leaflet-container {
     max-height: 70vh;
   }
 
+  .legend-sheet--with-bar {
+    bottom: calc(58px + env(safe-area-inset-bottom, 14px));
+  }
+
   .legend-body { padding: 0 14px 20px; }
 
   .legend-stats-grid { padding: 10px 6px; }
@@ -1533,7 +1558,8 @@ body.dragging-legend .leaflet-container {
   .warning-icon svg { width: 12px; height: 12px; }
 
   /* Mode strip mobile — compact floating pills */
-  .legend-mode-strip { padding: 4px 8px 0; gap: 4px; }
+  .legend-sheet--with-bar .legend-mode-strip,
+  .legend-mode-strip { padding: 4px 8px; gap: 4px; }
   .legend-mode-btn { padding: 6px 2px 8px; min-width: 40px; }
   .legend-mode-btn svg { width: 18px; height: 18px; }
   .legend-mode-label { font-size: 8px; }
@@ -1577,6 +1603,7 @@ body.dragging-legend .leaflet-container {
     to   { transform: translateX(-50%) translateY(0);    opacity: 1; }
   }
 
+  .legend-sheet--with-bar .legend-mode-strip { padding: 16px; gap: 10px; }
   .legend-mode-btn { padding: 6px 2px 8px; }
   .legend-mode-btn svg { width: 16px; height: 16px; }
   .legend-mode-label { font-size: 9px; }
