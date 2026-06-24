@@ -51,7 +51,8 @@ export default function RouteLayer({
   currentLocation = null,
   showProgress = true,
   isRecalculating = false,
-  resetProgressTimestamp = 0, // New prop
+  resetProgressTimestamp = 0,
+  showDirectionalBeam = false,
   onTurnApproach = null,
   onRouteDirectionChange = null,
   onArrivalSummary = null,
@@ -413,7 +414,7 @@ export default function RouteLayer({
               className="route-flow-indicator"
             />
             {/* Directional beam at start — tip at dot, cone extends forward */}
-            {route?.coordinates?.length >= 2 && (
+            {showDirectionalBeam && route?.coordinates?.length >= 2 && (
               <Marker
                 position={[route.coordinates[0].lat, route.coordinates[0].lng]}
                 icon={L.divIcon({
@@ -455,7 +456,7 @@ export default function RouteLayer({
         eventHandlers={!isRouteFocused ? { click: () => focus.setFocus('route', route?.id, 'tap') } : {}}
       />
       {/* Directional beam at start — tip at dot, cone extends forward */}
-      {route?.coordinates?.length >= 2 && (
+      {showDirectionalBeam && route?.coordinates?.length >= 2 && (
         <Marker
           position={[route.coordinates[0].lat, route.coordinates[0].lng]}
           icon={L.divIcon({

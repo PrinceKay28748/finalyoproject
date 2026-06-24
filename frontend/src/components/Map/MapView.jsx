@@ -164,6 +164,7 @@ export default function MapView({
   const showDestinationMarker = !!destPoint;
   const displayStartPoint =
     useCustomLocation && customStartPoint ? customStartPoint : startPoint;
+  const showStartMarker = useCustomLocation && !!customStartPoint;
 
   const legendRef = useRef(null);
   const [mapBounds, setMapBounds] = useState(null);
@@ -290,6 +291,7 @@ export default function MapView({
               routeDirection={currentRouteDirection}
               smoothedPosition={smoothedRoutePosition}
               showProgress={true}
+              showDirectionalBeam={showStartMarker}
             />
           )}
 
@@ -323,7 +325,7 @@ export default function MapView({
           />
 
           <RouteMarkers
-            startPoint={displayStartPoint}
+            startPoint={showStartMarker ? displayStartPoint : null}
             destPoint={destPoint}
             visible={markersVisible}
             isShared={isSharedLocation}
