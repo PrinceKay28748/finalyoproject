@@ -4,6 +4,7 @@ import {
   useState,
   useRef,
   useEffect,
+  useLayoutEffect,
   useCallback,
   useImperativeHandle,
   forwardRef,
@@ -362,8 +363,8 @@ const Legend = forwardRef(function Legend(
   const directionsRef = useRef(null);
   const modeStripRef = useRef(null);
 
-  const [indicatorLeft, setIndicatorLeft] = useState(0);
-  const [indicatorWidth, setIndicatorWidth] = useState(0);
+  const [indicatorLeft, setIndicatorLeft] = useState(4);
+  const [indicatorWidth, setIndicatorWidth] = useState(56);
 
   const peekHeight = window.innerWidth >= 1024 ? 120 : 100;
 
@@ -380,11 +381,14 @@ const Legend = forwardRef(function Legend(
     setIndicatorWidth(btnRect.width);
   }, [vehicleMode]);
 
-  useEffect(() => { updateIndicator(); }, [updateIndicator]);
+  useLayoutEffect(() => { updateIndicator(); }, [updateIndicator]);
 
   useEffect(() => {
-    window.addEventListener('resize', updateIndicator);
-    return () => window.removeEventListener('resize', updateIndicator);
+    const strip = modeStripRef.current;
+    if (!strip) return;
+    const ro = new ResizeObserver(updateIndicator);
+    ro.observe(strip);
+    return () => ro.disconnect();
   }, [updateIndicator]);
 
   const lastAnnouncedRouteIdRef = useRef(null);
@@ -947,7 +951,7 @@ const Legend = forwardRef(function Legend(
               </button>
             );
           })}
-          <div className="mode-track">
+          <div className="mode-track" style={{ '--mode-color': vehicleConfig.color }}>
             <div
               className="mode-indicator"
               style={{ left: `${indicatorLeft}px`, width: `${indicatorWidth}px` }}
