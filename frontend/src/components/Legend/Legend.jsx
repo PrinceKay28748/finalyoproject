@@ -883,6 +883,19 @@ const Legend = forwardRef(function Legend(
           <div className="legend-handle" />
         </div>
 
+        {/* Peek hint (above mode strip) */}
+        {!hasRoute ? (
+          <div className="legend-peek-hint">
+            <IconSearch className="w-3.5 h-3.5" color="#9ca3af" />
+            <span>Search for a destination to get directions</span>
+          </div>
+        ) : (
+          <div className="legend-peek-hint legend-peek-hint--insights">
+            <IconChartBar className="w-3 h-3" color="#9ca3af" />
+            <span>More Insights</span>
+          </div>
+        )}
+
         {/* Mode strip */}
         <div
           className="legend-mode-strip"
@@ -910,19 +923,6 @@ const Legend = forwardRef(function Legend(
             );
           })}
         </div>
-
-        {/* Peek hint */}
-        {!hasRoute ? (
-          <div className="legend-peek-hint">
-            <IconSearch className="w-4 h-4" color="#9ca3af" />
-            <span>Search for a destination to get directions</span>
-          </div>
-        ) : (
-          <div className="legend-peek-hint legend-peek-hint--insights">
-            <IconChartBar className="w-4 h-4" color="#9ca3af" />
-            <span>More Insights</span>
-          </div>
-        )}
       </div>
 
       {/* Spacer so expanded body content doesn't hide behind fixed profile bar */}
