@@ -175,8 +175,8 @@
 
 /* ── Scrollable content ──────────────────────────────────────────────────── */
 .legend-body {
-  padding: 0 20px 24px;
-  overflow-y: overlay; /* Better for glassmorphism */
+  padding: 0 20px 68px;
+  overflow-y: overlay;
   -webkit-overflow-scrolling: touch;
   flex: 1;
   min-height: 0;
@@ -249,8 +249,7 @@
 
 /* ── Spacer matching fixed profile bar height ────────────────────────────── */
 .legend-bar-spacer {
-  height: 72px;
-  flex-shrink: 0;
+  height: 0;
 }
 
 /* ── Fixed profile bar (always at bottom of viewport, like Google Maps) ── */
@@ -1541,7 +1540,7 @@ body.dragging-legend .leaflet-container {
     bottom: calc(58px + env(safe-area-inset-bottom, 14px));
   }
 
-  .legend-body { padding: 0 14px 20px; }
+  .legend-body { padding: 0 14px 64px; }
 
   .legend-stats-grid { padding: 10px 6px; }
 
@@ -1632,7 +1631,7 @@ body.dragging-legend .leaflet-container {
     right: auto;
     border-radius: 0 0 28px 28px;
   }
-  .legend-bar-spacer { height: 68px; }
+  .legend-bar-spacer { height: 0; }
   .legend-profile-btn { padding: 8px 4px; font-size: 11px; }
 
   .stat-card-icon svg { width: 16px; height: 16px; }
@@ -1650,6 +1649,7 @@ body.dragging-legend .leaflet-container {
   .legend-voice-btn { padding: 10px 18px; font-size: 12px; }
   .legend-voice-btn svg { width: 15px; height: 15px; }
 
+  .legend-body { padding-bottom: 64px; }
   .legend-tab { padding: 8px 12px; font-size: 12px; }
   .legend-tab svg { width: 14px; height: 14px; }
 
