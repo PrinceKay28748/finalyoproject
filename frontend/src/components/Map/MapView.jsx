@@ -1,5 +1,6 @@
 // components/Map/MapView.jsx
-import { MapContainer, useMap, Polyline } from "react-leaflet";
+import { MapContainer, useMap, Marker, Polyline } from "react-leaflet";
+import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useEffect, useRef, useState, memo, lazy, Suspense } from "react";
 
@@ -278,6 +279,19 @@ export default function MapView({
 
           <GpsLocationMarker  location={currentLocation} accuracy={accuracy} routeDirection={currentRouteDirection} smoothedPosition={smoothedRoutePosition}  />
 
+          {currentLocation && (
+            <Marker
+              position={[currentLocation.lat, currentLocation.lng]}
+              icon={L.divIcon({
+                className: "",
+                html: `<div style="width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:45px solid #2563eb;opacity:0.35;transform:rotate(${currentRouteDirection || 0}deg);filter:drop-shadow(0 2px 6px rgba(0,0,0,0.15));"></div>`,
+                iconSize: [24, 45],
+                iconAnchor: [12, 45],
+              })}
+              interactive={false}
+            />
+          )}
+
           <CustomLocationMarker
             location={customStartPoint}
             onDragEnd={onCustomLocationDragEnd}
@@ -296,7 +310,6 @@ export default function MapView({
               routeDirection={currentRouteDirection}
               smoothedPosition={smoothedRoutePosition}
               showProgress={true}
-              showDirectionalBeam={isGpsStart}
             />
           )}
 

@@ -52,7 +52,6 @@ export default function RouteLayer({
   showProgress = true,
   isRecalculating = false,
   resetProgressTimestamp = 0,
-  showDirectionalBeam = false,
   onTurnApproach = null,
   onRouteDirectionChange = null,
   onArrivalSummary = null,
@@ -413,19 +412,6 @@ export default function RouteLayer({
               lineCap="round"
               className="route-flow-indicator"
             />
-            {/* Directional beam at start — tip at dot, cone extends forward */}
-            {showDirectionalBeam && route?.coordinates?.length >= 2 && (
-              <Marker
-                position={[route.coordinates[0].lat, route.coordinates[0].lng]}
-                icon={L.divIcon({
-                  className: "",
-                  html: `<div style="width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:45px solid ${mainColor};opacity:0.35;transform:rotate(${routeDirection}deg);filter:drop-shadow(0 2px 6px rgba(0,0,0,0.15));"></div>`,
-                  iconSize: [24, 45],
-                  iconAnchor: [12, 45],
-                })}
-                interactive={false}
-              />
-            )}
           </>
         )}
       </div>
@@ -455,19 +441,6 @@ export default function RouteLayer({
         className={`${isAnimationComplete ? "route-main route-complete" : "route-main route-animating"} ${routeFocusClass}`}
         eventHandlers={!isRouteFocused ? { click: () => focus.setFocus('route', route?.id, 'tap') } : {}}
       />
-      {/* Directional beam at start — tip at dot, cone extends forward */}
-      {showDirectionalBeam && route?.coordinates?.length >= 2 && (
-        <Marker
-          position={[route.coordinates[0].lat, route.coordinates[0].lng]}
-          icon={L.divIcon({
-            className: "",
-            html: `<div style="width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:45px solid ${mainColor};opacity:0.35;transform:rotate(${routeDirection}deg);filter:drop-shadow(0 2px 6px rgba(0,0,0,0.15));"></div>`,
-            iconSize: [24, 45],
-            iconAnchor: [12, 45],
-          })}
-          interactive={false}
-        />
-      )}
     </div>
   );
 }
