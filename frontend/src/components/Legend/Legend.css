@@ -1207,7 +1207,7 @@ body.dragging-legend .leaflet-container {
   position: relative;
   display: flex;
   flex-wrap: nowrap;
-  gap: 4px;
+  justify-content: space-evenly;
   padding: 6px 12px 0;
   flex-shrink: 0;
   overflow-x: auto;
@@ -1221,7 +1221,6 @@ body.dragging-legend .leaflet-container {
   flex: 1;
   align-content: center;
   padding: 12px;
-  gap: 6px;
 }
 
 .legend-sheet--with-bar .legend-mode-btn {
@@ -1586,7 +1585,7 @@ body.dragging-legend .leaflet-container {
 
   /* Mode strip mobile — compact horizontal scroll */
   .legend-sheet--with-bar .legend-mode-strip,
-  .legend-mode-strip { padding: 4px 8px; gap: 3px; }
+  .legend-mode-strip { padding: 4px 8px; }
   .legend-mode-btn { padding: 6px 6px 8px; gap: 4px; }
   .legend-mode-btn svg { width: 22px; height: 22px; }
   .mode-btn-time { font-size: 10px; }
@@ -1631,7 +1630,7 @@ body.dragging-legend .leaflet-container {
     to   { transform: translateX(-50%) translateY(0);    opacity: 1; }
   }
 
-  .legend-sheet--with-bar .legend-mode-strip { padding: 16px; gap: 8px; }
+  .legend-sheet--with-bar .legend-mode-strip { padding: 16px; }
   .legend-mode-btn { padding: 8px 12px 14px; gap: 6px; }
   .legend-mode-btn svg { width: 22px; height: 22px; }
   .mode-btn-time { font-size: 12px; }
