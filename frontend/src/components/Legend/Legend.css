@@ -1467,10 +1467,10 @@ body.dragging-legend .leaflet-container {
   flex: 1;
   min-width: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 5px;
-  padding: 10px 6px;
+  gap: 1px;
+  padding: 10px 4px;
   position: relative;
 }
 
@@ -1485,20 +1485,22 @@ body.dragging-legend .leaflet-container {
 }
 
 .legend-stat-mini svg {
-  width: 15px;
-  height: 15px;
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
 }
 
 .stat-mini-label {
-  font-size: 10px;
+  font-size: 9px;
+  font-weight: 600;
   color: var(--sub);
-  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .stat-mini-value {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   color: var(--text);
 }
 
@@ -1604,9 +1606,9 @@ body.dragging-legend .leaflet-container {
 
   /* Stats row mobile */
   .legend-stats-row { margin: 10px 0 0; }
-  .legend-stat-mini { padding: 8px 4px; gap: 4px; }
-  .legend-stat-mini svg { width: 13px; height: 13px; }
-  .stat-mini-label { font-size: 9px; }
+  .legend-stat-mini { padding: 8px 2px; gap: 1px; }
+  .legend-stat-mini svg { width: 16px; height: 16px; }
+  .stat-mini-label { font-size: 8px; }
   .stat-mini-value { font-size: 11px; }
 }
 
@@ -1653,7 +1655,8 @@ body.dragging-legend .leaflet-container {
   .stat-card-label { font-size: 10px; }
 
   .legend-stat-mini { padding: 10px 6px; }
-  .legend-stat-mini svg { width: 14px; height: 14px; }
+  .legend-stat-mini svg { width: 18px; height: 18px; }
+  .stat-mini-label { font-size: 9px; }
   .stat-mini-value { font-size: 12px; }
 
   .direction-icon { width: 26px; height: 26px; }
