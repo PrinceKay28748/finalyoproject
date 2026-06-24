@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { Polyline, Marker } from "react-leaflet";
 import L from "leaflet";
-import { ROUTE_COLORS } from "../../function/utils/colors";
 import { useVoiceGuidance } from "../../hooks/useVoiceGuidance";
 import { useFocus } from "../../context/FocusContext";
 import { useSmoothRoutePosition } from "../../hooks/useSmoothRoutePosition";
@@ -74,8 +73,8 @@ export default function RouteLayer({
 
   const announcedTurnsRef = useRef(new Map());
 
-  // Memoize colors to prevent unnecessary re-renders
-  const mainColor = useMemo(() => ROUTE_COLORS[profile] || ROUTE_COLORS.standard, [profile]);
+  // Blue directional guide (Google Maps style)
+  const mainColor = "#2563eb";
   const completedColor = "#94a3b8";
   const remainingColor = mainColor;
 
