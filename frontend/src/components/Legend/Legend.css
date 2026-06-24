@@ -175,7 +175,7 @@
 
 /* ── Scrollable content ──────────────────────────────────────────────────── */
 .legend-body {
-  padding: 0 20px 68px;
+  padding: 10px 20px 68px;
   overflow-y: overlay;
   -webkit-overflow-scrolling: touch;
   flex: 1;
@@ -1540,7 +1540,7 @@ body.dragging-legend .leaflet-container {
     bottom: calc(58px + env(safe-area-inset-bottom, 14px));
   }
 
-  .legend-body { padding: 0 14px 64px; }
+  .legend-body { padding: 8px 14px 64px; }
 
   .legend-stats-grid { padding: 10px 6px; }
 
