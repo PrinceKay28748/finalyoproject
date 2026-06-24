@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { Polyline, Marker } from "react-leaflet";
 import L from "leaflet";
+import { ROUTE_COLORS } from "../../function/utils/colors";
 import { useVoiceGuidance } from "../../hooks/useVoiceGuidance";
 import { useFocus } from "../../context/FocusContext";
 import { useSmoothRoutePosition } from "../../hooks/useSmoothRoutePosition";
@@ -73,8 +74,7 @@ export default function RouteLayer({
 
   const announcedTurnsRef = useRef(new Map());
 
-  // Blue directional guide (Google Maps style)
-  const mainColor = "#2563eb";
+  const mainColor = ROUTE_COLORS[profile] || ROUTE_COLORS.standard;
   const completedColor = "#94a3b8";
   const remainingColor = mainColor;
 
@@ -340,6 +340,20 @@ export default function RouteLayer({
   const isRouteFocused = focus.isFocused('route', route?.id);
   const routeFocusClass = `${isRouteFocused ? 'route--focused' : (focus.hasFocus ? 'route--blurred' : '')} ${isRecalculating ? 'route--recalculating' : ''}`;
 
+  // Directional beam — bearing from start along initial route segment
+  const startBearing = useMemo(() => {
+    if (!route?.coordinates?.length || route.coordinates.length < 2) return 0;
+    const p0 = route.coordinates[0];
+    const p1 = route.coordinates[Math.min(2, route.coordinates.length - 1)];
+    const lat1 = p0.lat * Math.PI / 180;
+    const lat2 = p1.lat * Math.PI / 180;
+    const lng1 = p0.lng * Math.PI / 180;
+    const lng2 = p1.lng * Math.PI / 180;
+    const y = Math.sin(lng2 - lng1) * Math.cos(lat2);
+    const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(lng2 - lng1);
+    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+  }, [route?.coordinates]);
+
   if (showProgress && isAnimationComplete && (completedCoords.length > 0 || remainingCoords.length > 0)) {
     return (
       <div style={{ '--profile-color': mainColor }}>
@@ -400,6 +414,20 @@ export default function RouteLayer({
               lineCap="round"
               className="route-flow-indicator"
             />
+            {/* Directional beam at start */}
+            {route?.coordinates?.length >= 2 && (
+              <Marker
+                position={[route.coordinates[0].lat, route.coordinates[0].lng]}
+                icon={L.divIcon({
+                  className: "",
+                  html: `<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:30px solid ${mainColor};opacity:0.5;transform:rotate(${startBearing}deg);filter:drop-shadow(0 2px 4px rgba(0,0,0,0.2));"></div>`,
+                  iconSize: [16, 30],
+                  iconAnchor: [8, 30],
+                })}
+                interactive={false}
+                zIndexOffset={-50}
+              />
+            )}
           </>
         )}
       </div>
@@ -429,6 +457,20 @@ export default function RouteLayer({
         className={`${isAnimationComplete ? "route-main route-complete" : "route-main route-animating"} ${routeFocusClass}`}
         eventHandlers={!isRouteFocused ? { click: () => focus.setFocus('route', route?.id, 'tap') } : {}}
       />
+      {/* Directional beam at start */}
+      {route?.coordinates?.length >= 2 && (
+        <Marker
+          position={[route.coordinates[0].lat, route.coordinates[0].lng]}
+          icon={L.divIcon({
+            className: "",
+            html: `<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:30px solid ${mainColor};opacity:0.5;transform:rotate(${startBearing}deg);filter:drop-shadow(0 2px 4px rgba(0,0,0,0.2));"></div>`,
+            iconSize: [16, 30],
+            iconAnchor: [8, 30],
+          })}
+          interactive={false}
+          zIndexOffset={-50}
+        />
+      )}
     </div>
   );
 }
