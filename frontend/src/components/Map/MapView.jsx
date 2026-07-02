@@ -32,14 +32,12 @@ import { ROUTE_COLORS } from "../../function/utils/colors";
 
 // Lazy-load the 3D map only when the user actually enables 3D mode.
 // If the module fails to load, keep the 2D experience intact instead of crashing.
-const SafeMapLibre3DView = lazy(async () => {
-  try {
-    return await import("./MapLibre3DView");
-  } catch (error) {
+const SafeMapLibre3DView = lazy(() =>
+  import("./MapLibre3DView").catch((error) => {
     console.warn("[MapView] 3D map failed to load, falling back to 2D view:", error);
     return { default: () => null };
-  }
-});
+  })
+);
 
 // ── SmartFitBounds (memoized to prevent re-renders) ────────────────────────────
 const SmartFitBounds = memo(function SmartFitBounds({
