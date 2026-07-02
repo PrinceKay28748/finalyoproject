@@ -340,6 +340,7 @@ const Legend = forwardRef(function Legend(
   const [heatmapPointCount, setHeatmapPointCount] = useState(0);
   const [heatmapLastRefresh, setHeatmapLastRefresh] = useState(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(-1);
+  const [completedDistance, setCompletedDistance] = useState(0);
   const [wasExpandedBeforeCollapse, setWasExpandedBeforeCollapse] =
     useState(true);
   const [activeTab, setActiveTab] = useState("stats");
@@ -664,6 +665,7 @@ const Legend = forwardRef(function Legend(
       distFromStart +=
         Math.sqrt((a.lat - b.lat) ** 2 + (a.lng - b.lng) ** 2) * 111319;
     }
+    setCompletedDistance(distFromStart);
     for (let i = 0; i < directions.length; i++) {
       if (
         directions[i].distance > distFromStart ||
@@ -879,6 +881,14 @@ const Legend = forwardRef(function Legend(
   const traffic = getTrafficInfo();
   const modeTimes = { walk: walkTime, bicycle: cycleTime, jogging: jogTime, car: carTime };
 
+  const AVG_STRIDE_M = 0.762;
+  const MET_VALUES = { walk: 3.8, jogging: 7.0, bicycle: 6.8, car: 1.8 };
+  const metValue = MET_VALUES[vehicleMode] || 3.8;
+  const steps = hasRoute ? Math.round(completedDistance / AVG_STRIDE_M) : 0;
+  const caloriesBurned = hasRoute ? Math.round(metValue * 68 * (completedDistance / 1000) / 60 * 60) : 0;
+  const totalSteps = hasRoute ? Math.round(distMeters / AVG_STRIDE_M) : 0;
+  const totalCalories = hasRoute ? Math.round(metValue * 68 * (distMeters / 1000) / 60 * 60) : 0;
+
   const getBarWidth = () => {
     if (traffic.level === "Heavy") return "100%";
     if (traffic.level === "Moderate") return "70%";
@@ -1050,7 +1060,8 @@ const Legend = forwardRef(function Legend(
                     <div className="legend-stat-mini">
                       <IconFlame className="w-4 h-4" color="#ef4444" />
                       <span className="stat-mini-label">Calories</span>
-                      <span className="stat-mini-value">—</span>
+                      <span className="stat-mini-value">{completedDistance > 0 ? `${caloriesBurned}` : totalCalories > 0 ? `0` : `—`}</span>
+                      {totalCalories > 0 && <span className="stat-mini-sub">/{totalCalories}</span>}
                     </div>
                     <div className="legend-stat-mini">
                       <IconMountain className="w-4 h-4" color="#8b5cf6" />
@@ -1060,7 +1071,8 @@ const Legend = forwardRef(function Legend(
                     <div className="legend-stat-mini">
                       <IconSteps className="w-4 h-4" color="#f59e0b" />
                       <span className="stat-mini-label">Steps</span>
-                      <span className="stat-mini-value">—</span>
+                      <span className="stat-mini-value">{completedDistance > 0 ? `${steps.toLocaleString()}` : totalSteps > 0 ? `0` : `—`}</span>
+                      {totalSteps > 0 && <span className="stat-mini-sub">/{totalSteps.toLocaleString()}</span>}
                     </div>
                     <div className="legend-stat-mini">
                       <IconRoad className="w-4 h-4" color="#6b7280" />

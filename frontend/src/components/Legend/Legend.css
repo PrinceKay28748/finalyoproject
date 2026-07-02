@@ -1195,6 +1195,7 @@ body.dragging-legend .leaflet-container {
 
 .ug-root.dark .stat-card-label,
 .ug-root.dark .stat-mini-label,
+.ug-root.dark .stat-mini-sub,
 .ug-root.dark .direction-distance,
 .ug-root.dark .legend-traffic-label { color: #9ca3af; }
 
@@ -1496,6 +1497,14 @@ body.dragging-legend .leaflet-container {
   font-size: 13px;
   font-weight: 700;
   color: var(--text);
+  line-height: 1.2;
+}
+
+.stat-mini-sub {
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--sub);
+  line-height: 1;
 }
 
 .ug-root.dark .legend-stats-row {
@@ -1605,6 +1614,7 @@ body.dragging-legend .leaflet-container {
   .legend-stat-mini svg { width: 16px; height: 16px; }
   .stat-mini-label { font-size: 8px; }
   .stat-mini-value { font-size: 11px; }
+  .stat-mini-sub { font-size: 7px; }
 }
 
 /* ── Desktop ─────────────────────────────────────────────────────────────── */
@@ -1653,6 +1663,7 @@ body.dragging-legend .leaflet-container {
   .legend-stat-mini svg { width: 18px; height: 18px; }
   .stat-mini-label { font-size: 9px; }
   .stat-mini-value { font-size: 12px; }
+  .stat-mini-sub { font-size: 8px; }
 
   .direction-icon { width: 26px; height: 26px; }
   .direction-icon svg { width: 13px; height: 13px; }
