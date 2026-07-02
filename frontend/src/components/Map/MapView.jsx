@@ -79,12 +79,14 @@ const SmartFitBounds = memo(function SmartFitBounds({
         else padding = [180, 180];
       }
 
-      const topPadding = isMobile ? padding[0] + 50 : padding[0] + 80;
-      const bottomPadding = isMobile ? padding[1] + 50 : padding[1] + 80;
-      const sidePadding = padding[1];
+      const basePad = padding[1];
+      const topPad = isMobile ? basePad + 50 : basePad + 80;
+      const botPad = isMobile ? basePad + 50 : basePad + 80;
 
-      map.fitBounds(bounds, {
-        padding: [topPadding, sidePadding, bottomPadding, sidePadding],
+      map.flyToBounds(bounds, {
+        padding: [topPad, basePad, botPad, basePad],
+        maxZoom: 18,
+        duration: 0.8,
       });
     } else if (startPoint && !destPoint) {
       map.flyTo([startPoint.lat, startPoint.lng], 16, { duration: 0.8 });
