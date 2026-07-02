@@ -265,6 +265,9 @@ export default function MapView({
           maxZoom={MAX_ZOOM}
           zoomControl={false}
           preferCanvas={true}
+          zoomSnap={0.5}
+          zoomDelta={0.5}
+          wheelPxPerZoomLevel={100}
           style={{ height: "100%", width: "100%" }}
         >
           <TileLayerSwitcher layer={mapLayer} />
