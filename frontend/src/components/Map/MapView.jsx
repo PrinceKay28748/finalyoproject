@@ -30,8 +30,16 @@ import "./MapView.css";
 
 import { ROUTE_COLORS } from "../../function/utils/colors";
 
-// Lazy-load the 3D map to avoid bundling maplibre-gl until needed
-const MapLibre3DView = lazy(() => import("./MapLibre3DView"));
+// Lazy-load the 3D map only when the user actually enables 3D mode.
+// If the module fails to load, keep the 2D experience intact instead of crashing.
+const SafeMapLibre3DView = lazy(async () => {
+  try {
+    return await import("./MapLibre3DView");
+  } catch (error) {
+    console.warn("[MapView] 3D map failed to load, falling back to 2D view:", error);
+    return { default: () => null };
+  }
+});
 
 // ── SmartFitBounds (memoized to prevent re-renders) ────────────────────────────
 const SmartFitBounds = memo(function SmartFitBounds({
@@ -359,23 +367,25 @@ export default function MapView({
       </div>
 
       {/* ── 3D MapLibre Map ─────────────────────────────────────────────── */}
-      <Suspense fallback={null}>
-        <MapLibre3DView
-          visible={is3DMode}
-          currentLocation={currentLocation}
-          flyTarget={flyTarget}
-          primaryRoute={primaryRoute}
-          alternativeRoutes={alternativeRoutes}
-          markersVisible={markersVisible}
-          startPoint={displayStartPoint}
-          destPoint={destPoint}
-          darkMode={darkMode}
-          onMapClick={onMapClick}
-          weather={weather}
-          showHeatmap={showHeatmap}
-          selectedHour={selectedHour}
-        />
-      </Suspense>
+      {is3DMode && (
+        <Suspense fallback={null}>
+          <SafeMapLibre3DView
+            visible={is3DMode}
+            currentLocation={currentLocation}
+            flyTarget={flyTarget}
+            primaryRoute={primaryRoute}
+            alternativeRoutes={alternativeRoutes}
+            markersVisible={markersVisible}
+            startPoint={displayStartPoint}
+            destPoint={destPoint}
+            darkMode={darkMode}
+            onMapClick={onMapClick}
+            weather={weather}
+            showHeatmap={showHeatmap}
+            selectedHour={selectedHour}
+          />
+        </Suspense>
+      )}
 
       {/* ── iOS-style Glassmorphism Floating Button Group ───────────────────── */}
       <FloatingButtonGroup
