@@ -1,8 +1,11 @@
+// hooks/useSmoothRoutePosition.js
 import { useState, useEffect, useRef } from 'react';
-import { findClosestPointOnRoute } from '../function/utils/geometry';
+import { findClosestPointOnRoute, distanceBetween } from '../function/utils/geometry';
 
 /**
  * Interpolates location along a route for a 60fps smooth "gliding" effect.
+ * Duration: 450ms, Easing: cubic-bezier(0.2, 0.9, 0.4, 1.1)
+ * Snaps instantly if GPS jump > 50 meters
  */
 export function useSmoothRoutePosition(coordinates, rawLocation, isActive) {
   const [state, setState] = useState({
@@ -17,50 +20,97 @@ export function useSmoothRoutePosition(coordinates, rawLocation, isActive) {
   const startTimeRef = useRef(0);
   const startPosRef = useRef(null);
   const targetPosRef = useRef(null);
+  const isFirstRunRef = useRef(true);
 
   const DURATION = 450;
   const SNAP_THRESHOLD = 50; // meters
 
   // Easing: cubic-bezier(0.2, 0.9, 0.4, 1.1)
   const ease = (t) => {
-    return t < 0.5 
-      ? 4.5 * t * t * t 
-      : 1 - Math.pow(-2 * t + 2, 3) / 2; // Approximated
+    if (t < 0.5) {
+      return 4.5 * t * t * t;
+    }
+    return 1 - Math.pow(-2 * t + 2, 3) / 2;
   };
 
   useEffect(() => {
-    if (!isActive || !rawLocation || !coordinates?.length) return;
+    // Skip if not active or missing data
+    if (!isActive || !rawLocation || !coordinates?.length) {
+      setState(prev => ({ ...prev, isAnimating: false }));
+      return;
+    }
 
-    // Defensive check for geometry result
-    const result = findClosestPointOnRoute(rawLocation.lat, rawLocation.lng, coordinates) || {};
-    const closestPoint = result.closestPoint;
+    // Find closest point on route
+    const result = findClosestPointOnRoute(rawLocation.lat, rawLocation.lng, coordinates);
+    const closestPoint = result.closestIndex >= 0 && coordinates[result.closestIndex] 
+      ? coordinates[result.closestIndex] 
+      : null;
     const closestIndex = result.closestIndex || 0;
 
-    const hasValidPosition = state.position && typeof state.position.lat === 'number';
+    // If no closest point found, keep current state
+    if (!closestPoint) {
+      return;
+    }
 
-    // If point not found or large jump/initial state, snap instead of glide
-    const dist = lastRawRef.current ? Math.sqrt(
-      Math.pow(rawLocation.lat - lastRawRef.current.lat, 2) + 
-      Math.pow(rawLocation.lng - lastRawRef.current.lng, 2)
-    ) * 111319 : 0;
+    // Check if this is first run or large jump
+    let shouldSnap = isFirstRunRef.current;
+    
+    if (lastRawRef.current) {
+      const dist = distanceBetween(
+        rawLocation.lat, 
+        rawLocation.lng,
+        lastRawRef.current.lat,
+        lastRawRef.current.lng
+      );
+      
+      if (dist > SNAP_THRESHOLD) {
+        shouldSnap = true;
+      }
+    }
 
-    if (!closestPoint || dist > SNAP_THRESHOLD || !hasValidPosition) {
-      // Fallback to rawLocation if closestPoint is undefined to prevent poisoning state with undefined
-      setState({ 
-        position: closestPoint || rawLocation, 
-        index: closestIndex, 
-        progressRatio: 0, 
-        isAnimating: false 
+    // Cancel any ongoing animation
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
+    }
+
+    // If first run or large jump, snap instantly
+    if (shouldSnap) {
+      setState({
+        position: closestPoint,
+        index: closestIndex,
+        progressRatio: 1,
+        isAnimating: false
+      });
+      
+      lastRawRef.current = rawLocation;
+      startPosRef.current = closestPoint;
+      targetPosRef.current = closestPoint;
+      isFirstRunRef.current = false;
+      return;
+    }
+
+    // Store starting position (current state position or fallback)
+    const startPosition = state.position || closestPoint;
+    
+    // If start and target are the same, no need to animate
+    if (startPosition.lat === closestPoint.lat && startPosition.lng === closestPoint.lng) {
+      setState({
+        position: closestPoint,
+        index: closestIndex,
+        progressRatio: 1,
+        isAnimating: false
       });
       lastRawRef.current = rawLocation;
       return;
     }
 
-    // Start transition
-    startPosRef.current = state.position;
+    // Start smooth animation
+    startPosRef.current = startPosition;
     targetPosRef.current = closestPoint;
     startTimeRef.current = performance.now();
     lastRawRef.current = rawLocation;
+    isFirstRunRef.current = false;
 
     const animate = (now) => {
       if (!startPosRef.current || !targetPosRef.current) {
@@ -84,13 +134,33 @@ export function useSmoothRoutePosition(coordinates, rawLocation, isActive) {
 
       if (progress < 1) {
         animationRef.current = requestAnimationFrame(animate);
+      } else {
+        // Final snap to exact target
+        setState({
+          position: targetPosRef.current,
+          index: closestIndex,
+          progressRatio: 1,
+          isAnimating: false
+        });
+        animationRef.current = null;
       }
     };
 
     animationRef.current = requestAnimationFrame(animate);
 
-    return () => cancelAnimationFrame(animationRef.current);
-  }, [rawLocation?.lat, rawLocation?.lng, coordinates, isActive]);
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+      }
+    };
+  }, [
+    rawLocation?.lat,
+    rawLocation?.lng,
+    coordinates,
+    isActive,
+    // Only include the raw location reference, not the entire object
+  ]);
 
   return state;
 }
