@@ -380,7 +380,7 @@ const Legend = forwardRef(function Legend(
     setIndicatorWidth(btnRect.width);
   }, [vehicleMode]);
 
-  useLayoutEffect(() => { updateIndicator(); }, [updateIndicator]);
+  useLayoutEffect(() => { updateIndicator(); }, [updateIndicator, hasRoute]);
 
   useEffect(() => {
     const strip = modeStripRef.current;
