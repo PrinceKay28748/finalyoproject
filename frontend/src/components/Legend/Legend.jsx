@@ -344,6 +344,8 @@ const Legend = forwardRef(function Legend(
     useState(true);
   const [activeTab, setActiveTab] = useState("stats");
 
+  const hasRoute = Boolean(route && route.totalDistance);
+
   // ── Drag state refs (never cause re-renders) ─────────────────────────────
   const dragStartY = useRef(0);
   const dragStartScrollTop = useRef(0);
@@ -863,7 +865,6 @@ const Legend = forwardRef(function Legend(
   // ── Render ───────────────────────────────────────────────────────────────
   if (!visible) return null;
 
-  const hasRoute = route && route.totalDistance;
   const distMeters = hasRoute ? route.totalDistance : null;
   const isFallback = route?.isFallback || false;
   const hasWarnings = warnings.length > 0;
