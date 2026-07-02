@@ -1,35 +1,45 @@
 // hooks/useSmoothRoutePosition.js
 import { useState, useEffect, useRef } from 'react';
 
-// Dynamically import geometry functions to break circular dependency
-let geometryModule = null;
-let geometryLoading = false;
-let geometryLoadPromise = null;
+// Inline all geometry functions - no imports
 
-const loadGeometry = () => {
-  if (geometryModule) return Promise.resolve(geometryModule);
-  if (geometryLoading) return geometryLoadPromise;
+/**
+ * Distance between two coordinates in meters
+ */
+function distanceBetween(lat1, lng1, lat2, lng2) {
+  const dx = (lat1 - lat2) * 111319;
+  const dy = (lng1 - lng2) * 85200;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+/**
+ * Find closest point on route
+ */
+function findClosestPointOnRoute(lat, lng, coordinates) {
+  if (!coordinates?.length) {
+    return { closestIndex: -1, distanceToRoute: Infinity, distanceFromStart: 0 };
+  }
   
-  geometryLoading = true;
-  geometryLoadPromise = import('../function/utils/geometry')
-    .then((module) => {
-      geometryModule = module;
-      geometryLoading = false;
-      return module;
-    })
-    .catch((err) => {
-      console.error('[useSmoothRoutePosition] Failed to load geometry:', err);
-      geometryLoading = false;
-      throw err;
-    });
+  let closestIndex = 0;
+  let minDistance = Infinity;
   
-  return geometryLoadPromise;
-};
+  for (let i = 0; i < coordinates.length; i++) {
+    const d = distanceBetween(lat, lng, coordinates[i].lat, coordinates[i].lng);
+    if (d < minDistance) {
+      minDistance = d;
+      closestIndex = i;
+    }
+  }
+  
+  return { 
+    closestIndex, 
+    distanceToRoute: minDistance, 
+    distanceFromStart: 0 
+  };
+}
 
 /**
  * Interpolates location along a route for a 60fps smooth "gliding" effect.
- * Duration: 450ms, Easing: cubic-bezier(0.2, 0.9, 0.4, 1.1)
- * Snaps instantly if GPS jump > 50 meters
  */
 export function useSmoothRoutePosition(coordinates, rawLocation, isActive) {
   const [state, setState] = useState({
@@ -45,112 +55,42 @@ export function useSmoothRoutePosition(coordinates, rawLocation, isActive) {
   const startPosRef = useRef(null);
   const targetPosRef = useRef(null);
   const isFirstRunRef = useRef(true);
-  const geometryRef = useRef(null);
-
-  // Load geometry on first render
-  useEffect(() => {
-    loadGeometry()
-      .then((module) => {
-        geometryRef.current = module;
-      })
-      .catch((err) => {
-        console.error('[useSmoothRoutePosition] Geometry load error:', err);
-      });
-  }, []);
 
   const DURATION = 450;
-  const SNAP_THRESHOLD = 50; // meters
+  const SNAP_THRESHOLD = 50;
 
-  // Easing: cubic-bezier(0.2, 0.9, 0.4, 1.1)
   const ease = (t) => {
-    if (t < 0.5) {
-      return 4.5 * t * t * t;
-    }
+    if (t < 0.5) return 4.5 * t * t * t;
     return 1 - Math.pow(-2 * t + 2, 3) / 2;
   };
 
-  // Calculate distance between two points in meters (inline fallback)
-  const distanceBetweenFallback = (lat1, lng1, lat2, lng2) => {
-    const dx = (lat1 - lat2) * 111319;
-    const dy = (lng1 - lng2) * 85200;
-    return Math.sqrt(dx * dx + dy * dy);
-  };
-
-  // Find closest point on route (inline fallback)
-  const findClosestPointFallback = (lat, lng, coords) => {
-    if (!coords?.length) {
-      return { closestIndex: -1, distanceToRoute: Infinity, distanceFromStart: 0 };
-    }
-    
-    let closestIndex = 0;
-    let minDistance = Infinity;
-    
-    for (let i = 0; i < coords.length; i++) {
-      const d = distanceBetweenFallback(lat, lng, coords[i].lat, coords[i].lng);
-      if (d < minDistance) {
-        minDistance = d;
-        closestIndex = i;
-      }
-    }
-    
-    return { 
-      closestIndex, 
-      distanceToRoute: minDistance, 
-      distanceFromStart: 0 
-    };
-  };
-
   useEffect(() => {
-    // Skip if not active or missing data
     if (!isActive || !rawLocation || !coordinates?.length) {
       setState(prev => ({ ...prev, isAnimating: false }));
       return;
     }
 
-    // Use geometry module if loaded, otherwise fallback
-    const geo = geometryRef.current;
-    let result;
-    let distFunc;
-    
-    if (geo) {
-      result = geo.findClosestPointOnRoute(rawLocation.lat, rawLocation.lng, coordinates);
-      distFunc = geo.distanceBetween || distanceBetweenFallback;
-    } else {
-      result = findClosestPointFallback(rawLocation.lat, rawLocation.lng, coordinates);
-      distFunc = distanceBetweenFallback;
-    }
-    
+    const result = findClosestPointOnRoute(rawLocation.lat, rawLocation.lng, coordinates);
     const closestIndex = result.closestIndex || 0;
     const closestPoint = coordinates[closestIndex] || null;
 
-    // If no closest point found, keep current state
-    if (!closestPoint) {
-      return;
-    }
+    if (!closestPoint) return;
 
-    // Check if this is first run or large jump
     let shouldSnap = isFirstRunRef.current;
     
     if (lastRawRef.current) {
-      const dist = distFunc(
-        rawLocation.lat, 
-        rawLocation.lng,
-        lastRawRef.current.lat,
-        lastRawRef.current.lng
+      const dist = distanceBetween(
+        rawLocation.lat, rawLocation.lng,
+        lastRawRef.current.lat, lastRawRef.current.lng
       );
-      
-      if (dist > SNAP_THRESHOLD) {
-        shouldSnap = true;
-      }
+      if (dist > SNAP_THRESHOLD) shouldSnap = true;
     }
 
-    // Cancel any ongoing animation
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current);
       animationRef.current = null;
     }
 
-    // If first run or large jump, snap instantly
     if (shouldSnap) {
       setState({
         position: closestPoint,
@@ -158,7 +98,6 @@ export function useSmoothRoutePosition(coordinates, rawLocation, isActive) {
         progressRatio: 1,
         isAnimating: false
       });
-      
       lastRawRef.current = rawLocation;
       startPosRef.current = closestPoint;
       targetPosRef.current = closestPoint;
@@ -166,10 +105,8 @@ export function useSmoothRoutePosition(coordinates, rawLocation, isActive) {
       return;
     }
 
-    // Store starting position (current state position or fallback)
     const startPosition = state.position || closestPoint;
     
-    // If start and target are the same, no need to animate
     if (startPosition.lat === closestPoint.lat && startPosition.lng === closestPoint.lng) {
       setState({
         position: closestPoint,
@@ -181,7 +118,6 @@ export function useSmoothRoutePosition(coordinates, rawLocation, isActive) {
       return;
     }
 
-    // Start smooth animation
     startPosRef.current = startPosition;
     targetPosRef.current = closestPoint;
     startTimeRef.current = performance.now();
@@ -211,7 +147,6 @@ export function useSmoothRoutePosition(coordinates, rawLocation, isActive) {
       if (progress < 1) {
         animationRef.current = requestAnimationFrame(animate);
       } else {
-        // Final snap to exact target
         setState({
           position: targetPosRef.current,
           index: closestIndex,
@@ -230,14 +165,7 @@ export function useSmoothRoutePosition(coordinates, rawLocation, isActive) {
         animationRef.current = null;
       }
     };
-  }, [
-    rawLocation?.lat,
-    rawLocation?.lng,
-    coordinates,
-    isActive,
-    // Include geometry ref as dependency
-    geometryRef.current
-  ]);
+  }, [rawLocation?.lat, rawLocation?.lng, coordinates, isActive]);
 
   return state;
 }
