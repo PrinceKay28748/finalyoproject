@@ -1,42 +1,6 @@
 // hooks/useSmoothRoutePosition.js
 import { useState, useEffect, useRef } from 'react';
-
-// Inline all geometry functions - no imports
-
-/**
- * Distance between two coordinates in meters
- */
-function distanceBetween(lat1, lng1, lat2, lng2) {
-  const dx = (lat1 - lat2) * 111319;
-  const dy = (lng1 - lng2) * 85200;
-  return Math.sqrt(dx * dx + dy * dy);
-}
-
-/**
- * Find closest point on route
- */
-function findClosestPointOnRoute(lat, lng, coordinates) {
-  if (!coordinates?.length) {
-    return { closestIndex: -1, distanceToRoute: Infinity, distanceFromStart: 0 };
-  }
-  
-  let closestIndex = 0;
-  let minDistance = Infinity;
-  
-  for (let i = 0; i < coordinates.length; i++) {
-    const d = distanceBetween(lat, lng, coordinates[i].lat, coordinates[i].lng);
-    if (d < minDistance) {
-      minDistance = d;
-      closestIndex = i;
-    }
-  }
-  
-  return { 
-    closestIndex, 
-    distanceToRoute: minDistance, 
-    distanceFromStart: 0 
-  };
-}
+import { findClosestPointOnRoute, distanceBetween } from '../function/utils/geometry';
 
 /**
  * Interpolates location along a route for a 60fps smooth "gliding" effect.

@@ -36,8 +36,8 @@ export default defineConfig({
         }
       }
     },
-    // Don't minify identifiers that might cause conflicts
-    minifyIdentifiers: true,
+    // Don't minify identifiers to prevent variable naming conflicts and initialization order issues
+    minifyIdentifiers: false,
     // Ensure sourcemaps for debugging (optional)
     sourcemap: false
   },
