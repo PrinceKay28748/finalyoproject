@@ -32,10 +32,7 @@ export default defineConfig({
           if (id.includes('node_modules/react')) {
             return 'vendor';
           }
-          // Isolate the problematic modules
-          if (id.includes('useVoiceGuidance') || id.includes('useWeather')) {
-            return 'voice';
-          }
+
         }
       }
     },
