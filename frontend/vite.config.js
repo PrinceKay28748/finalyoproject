@@ -17,8 +17,10 @@ export default defineConfig({
   },
   
   build: {
-    // Use esbuild (default, faster) but with specific settings
-    minify: 'esbuild',
+    // Disable minification for now to avoid the production-only module initialization bug
+    // seen in the deployed bundle. The app remains fully functional and this is safer
+    // than shipping a minified chunk that can fail during module evaluation.
+    minify: false,
     target: 'es2020',
     rollupOptions: {
       output: {
@@ -36,7 +38,7 @@ export default defineConfig({
         }
       }
     },
-    // Don't minify identifiers to prevent variable naming conflicts and initialization order issues
+    // Keep identifiers readable to avoid the minifier-generated initialization ordering issue
     minifyIdentifiers: false,
     // Ensure sourcemaps for debugging (optional)
     sourcemap: false
