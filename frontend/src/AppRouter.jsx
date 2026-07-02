@@ -15,7 +15,11 @@ function ProtectedRoute({ children }) {
   if (isLoading) {
     return (
       <div className="map-loader">
-        <div className="map-loader-spinner" />
+        <div className="three-dot-loader">
+          <span className="dot" />
+          <span className="dot" />
+          <span className="dot" />
+        </div>
         <p>Loading...</p>
       </div>
     );
@@ -35,7 +39,11 @@ function AdminRoute({ children }) {
   if (isLoading) {
     return (
       <div className="map-loader">
-        <div className="map-loader-spinner" />
+        <div className="three-dot-loader">
+          <span className="dot" />
+          <span className="dot" />
+          <span className="dot" />
+        </div>
         <p>Loading...</p>
       </div>
     );

@@ -21,7 +21,11 @@ const MapView = lazy(() => import("./components/Map/MapView"));
 function MapLoader() {
   return (
     <div className="map-loader">
-      <div className="map-loader-spinner" />
+      <div className="three-dot-loader">
+        <span className="dot" />
+        <span className="dot" />
+        <span className="dot" />
+      </div>
       <p>Loading map...</p>
     </div>
   );

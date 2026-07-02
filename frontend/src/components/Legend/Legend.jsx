@@ -30,7 +30,6 @@ import {
   IconDirections,
   IconArrowsRightLeft,
   IconSpeakerWave,
-  IconSearch,
 } from "../ui/icon";
 import { useVoiceGuidance } from "../../hooks/useVoiceGuidance";
 import { useFocus } from "../../context/FocusContext";
@@ -916,7 +915,11 @@ const Legend = forwardRef(function Legend(
         {/* Peek hint (above mode strip) */}
         {!hasRoute ? (
           <div className="legend-peek-hint">
-            <IconSearch className="w-3.5 h-3.5" color="#9ca3af" />
+            <div className="three-dot-loader">
+              <span className="dot" />
+              <span className="dot" />
+              <span className="dot" />
+            </div>
             <span>Search for a destination to get directions</span>
           </div>
         ) : (
@@ -976,7 +979,11 @@ const Legend = forwardRef(function Legend(
           {!hasRoute ? (
             <div className="legend-empty-route">
               <div className="empty-route-icon">
-                <IconSearch className="w-10 h-10" color="#d1d5db" />
+                <div className="three-dot-loader three-dot-loader--lg">
+                  <span className="dot" />
+                  <span className="dot" />
+                  <span className="dot" />
+                </div>
               </div>
               <h3 className="empty-route-title">Be in the know</h3>
               <p className="empty-route-text">

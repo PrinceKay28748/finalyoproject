@@ -16,6 +16,40 @@ html, body, #root {
 @keyframes ugspin {
   to { transform: rotate(360deg); }
 }
+
+/* Three-dot loading animation */
+.three-dot-loader {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 16px;
+}
+
+.three-dot-loader .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #9ca3af;
+  animation: dot-bounce 1.4s ease-in-out infinite both;
+}
+
+.three-dot-loader .dot:nth-child(1) { animation-delay: 0s; }
+.three-dot-loader .dot:nth-child(2) { animation-delay: 0.16s; }
+.three-dot-loader .dot:nth-child(3) { animation-delay: 0.32s; }
+
+.three-dot-loader--lg .dot {
+  width: 10px;
+  height: 10px;
+  background: #d1d5db;
+}
+
+@keyframes dot-bounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40%           { transform: scale(1);   opacity: 1;   }
+}
+
+.ug-root.dark .three-dot-loader .dot { background: #6b7280; }
+.ug-root.dark .three-dot-loader--lg .dot { background: #9ca3af; }
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -101,7 +135,6 @@ html, body, #root {
 /* Elements that must NOT inherit the colour transition —
    they have their own animation or transform-based transition */
 .ug-location-dot::after,
-.map-loader-spinner,
 .nav-spinner,
 .searchbox-spinner,
 .searchbox-spinner-inline,
@@ -218,11 +251,3 @@ html, body, #root {
   font-weight: 500;
 }
 
-.map-loader-spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid var(--border);
-  border-top-color: #2563eb;
-  border-radius: 50%;
-  animation: ugspin 0.8s linear infinite;
-}
